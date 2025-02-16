@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useHolterData } from '../../hooks/useHolterData';
 import { DataGrid, type Column } from '../shared/DataGrid';
-import type { HolterStudy } from '../../types';
+import type { HolterStudy } from '../../types/domain/holter';
 
 const QUICK_FILTERS = [
     { id: 'bad-quality', label: 'Bad Quality (&lt;0.5)', icon: AlertTriangle },

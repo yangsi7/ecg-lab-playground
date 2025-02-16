@@ -1,37 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { logger } from '../lib/logger';
-
-/**
- * ECGData
- * Represents the final wave data from the Edge Function "downsample-ecg" or a similar endpoint.
- */
-export interface ECGData {
-  sample_time: string;
-  downsampled_channel_1: number;
-  downsampled_channel_2: number;
-  downsampled_channel_3: number;
-  lead_on_p_1: boolean;
-  lead_on_p_2: boolean;
-  lead_on_p_3: boolean;
-  lead_on_n_1: boolean;
-  lead_on_n_2: boolean;
-  lead_on_n_3: boolean;
-  quality_1: boolean;
-  quality_2: boolean;
-  quality_3: boolean;
-}
-
-interface ECGQueryOptions {
-  podId: string;
-  timeStart: string;
-  timeEnd: string;
-  maxPoints?: number;
-}
+import { supabase } from '../lib/supabase';
+import type { ECGData, ECGQueryOptions } from '../types/domain/ecg';
+import { toECGData } from '../types/domain/ecg';
 
 /**
  * useECGData
- * - Performs a fetch directly to the Edge Function via a fetch POST request.
- * - Example usage: if you want more direct control vs. supabase.functions.invoke
+ * - Uses Supabase Edge Function to fetch downsampled ECG data
  */
 export function useECGData(options: ECGQueryOptions) {
   const [data, setData] = useState<ECGData[]>([]);
@@ -39,20 +14,25 @@ export function useECGData(options: ECGQueryOptions) {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { podId, timeStart, timeEnd, maxPoints = 2000 } = options;
+  const { pod_id, time_start, time_end, max_pts = 2000 } = {
+    pod_id: options.podId,
+    time_start: options.timeStart,
+    time_end: options.timeEnd,
+    max_pts: options.maxPoints
+  };
 
   // Prepare request body once
   const requestBody = useMemo(() => ({
-    pod_id: podId,
-    time_start: timeStart,
-    time_end: timeEnd,
-    max_pts: maxPoints
-  }), [podId, timeStart, timeEnd, maxPoints]);
+    pod_id,
+    time_start,
+    time_end,
+    max_pts
+  }), [pod_id, time_start, time_end, max_pts]);
 
   const fetchECG = useCallback(async () => {
     // If missing required fields => skip
-    if (!podId || !timeStart || !timeEnd) {
-      setError("Missing podId or time range");
+    if (!pod_id || !time_start || !time_end) {
+      setError("Missing pod_id or time range");
       setData([]);
       setLoading(false);
       return;
@@ -69,40 +49,28 @@ export function useECGData(options: ECGQueryOptions) {
     abortRef.current = new AbortController();
 
     try {
-      logger.info("useECGData: requesting ECG data (fetch) from downsample-ecg function", requestBody);
+      logger.info("useECGData: requesting ECG data from downsample-ecg function", requestBody);
 
-      const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/downsample-ecg`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // Possibly also pass an Auth bearer if needed:
-            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify(requestBody),
-          signal: abortRef.current.signal
-        }
-      );
+      const { data: json, error: fnError } = await supabase.functions.invoke('downsample-ecg', {
+        body: requestBody,
+      });
 
-      if (!resp.ok) {
-        throw new Error(`HTTP error from Edge Function: ${resp.status}`);
+      if (fnError) {
+        throw fnError;
       }
 
-      const json = await resp.json();
       if (!Array.isArray(json)) {
         throw new Error("Downsample ECG response is not an array");
       }
 
-      // Sort data by time ascending
-      json.sort(
-        (a: ECGData, b: ECGData) =>
-          new Date(a.sample_time).getTime() - new Date(b.sample_time).getTime()
+      // Transform raw data to domain type and sort by time ascending
+      const ecgData = json.map(toECGData).sort(
+        (a, b) => new Date(a.sample_time).getTime() - new Date(b.sample_time).getTime()
       );
 
-      logger.info(`useECGData: loaded ${json.length} points.`, { podId, timeRange: [timeStart, timeEnd] });
+      logger.info(`useECGData: loaded ${ecgData.length} points.`, { pod_id, timeRange: [time_start, time_end] });
 
-      setData(json);
+      setData(ecgData);
     } catch (err: any) {
       if (err.name === "AbortError") {
         logger.info("useECGData: fetch aborted");
@@ -113,7 +81,7 @@ export function useECGData(options: ECGQueryOptions) {
     } finally {
       setLoading(false);
     }
-  }, [requestBody, podId, timeStart, timeEnd]);
+  }, [requestBody, pod_id, time_start, time_end]);
 
   useEffect(() => {
     fetchECG();
