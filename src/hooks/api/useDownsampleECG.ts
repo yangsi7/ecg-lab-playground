@@ -6,8 +6,9 @@
  * Factor is clamped in the DB function to [1..3].
  */
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { logger } from '../lib/logger'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../../lib/supabase'
+import { logger } from '../../lib/logger'
 
 export interface DownsamplePoint {
     sample_time: string;

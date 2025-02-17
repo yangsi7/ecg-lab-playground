@@ -1,9 +1,10 @@
 // src/hooks/useDataQueries.ts
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase'; 
-import { logger } from '../lib/logger';
-import { useDebounce } from './useDebounce';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase'; 
+import { logger } from '../../lib/logger';
+import { useDebounce } from '../ui/useDebounce';
 
 interface DataFilters {
     search?: string;

@@ -332,6 +332,120 @@ export type Database = {
           bad_hours: number
         }[]
       }
+      get_clinic_overview: {
+        Args: { _clinic_id: string };
+        Returns: Array<{
+          active_studies: number;
+          total_studies: number;
+          average_quality_hours: number;
+          recent_alerts: string | null;
+        }>;
+      };
+      get_clinic_status_breakdown: {
+        Args: { _clinic_id: string | null };
+        Returns: Array<{
+          clinic_id: string | null;
+          clinic_name: string | null;
+          total_studies: number;
+          open_studies: number;
+          intervene_count: number;
+          monitor_count: number;
+          on_target_count: number;
+          near_completion_count: number;
+          needs_extension_count: number;
+        }>;
+      };
+      get_clinic_quality_breakdown: {
+        Args: { _clinic_id: string | null };
+        Returns: Array<{
+          clinic_id: string | null;
+          clinic_name: string | null;
+          total_studies: number;
+          open_studies: number;
+          average_quality: number;
+          good_count: number;
+          soso_count: number;
+          bad_count: number;
+          critical_count: number;
+        }>;
+      };
+      get_clinic_weekly_quality: {
+        Args: { _clinic_id: string };
+        Returns: Array<{
+          week_start: string | null;
+          average_quality: number;
+        }>;
+      };
+      get_clinic_monthly_quality: {
+        Args: { _clinic_id: string };
+        Returns: Array<{
+          month_start: string | null;
+          average_quality: number;
+        }>;
+      };
+      get_clinic_weekly_studies: {
+        Args: { _clinic_id: string };
+        Returns: Array<{
+          week_start: string | null;
+          open_studies: number;
+        }>;
+      };
+      get_clinic_monthly_studies: {
+        Args: { _clinic_id: string };
+        Returns: Array<{
+          month_start: string | null;
+          open_studies: number;
+        }>;
+      };
+      get_weekly_active_studies: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          week_start: string | null;
+          active_study_count: number;
+        }>;
+      };
+      get_weekly_avg_quality: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          week_start: string | null;
+          average_quality: number;
+        }>;
+      };
+      get_per_clinic_breakdown: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          clinic_id: string | null;
+          clinic_name: string | null;
+          total_active_studies: number;
+          intervene_count: number;
+          monitor_count: number;
+          on_target_count: number;
+          average_quality: number;
+        }>;
+      };
+      get_new_studies_and_growth: {
+        Args: Record<string, never>;
+        Returns: Array<{
+          new_studies: number;
+          growth_percent: number;
+        }>;
+      };
+      get_study_list_with_earliest_latest: {
+        Args: {
+          p_search: string | undefined;
+          p_offset: number;
+          p_limit: number;
+        };
+        Returns: Array<{
+          study_id: string;
+          pod_id: string;
+          start_timestamp: string;
+          end_timestamp: string;
+          earliest_time: string;
+          latest_time: string;
+          total_count: number;
+        }>;
+      };
     }
   }
 } 

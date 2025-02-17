@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
-import type { SupabaseRow } from '../types/utils';
+import { supabase } from '../../lib/supabase';
+import type { SupabaseRow } from '../../types/utils';
 import { useTableStore } from '../store/tableStore';
 
 export type PodData = SupabaseRow<'pod'>;

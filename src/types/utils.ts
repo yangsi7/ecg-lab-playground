@@ -8,7 +8,7 @@
  * 4. Common type operations (Required, Optional, etc.)
  */
 
-import type { Database } from '../supabase/types/database.types';
+import type { Database } from './database.types';
 
 /**
  * Helper type to extract Row types from Database tables

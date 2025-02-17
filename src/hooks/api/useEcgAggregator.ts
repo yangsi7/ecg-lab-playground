@@ -1,19 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../lib/supabase';
 import { logger } from '../../lib/logger';
+import { Database } from '../../types/database.types';
 
-export interface ECGAggregateData {
-  time_bucket: string;
-  lead_on_p_1: number;
-  lead_on_n_1: number;
-  lead_on_p_2: number;
-  lead_on_n_2: number;
-  lead_on_p_3: number;
-  lead_on_n_3: number;
-  quality_1_percent: number;
-  quality_2_percent: number;
-  quality_3_percent: number;
-}
+type AggregateLeadsResult = Database['public']['Functions']['aggregate_leads']['Returns'][0];
 
 export type TimeInterval = 'hourly' | 'daily';
 
@@ -27,7 +17,7 @@ export interface ECGAggregateFilter {
 }
 
 export interface ECGAggregateSort {
-  field: keyof ECGAggregateData;
+  field: keyof AggregateLeadsResult;
   direction: 'asc' | 'desc';
 }
 
@@ -42,7 +32,7 @@ export interface UseECGAggregatorOptions {
 }
 
 export interface ECGAggregateResponse {
-  data: ECGAggregateData[];
+  data: AggregateLeadsResult[];
   count: number;
 }
 
@@ -60,17 +50,10 @@ const fetchECGAggregates = async ({
   const { data, error, count } = await supabase
     .rpc('aggregate_leads', {
       p_pod_id: podId,
-      p_time_start: filter?.time_range?.start,
-      p_time_end: filter?.time_range?.end,
-      p_bucket_seconds: bucketSeconds,
-      p_quality_threshold: filter?.quality_threshold,
-      p_lead_on_threshold: filter?.lead_on_threshold,
-      p_limit: pageSize,
-      p_offset: offset,
-      p_sort_field: sort?.field,
-      p_sort_direction: sort?.direction,
-    })
-    .returns<ECGAggregateData[]>();
+      p_time_start: filter?.time_range?.start ?? '',
+      p_time_end: filter?.time_range?.end ?? '',
+      p_bucket_seconds: bucketSeconds
+    });
 
   if (error) {
     throw new Error(`Failed to fetch ECG aggregates: ${error.message}`);
@@ -82,14 +65,52 @@ const fetchECGAggregates = async ({
   };
 };
 
-export function useECGAggregator(options: UseECGAggregatorOptions) {
-  const queryKey = ['ecgAggregates', options];
+export function useECGAggregator(options?: UseECGAggregatorOptions) {
+  const aggregateLeads = async (
+    podId: string,
+    timeStart: string,
+    timeEnd: string,
+    bucketSeconds: number
+  ): Promise<AggregateLeadsResult[]> => {
+    try {
+      const { data, error } = await supabase.rpc('aggregate_leads', {
+        p_pod_id: podId,
+        p_time_start: timeStart,
+        p_time_end: timeEnd,
+        p_bucket_seconds: bucketSeconds,
+      });
 
-  return useQuery({
-    queryKey,
-    queryFn: () => fetchECGAggregates(options),
-    placeholderData: (previousData) => previousData,
-    gcTime: 5 * 60 * 1000, // Cache for 5 minutes
-    staleTime: 30000, // Consider data fresh for 30 seconds
-  });
+      if (error) {
+        logger.error('Error aggregating leads:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      logger.error('Error in useECGAggregator:', error);
+      throw error;
+    }
+  };
+
+  // If options are provided, return the query hook functionality
+  if (options) {
+    const queryKey = ['ecgAggregates', options];
+    const query = useQuery({
+      queryKey,
+      queryFn: () => fetchECGAggregates(options),
+      placeholderData: (previousData) => previousData,
+      gcTime: 5 * 60 * 1000, // Cache for 5 minutes
+      staleTime: 30000, // Consider data fresh for 30 seconds
+    });
+
+    return {
+      ...query,
+      aggregateLeads,
+    };
+  }
+
+  // If no options, return just the aggregateLeads function
+  return {
+    aggregateLeads,
+  };
 }

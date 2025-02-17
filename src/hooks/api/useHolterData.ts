@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { useTableStore } from '../store/tableStore';
-import { queryTable } from '../lib/supabase';
-import { toHolterStudy } from '../types/domain/holter';
-import type { HolterStudy } from '../types/domain/holter';
-import type { StudyRow } from '../lib/supabase';
-import type { SupabaseRow } from '../types/utils';
+import { queryTable } from '../../lib/supabase';
+import { toHolterStudy } from '../../types/domain/holter';
+import type { HolterStudy } from '../../types/domain/holter';
+import type { StudyRow } from '../../lib/supabase/client';
+import type { SupabaseRow } from '../../types/utils';
 
 interface UseHolterDataResult {
   studies: HolterStudy[];

@@ -6,9 +6,9 @@
  */
 
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { logger } from '../lib/logger'
-import type { Database } from '../types/database.types'
+import { supabase } from '../../lib/supabase'
+import { logger } from '../../lib/logger'
+import type { Database } from '../../types/database.types'
 import type {
   ClinicAnalyticsResult,
   ClinicOverview,
@@ -18,7 +18,7 @@ import type {
   WeeklyMonthlyStudies,
   WeeklyHistogramPoint,
   ClinicStatsRow
-} from '../types/domain/clinic'
+} from '../../types/domain/clinic'
 
 // Database function return types
 type ClinicOverviewRow = Database['public']['Functions']['get_clinic_overview']['Returns'][0]
