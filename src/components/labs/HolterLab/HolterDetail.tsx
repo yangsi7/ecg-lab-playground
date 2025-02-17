@@ -1,60 +1,249 @@
 /********************************************************************
- * FILE: src/components/labs/HolterDetail.tsx
+ * FILE: src/components/labs/HolterLab/HolterDetail.tsx
  * 
  * Another version that uses aggregator or fetches data, 
  * then can open an aggregator-based "ECGViewer" or
  * the new "ECGViewerModal" if desired.
  ********************************************************************/
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { fetchStudyById } from '../../supabase/rpc/study';
-import { ECGViewer } from '../../components/shared/ecg/ECGViewer';
+import { supabase } from '../../../lib/supabase';
+import { ECGViewer } from '../../shared/ecg/ECGViewer';
+import { HolterHeader } from './components/HolterHeader';
+import { HolterHistogram24h } from './components/HolterHistogram24h';
+import { CalendarSelectorPodDays } from './components/CalendarSelectorPodDays';
+import { useECGAggregates } from '../../../hooks/api/useECGAggregates';
+import { logger } from '../../../lib/logger';
+
+// Add type definitions at the top of the file
+type StudyStatus = 'active' | 'error' | 'interrupted' | 'completed';
+
+interface StudyDetails {
+    study_id: string;
+    clinic_id: string;
+    pod_id: string;
+    start_timestamp: string;
+    end_timestamp: string;
+    earliest_time: string;
+    latest_time: string;
+    user_id?: string;
+}
+
+interface StudyDiagnostics {
+    quality_fraction_variability: number;
+    total_minute_variability: number;
+    interruptions: number;
+    bad_hours: number;
+}
+
+interface EnhancedStudyDetails extends StudyDetails {
+    auto_open_ecg: boolean;
+    patient_id: string;
+    clinic_name: string;
+    status: StudyStatus;
+    interruption_count: number;
+    six_hour_variance: number;
+    available_days: string[];
+    diagnostics?: StudyDiagnostics;
+}
+
+interface RPCStudyDetailsResponse {
+    study_id: string;
+    clinic_id: string;
+    pod_id: string;
+    start_timestamp: string;
+    end_timestamp: string;
+    earliest_time: string;
+    latest_time: string;
+    user_id?: string;
+}
+
+interface RPCStudyDiagnosticsResponse {
+    study_id: string;
+    quality_fraction_variability: number;
+    total_minute_variability: number;
+    interruptions: number;
+    bad_hours: number;
+}
+
+interface RPCPodDaysResponse {
+    day_value: string;
+}
 
 export default function HolterDetail() {
     const { studyId } = useParams<{ studyId: string }>();
     const navigate = useNavigate();
-    const { data: study, isLoading: loading, error } = useQuery({
-        queryKey: ['study', studyId],
-        queryFn: () => fetchStudyById(studyId!),
-        enabled: !!studyId
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+    const [selectedHour, setSelectedHour] = useState<number | null>(null);
+    const [showECG, setShowECG] = useState(false);
+
+    // Fetch study data
+    const { data: studyDetails, isLoading: isStudyLoading } = useQuery<EnhancedStudyDetails, Error>({
+        queryKey: ['study_details', studyId],
+        queryFn: async () => {
+            if (!studyId) throw new Error('No studyId provided');
+            
+            const { data: studyData, error: studyError } = await supabase.rpc('get_study_details_with_earliest_latest', {
+                p_study_id: studyId
+            });
+
+            if (studyError) throw studyError;
+            if (!studyData || !Array.isArray(studyData) || studyData.length === 0) {
+                throw new Error('Study not found');
+            }
+
+            const { data: diagnosticsData, error: diagnosticsError } = await supabase.rpc('get_study_diagnostics', {
+                p_study_id: studyId
+            });
+
+            if (diagnosticsError) throw diagnosticsError;
+            if (!diagnosticsData || !Array.isArray(diagnosticsData) || diagnosticsData.length === 0) {
+                throw new Error('Study diagnostics not found');
+            }
+
+            const study = studyData[0] as RPCStudyDetailsResponse;
+            const diagnostics = diagnosticsData[0] as RPCStudyDiagnosticsResponse;
+
+            // Determine status based on timestamps
+            const now = new Date();
+            const endTime = new Date(study.end_timestamp);
+            const status: StudyStatus = now > endTime ? 'completed' : 'active';
+
+            const enhancedStudy: EnhancedStudyDetails = {
+                study_id: study.study_id,
+                clinic_id: study.clinic_id,
+                pod_id: study.pod_id,
+                start_timestamp: study.start_timestamp,
+                end_timestamp: study.end_timestamp,
+                earliest_time: study.earliest_time,
+                latest_time: study.latest_time,
+                auto_open_ecg: false,
+                patient_id: study.user_id || 'unknown',
+                clinic_name: 'Loading...',
+                status,
+                interruption_count: diagnostics.interruptions,
+                six_hour_variance: diagnostics.quality_fraction_variability,
+                available_days: [],
+                diagnostics: {
+                    quality_fraction_variability: diagnostics.quality_fraction_variability,
+                    total_minute_variability: diagnostics.total_minute_variability,
+                    interruptions: diagnostics.interruptions,
+                    bad_hours: diagnostics.bad_hours
+                }
+            };
+
+            return enhancedStudy;
+        },
+        enabled: !!studyId,
     });
-    const [showAggregatorView, setShowAggregatorView] = useState(false);
+
+    // Add a separate query for available days
+    const { data: availableDays } = useQuery<string[], Error>({
+        queryKey: ['pod_days', studyDetails?.pod_id],
+        queryFn: async () => {
+            if (!studyDetails?.pod_id) throw new Error('No pod_id available');
+            
+            const { data, error } = await supabase.rpc('get_pod_days', {
+                p_pod_id: studyDetails.pod_id
+            });
+
+            if (error) throw error;
+            if (!data || !Array.isArray(data)) return [];
+            return data.map((d: RPCPodDaysResponse) => d.day_value);
+        },
+        enabled: !!studyDetails?.pod_id,
+    });
+
+    // Update studyDetails with available days when they're loaded
+    const study = useMemo(() => {
+        if (!studyDetails) return null;
+        return {
+            ...studyDetails,
+            available_days: availableDays || []
+        };
+    }, [studyDetails, availableDays]);
+
+    // Fetch aggregator data for selected date
+    const { data: aggregates, loading: aggregatesLoading } = useECGAggregates({
+        podId: study?.pod_id ?? null,
+        startTime: selectedDate ? new Date(selectedDate.setHours(0,0,0,0)).toISOString() : '',
+        endTime: selectedDate ? new Date(selectedDate.setHours(23,59,59,999)).toISOString() : '',
+        bucketSize: 3600 // 1 hour buckets
+    });
+
+    function handleDaySelect(day: Date) {
+        setSelectedDate(day);
+        setSelectedHour(null);
+    }
+
+    function handleHourSelect(hr: number) {
+        setSelectedHour(hr);
+        if (study?.auto_open_ecg) {
+            setShowECG(true);
+        }
+    }
 
     if (!studyId) {
         return <div className="text-red-400">No studyId param</div>;
     }
-    if (loading) return <p className="text-gray-300">Loading Holter data...</p>;
-    if (error) return <p className="text-red-300">{error instanceof Error ? error.message : 'Unknown error'}</p>;
+    if (isStudyLoading) return <p className="text-gray-300">Loading Holter data...</p>;
     if (!study) return <p className="text-gray-300">Study not found.</p>;
 
     return (
-        <div className="space-y-4 text-white">
-            <button onClick={() => navigate(-1)} className="px-3 py-1 bg-white/10 rounded hover:bg-white/20">
+        <div className="space-y-6 text-white">
+            <button 
+                onClick={() => navigate(-1)} 
+                className="px-3 py-1 bg-white/10 rounded hover:bg-white/20"
+            >
                 Back
             </button>
-            <h2 className="text-xl font-semibold">HolterDetail for {studyId}</h2>
-            <p className="text-sm text-gray-300">Pod: {study.pod_id}</p>
 
-            {/* aggregator-based subwindow approach */}
-            <button
-                onClick={() => setShowAggregatorView(!showAggregatorView)}
-                className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded hover:bg-blue-500/30"
-            >
-                Toggle Aggregator-based ECGViewer
-            </button>
+            <HolterHeader
+                studyId={studyId}
+                podId={study.pod_id}
+                patientId={study.patient_id}
+                clinicName={study.clinic_name}
+                status={study.status}
+                interruptions={study.interruption_count}
+                sixHourVariance={study.six_hour_variance}
+            />
 
-            {showAggregatorView && (
-                <div className="mt-4 bg-white/10 rounded p-4 border border-white/20">
-                    <ECGViewer
-                        study={{
-                            pod_id: study.pod_id ?? '',
-                            start_timestamp: study.start_timestamp ?? '',
-                            end_timestamp: study.end_timestamp ?? new Date().toISOString()
-                        }}
-                        onClose={() => setShowAggregatorView(false)}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <CalendarSelectorPodDays
+                    availableDays={study.available_days || []}
+                    onSelectDay={handleDaySelect}
+                    selectedDate={selectedDate}
+                />
+
+                {selectedDate && (
+                    <HolterHistogram24h
+                        data={aggregates || []}
+                        loading={aggregatesLoading}
+                        selectedHour={selectedHour}
+                        onHourSelect={handleHourSelect}
                     />
-                </div>
+                )}
+            </div>
+
+            {selectedDate && selectedHour !== null && (
+                <button
+                    onClick={() => setShowECG(true)}
+                    className="px-4 py-2 bg-blue-500/20 text-blue-300 rounded hover:bg-blue-500/30"
+                >
+                    View ECG for {selectedDate.toDateString()} {selectedHour}:00
+                </button>
+            )}
+
+            {showECG && study && selectedDate && selectedHour !== null && (
+                <ECGViewer
+                    study={{
+                        pod_id: study.pod_id,
+                        start_timestamp: new Date(selectedDate.setHours(selectedHour, 0, 0)).toISOString(),
+                        end_timestamp: new Date(selectedDate.setHours(selectedHour, 59, 59)).toISOString()
+                    }}
+                    onClose={() => setShowECG(false)}
+                />
             )}
         </div>
     );

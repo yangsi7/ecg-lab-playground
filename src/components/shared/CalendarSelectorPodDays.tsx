@@ -5,11 +5,12 @@
  * We'll rename the function to match the default export usage.
  */
 import React, { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 
 interface CalendarSelectorPodDaysProps {
-    availableDays: Date[];
-    onSelectDay?: (day: Date) => void;
+    availableDays: string[];
+    onSelectDay: (day: Date) => void;
+    selectedDate: Date | null;
 }
 
 function sameDay(a: Date, b: Date) {
@@ -18,17 +19,19 @@ function sameDay(a: Date, b: Date) {
            a.getUTCDate() === b.getUTCDate();
 }
 
-export default function CalendarSelectorPodDays({
-    availableDays,
-    onSelectDay = () => {}
+export default function CalendarSelectorPodDays({ 
+    availableDays, 
+    onSelectDay,
+    selectedDate
 }: CalendarSelectorPodDaysProps) {
     const [currentDate, setCurrentDate] = useState<Date | null>(null);
     const [viewMonth, setViewMonth] = useState<Date>(() => new Date());
+    const availableDatesSet = new Set(availableDays.map(d => d.split('T')[0]));
 
     // On mount / whenever availableDays changes
     useEffect(() => {
         if (availableDays.length) {
-            const latest = availableDays[availableDays.length - 1];
+            const latest = new Date(availableDays[availableDays.length - 1].split('T')[0]);
             setCurrentDate(latest);
             setViewMonth(new Date(latest.getFullYear(), latest.getMonth(), 1));
             onSelectDay(latest);
@@ -55,68 +58,38 @@ export default function CalendarSelectorPodDays({
     }
 
     function isAvailable(day: Date) {
-        return availableDays.some(d => sameDay(d, day));
+        return availableDatesSet.has(day.toDateString().split('T')[0]);
     }
 
     return (
-        <div className="bg-white/10 p-4 rounded-xl border border-white/10 w-full max-w-md space-y-3 
-                        shadow-md backdrop-blur-sm transition-colors">
-            <div className="flex items-center justify-between">
-                <button
-                    onClick={() => {
-                        const prev = new Date(viewMonth);
-                        prev.setMonth(prev.getMonth() - 1);
-                        setViewMonth(prev);
-                    }}
-                    className="p-2 rounded-md hover:bg-white/20 active:scale-95 transition"
-                >
-                    <ChevronLeft className="h-5 w-5 text-sky-300" />
-                </button>
-                <span className="text-white text-base font-medium">
-                    {viewMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-                </span>
-                <button
-                    onClick={() => {
-                        const next = new Date(viewMonth);
-                        next.setMonth(next.getMonth() + 1);
-                        setViewMonth(next);
-                    }}
-                    className="p-2 rounded-md hover:bg-white/20 active:scale-95 transition"
-                >
-                    <ChevronRight className="h-5 w-5 text-sky-300" />
-                </button>
+        <div className="bg-white/5 rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-400" />
+                <h3 className="text-lg font-medium text-white">Select Date</h3>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
-                {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => (
-                    <div key={day}>{day}</div>
+            <div className="grid grid-cols-7 gap-1">
+                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                    <div key={day} className="text-center text-sm text-gray-400 py-1">
+                        {day}
+                    </div>
                 ))}
-            </div>
 
-            <div
-                className="grid grid-cols-7 gap-1 auto-rows-[3rem] 
-                        sm:auto-rows-[2.75rem] text-center text-sm"
-            >
                 {daysInView.map((dateItem, idx) => {
                     const inThisMonth = (dateItem.getMonth() === viewMonth.getMonth());
-                    const isSelected = currentDate && sameDay(currentDate, dateItem);
+                    const isSelected = selectedDate?.toDateString() === dateItem.toDateString();
                     const available = isAvailable(dateItem);
                     return (
                         <button
                             key={idx}
-                            disabled={!available}
                             onClick={() => handleSelect(dateItem)}
+                            disabled={!available}
                             className={`
-                                flex items-center justify-center rounded-md transition-colors 
+                                p-2 text-sm rounded-lg transition-colors
                                 ${inThisMonth ? 'text-white' : 'text-gray-500 opacity-70'}
                                 ${!available ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/20 cursor-pointer'}
-                                ${isSelected ? 'bg-sky-500 text-white hover:bg-sky-600' : ''}
+                                ${isSelected ? 'bg-blue-500 text-white' : ''}
                             `}
-                            title={
-                                !available 
-                                    ? 'No data for this day' 
-                                    : `Select ${dateItem.toDateString()}`
-                            }
                         >
                             {dateItem.getDate()}
                         </button>

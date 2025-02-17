@@ -1,7 +1,8 @@
 // src/hooks/usePodEarliestLatest.ts
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';  // your supabase client
-import { logger } from '../lib/logger';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';  // your supabase client
+import { logger } from '../../lib/logger';
 
 interface PodEarliestLatest {
     earliest: Date | null;
@@ -35,7 +36,7 @@ export function usePodEarliestLatest(podId: string): PodEarliestLatest {
                 p_pod_id: podId
             });
             if (rpcError) {
-                logger.error('RPC get_pod_earliest_latest failed', rpcError);
+                logger.error('RPC get_pod_earliest_latest failed', { error: rpcError.message });
                 setError(rpcError.message);
                 setEarliest(null);
                 setLatest(null);

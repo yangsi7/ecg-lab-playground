@@ -1,32 +1,59 @@
-import React, { useMemo } from 'react';
-import { DataGrid, type Column } from '../../components/shared/DataGrid';
+import React, { useState, useMemo } from 'react';
+import { DataGrid, type Column } from '../../../components/shared/DataGrid';
+import { queryPods, type PodRow } from '../../../lib/supabase/pod';
 import { useQuery } from '@tanstack/react-query';
-import { fetchPods } from '../../supabase/rpc/pod';
-import type { PodRow } from '../../supabase/rpc/pod';
 
-const PodLab: React.FC = () => {
-  const { data: pods = [] } = useQuery<PodRow[]>({
-    queryKey: ['pods'],
-    queryFn: fetchPods,
-  });
+export default function PodLab() {
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(25);
+    const [filter, setFilter] = useState('');
 
-  const columns = useMemo<Column<PodRow>[]>(() => [
-    { field: 'id', header: 'Pod ID', sortable: true },
-    { field: 'status', header: 'Status', sortable: true },
-    { field: 'assigned_study_id', header: 'Study ID', sortable: true },
-    { field: 'time_since_first_use', header: 'Time Since First Use', sortable: true },
-  ], []);
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['pods', { page, pageSize, filter }],
+        queryFn: () => queryPods({ page, pageSize, filter })
+    });
 
-  return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Pod Lab</h1>
-      <DataGrid
-        data={pods}
-        columns={columns}
-        pageSize={10}
-      />
-    </div>
-  );
-};
+    const columns = useMemo<Column<PodRow>[]>(() => [
+        { key: 'pod_id', header: 'Pod ID', sortable: true },
+        { key: 'study_id', header: 'Study ID', sortable: true },
+        { key: 'status', header: 'Status', sortable: true },
+        { key: 'created_at', header: 'Created', sortable: true },
+        { key: 'last_data_at', header: 'Last Data', sortable: true },
+        { key: 'firmware_version', header: 'Firmware', sortable: true }
+    ], []);
 
-export default PodLab; 
+    return (
+        <div className="space-y-6">
+            <h1 className="text-2xl font-semibold text-white">Pod Management</h1>
+            
+            <div className="flex items-center gap-4">
+                <input
+                    type="text"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                    placeholder="Filter pods..."
+                    className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
+                />
+                <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
+                >
+                    <option value="10">10 per page</option>
+                    <option value="25">25 per page</option>
+                    <option value="50">50 per page</option>
+                </select>
+            </div>
+
+            <DataGrid
+                data={data?.data ?? []}
+                columns={columns}
+                loading={isLoading}
+                error={error?.message}
+                page={page}
+                onPageChange={setPage}
+                hasMore={(data?.count ?? 0) > page * pageSize}
+            />
+        </div>
+    );
+} 

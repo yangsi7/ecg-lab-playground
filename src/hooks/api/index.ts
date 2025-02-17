@@ -7,7 +7,6 @@ export { usePodData } from './usePodData';
 export { useSingleStudy } from './useSingleStudy';
 export { useStudiesWithTimes } from './useStudiesWithTimes';
 export { useDataQueries } from './useDataQueries';
-export { useEcgAggregator } from './useEcgAggregator';
 export { useLabData } from './useLabData';
 export { usePodDays } from './usePodDays';
 export { usePodEarliestLatest } from './usePodEarliestLatest'; 

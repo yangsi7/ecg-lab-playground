@@ -9,7 +9,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom'
-import { useClinicAnalytics } from '../../hooks/useClinicAnalytics'
+import { useClinicAnalytics } from '../../../hooks/api/useClinicAnalytics'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect } from 'react'
 
@@ -133,7 +133,7 @@ export default function ClinicDetail() {
                         <p>Active Studies: <span className="text-white">{overview.active_studies}</span></p>
                         <p>Total Studies: <span className="text-white">{overview.total_studies}</span></p>
                         <p>Avg Quality Hours: <span className="text-white">{overview.average_quality_hours.toFixed(1)}</span></p>
-                        <p>Alerts: <span className="text-white">{overview.recent_alerts.length}</span></p>
+                        <p>Alerts: <span className="text-white">{overview.recent_alerts?.length ?? 0}</span></p>
                     </div>
                 </div>
             )}

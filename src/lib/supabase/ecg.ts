@@ -1,7 +1,5 @@
-import { supabase } from '../supabaseClient';
-import type { Database } from '../types/database.types';
-
-export type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
+import { supabase } from './client';
+import type { ECGSampleRow } from './client';
 
 /**
  * Fetch ECG samples for a pod within a time range

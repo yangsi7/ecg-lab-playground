@@ -10,18 +10,24 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeftCircle } from 'lucide-react'
-import CalendarSelectorPodDays from './CalendarSelectorPodDays'
-import { DailyECGAggregator } from './DailyECGAggregator'
+import CalendarSelectorPodDays from '../CalendarSelectorPodDays'
+import { ECGAggregator } from './ECGAggregator'
 import { HourlyECGAggregator } from './HourlyECGAggregator'
 import MainECGViewer from './MainECGViewer'
-import { StudyProvider, useStudyContext } from '../../context/StudyContext'
+import { useSingleStudy } from '../../../hooks/api/useSingleStudy'
+import { usePodDays } from '../../../hooks/api/usePodDays'
 
 function ECGViewerFlow() {
-    const { studyId, podId, availableDays, loading, error } = useStudyContext()
+    const { studyId } = useParams<{ studyId: string }>()
+    const { study, loading: studyLoading, error: studyError } = useSingleStudy(studyId)
+    const { days: availableDays, loading: daysLoading, error: daysError } = usePodDays(study?.pod_id ?? '')
     const [selectedDay, setSelectedDay] = useState<Date | null>(null)
     const [selectedHour, setSelectedHour] = useState<number | null>(null)
     const [subwindow, setSubwindow] = useState<{ start: string, end: string } | null>(null)
     const [viewerOpen, setViewerOpen] = useState(false)
+
+    const loading = studyLoading || daysLoading
+    const error = studyError || daysError
 
     if (loading) {
         return (
@@ -30,7 +36,7 @@ function ECGViewerFlow() {
             </div>
         )
     }
-    if (error || !podId) {
+    if (error || !study?.pod_id) {
         return (
             <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
                 <h3 className="text-sm font-medium text-red-400">Error loading study details</h3>
@@ -39,33 +45,39 @@ function ECGViewerFlow() {
         )
     }
 
+    // Convert dates to ISO strings for the calendar
+    const availableDayStrings = availableDays.map(d => d.toISOString())
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row gap-6">
                 {/* Step 1: Calendar for day selection */}
                 <CalendarSelectorPodDays
-                    availableDays={availableDays}
-                    onSelectDay={(day) => {
+                    availableDays={availableDayStrings}
+                    onSelectDay={(day: Date) => {
                         setSelectedDay(day)
                         setSelectedHour(null)
                         setSubwindow(null)
                         setViewerOpen(false)
                     }}
+                    selectedDate={selectedDay}
                 />
 
                 <div className="flex-1 space-y-6 text-white">
                     <div className="text-sm text-gray-300">
                         <div>Study ID: {studyId}</div>
-                        <div>Pod ID: {podId}</div>
+                        <div>Pod ID: {study.pod_id}</div>
                     </div>
 
-                    {/* Step 2: Daily aggregator (3 stacked bars) */}
+                    {/* Step 2: Daily aggregator */}
                     {selectedDay && (
-                        <DailyECGAggregator 
-                            podId={podId} 
-                            date={selectedDay} 
-                            onHourSelect={(hr) => {
-                                setSelectedHour(hr)
+                        <ECGAggregator 
+                            podId={study.pod_id}
+                            timeInterval="daily"
+                            initialDate={selectedDay}
+                            onTimeRangeSelect={(start, end) => {
+                                const hour = new Date(start).getHours()
+                                setSelectedHour(hour)
                                 setSubwindow(null)
                                 setViewerOpen(false)
                             }}
@@ -75,7 +87,7 @@ function ECGViewerFlow() {
                     {/* Step 3: Hour aggregator => subwindow selection */}
                     {selectedDay && selectedHour !== null && (
                         <HourlyECGAggregator
-                            podId={podId}
+                            podId={study.pod_id}
                             date={selectedDay}
                             hour={selectedHour}
                             onSubwindowFinal={(startIso, endIso) => {
@@ -106,7 +118,7 @@ function ECGViewerFlow() {
             {viewerOpen && subwindow && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 p-4">
                     <MainECGViewer
-                        podId={podId}
+                        podId={study.pod_id}
                         timeStart={subwindow.start}
                         timeEnd={subwindow.end}
                         onClose={() => setViewerOpen(false)}
@@ -139,9 +151,7 @@ export default function ECGViewerPage() {
                 <span>Back</span>
             </button>
 
-            <StudyProvider studyId={studyId}>
-                <ECGViewerFlow />
-            </StudyProvider>
+            <ECGViewerFlow />
         </div>
     )
 }

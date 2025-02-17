@@ -1,10 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { useTableStore } from '../store/tableStore';
-import { queryTable } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { toHolterStudy } from '../../types/domain/holter';
 import type { HolterStudy } from '../../types/domain/holter';
 import type { StudyRow } from '../../lib/supabase/client';
-import type { SupabaseRow } from '../../types/utils';
 
 interface UseHolterDataResult {
   studies: HolterStudy[];
@@ -15,66 +13,25 @@ interface UseHolterDataResult {
 }
 
 export const useHolterData = (): UseHolterDataResult => {
-  const { 
-    currentPage, 
-    pageSize, 
-    sortField, 
-    sortDirection, 
-    quickFilter, 
-    advancedFilter 
-  } = useTableStore();
-
   const { data, isLoading, isRefetching, error } = useQuery({
-    queryKey: ['holterData', { 
-      page: currentPage, 
-      pageSize, 
-      sortField, 
-      sortDirection, 
-      quickFilter, 
-      advancedFilter 
-    }],
+    queryKey: ['holterData'],
     queryFn: async () => {
-      const start = (currentPage - 1) * pageSize;
-      const end = start + pageSize - 1;
+      const { data, error: queryError, count } = await supabase
+        .from('study')
+        .select('*, clinics(name)', { count: 'exact' });
 
-      // Query studies with clinic names using a join
-      const result = await queryTable('study', {
-        start,
-        end,
-        sortBy: sortField,
-        sortDirection: sortDirection as 'asc' | 'desc',
-      });
+      if (queryError) throw queryError;
 
-      if (result.error) {
-        throw result.error;
-      }
-
-      // Transform database rows to domain types
-      const studies = (result.data || []).map((row: StudyRow) => 
-        toHolterStudy({ ...row, clinic_name: 'TODO: Join with clinics table' })
+      const studies = (data || []).map((row: StudyRow & { clinics: { name: string } }) => 
+        toHolterStudy({ 
+          ...row, 
+          clinic_name: row.clinics?.name ?? 'Unknown Clinic' 
+        })
       );
 
-      // Apply filters on the client side for now
-      // TODO: Move filtering to the database query
-      let filteredStudies = studies;
-      
-      if (quickFilter) {
-        switch (quickFilter) {
-          case 'bad-quality':
-            filteredStudies = filteredStudies.filter(study => study.qualityFraction < 0.5);
-            break;
-          case 'needs-intervention':
-            filteredStudies = filteredStudies.filter(study => study.totalHours < 20);
-            break;
-          case 'under-target':
-            filteredStudies = filteredStudies.filter(study => study.totalHours < 10);
-            break;
-        }
-      }
-
       return {
-        data: filteredStudies,
-        count: result.count
+        data: studies,
+        count: count ?? 0
       };
     }
   });

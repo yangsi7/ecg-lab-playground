@@ -6,6 +6,7 @@
  * pass the chosen time range to MainECGViewer.
  */
 import { useState } from 'react'
+import { useECGAggregates } from '../../../hooks/api/useECGAggregates'
 import { HourlyECGAggregator } from './HourlyECGAggregator'
 
 interface ECGViewerProps {

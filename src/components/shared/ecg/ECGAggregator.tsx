@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { useEcgAggregator, type TimeInterval, type ECGAggregateFilter } from '../hooks/useEcgAggregator';
+import { useECGAggregates } from '../../../hooks/api/useECGAggregates';
 import { Heart, Filter, Download, AlertTriangle, Save, Star, MoreHorizontal } from 'lucide-react';
+import type { TimeInterval, ECGAggregateFilter, AggregatedLeadData } from '../../../types/domain/ecg';
 
 interface ECGAggregatorProps {
   podId: string;
@@ -10,7 +11,7 @@ interface ECGAggregatorProps {
   className?: string;
 }
 
-const BUCKET_SECONDS = {
+const BUCKET_SECONDS: Record<TimeInterval, number> = {
   hourly: 60,    // 1 minute buckets for hourly view
   daily: 3600,   // 1 hour buckets for daily view
 };
@@ -56,28 +57,29 @@ export function ECGAggregator({
     },
   });
 
-  const { data, isLoading, error } = useEcgAggregator({
+  const { data: aggregates, loading, error } = useECGAggregates({
     podId,
-    timeInterval,
-    bucketSeconds: BUCKET_SECONDS[timeInterval],
+    startTime: filter.time_range?.start ?? '',
+    endTime: filter.time_range?.end ?? '',
+    bucketSize: BUCKET_SECONDS[timeInterval],
     filter,
   });
 
   const handleQualityThresholdChange = useCallback((threshold: number) => {
-    setFilter(prev => ({
+    setFilter((prev: ECGAggregateFilter) => ({
       ...prev,
       quality_threshold: threshold,
     }));
   }, []);
 
   const handleLeadOnThresholdChange = useCallback((threshold: number) => {
-    setFilter(prev => ({
+    setFilter((prev: ECGAggregateFilter) => ({
       ...prev,
       lead_on_threshold: threshold,
     }));
   }, []);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin h-8 w-8 text-blue-400">
@@ -96,13 +98,10 @@ export function ECGAggregator({
     return (
       <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl p-4">
         <h3 className="text-sm font-medium text-red-400">Error loading ECG data</h3>
-        <p className="mt-1 text-sm text-red-300">{error.message}</p>
+        <p className="mt-1 text-sm text-red-300">{error}</p>
       </div>
     );
   }
-
-  const aggregates = data?.data || [];
-  const totalCount = data?.count || 0;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -162,18 +161,18 @@ export function ECGAggregator({
 
       {/* Data Visualization */}
       <div className="flex gap-1 p-1 border border-white/10 bg-white/5 rounded-md overflow-x-auto">
-        {aggregates.map((aggregate, idx) => {
+        {aggregates.map((aggregate: AggregatedLeadData, idx: number) => {
           const qualities = [
-            aggregate.quality_1_percent,
-            aggregate.quality_2_percent,
-            aggregate.quality_3_percent,
+            aggregate.quality_1_percent ?? 0,
+            aggregate.quality_2_percent ?? 0,
+            aggregate.quality_3_percent ?? 0,
           ];
           const avgQuality = qualities.reduce((a, b) => a + b, 0) / 3;
 
           const leadOns = [
-            (aggregate.lead_on_p_1 + aggregate.lead_on_n_1) / 2,
-            (aggregate.lead_on_p_2 + aggregate.lead_on_n_2) / 2,
-            (aggregate.lead_on_p_3 + aggregate.lead_on_n_3) / 2,
+            ((aggregate.lead_on_p_1 ?? 0) + (aggregate.lead_on_n_1 ?? 0)) / 2,
+            ((aggregate.lead_on_p_2 ?? 0) + (aggregate.lead_on_n_2 ?? 0)) / 2,
+            ((aggregate.lead_on_p_3 ?? 0) + (aggregate.lead_on_n_3 ?? 0)) / 2,
           ];
           const avgLeadOn = leadOns.reduce((a, b) => a + b, 0) / 3;
 
@@ -203,7 +202,6 @@ Lead-On: ${(avgLeadOn * 100).toFixed(1)}%`}
       {/* Summary */}
       <div className="text-sm text-gray-300">
         Showing {aggregates.length} data points
-        {totalCount > aggregates.length && ` of ${totalCount} total`}
       </div>
     </div>
   );

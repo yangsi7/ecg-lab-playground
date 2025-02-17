@@ -1,8 +1,8 @@
 // src/components/labs/ECGTimelineBar.tsx
 
 import { useRef, useEffect, useState, useMemo } from 'react';
-import { AggregatedLeadData } from '../../hooks/useECGAggregates';
-import { useDebouncedCallback } from '../../hooks/useDebounce';
+import type { AggregatedLeadData } from '../../../types/domain/ecg';
+import { useDebounce } from '../../../hooks/ui/useDebounce';
 
 /**
  * A simple colormap function from 0..100 => color string
@@ -39,7 +39,7 @@ export function ECGTimelineBar({
     const [dragStart, setDragStart] = useState<number | null>(null);
     const [dragEnd, setDragEnd] = useState<number | null>(null);
 
-    const debouncedSelect = useDebouncedCallback((s: number, e: number) => {
+    const debouncedSelect = useDebounce((s: number, e: number) => {
         onSelectRange?.(s, e);
     }, 150);
 

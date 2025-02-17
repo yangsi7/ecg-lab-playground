@@ -2,47 +2,50 @@
  * FILE: src/lib/logger.ts
  * No changes, just ensure it's consistent. 
  ********************************************************************/
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
-interface LogEntry {
-    timestamp: string;
-    level: LogLevel;
-    message: string;
-    data?: any;
+interface LogOptions {
+    level?: LogLevel
+    context?: Record<string, unknown>
 }
 
 class Logger {
-    private logs: LogEntry[] = [];
-    private maxLogs = 1000;
+    private static instance: Logger
+    private isDevelopment = process.env.NODE_ENV === 'development'
 
-    log(level: LogLevel, message: string, data?: any) {
-        const entry: LogEntry = {
-            timestamp: new Date().toISOString(),
-            level,
-            message,
-            data
-        };
-        this.logs.push(entry);
-        if (this.logs.length > this.maxLogs) {
-            this.logs = this.logs.slice(-this.maxLogs);
+    private constructor() {}
+
+    static getInstance(): Logger {
+        if (!Logger.instance) {
+            Logger.instance = new Logger()
         }
+        return Logger.instance
+    }
 
-        if (import.meta.env.DEV) {
-            console[level](message, data);
+    log(message: string, options: LogOptions = {}) {
+        const { level = 'info', context = {} } = options
+        const timestamp = new Date().toISOString()
+
+        if (this.isDevelopment) {
+            console[level](`[${timestamp}] ${level.toUpperCase()}: ${message}`, context)
         }
     }
 
-    debug(msg: string, data?: any) { this.log('debug', msg, data); }
-    info(msg: string, data?: any)  { this.log('info',  msg, data); }
-    warn(msg: string, data?: any)  { this.log('warn',  msg, data); }
-    error(msg: string, data?: any) { this.log('error', msg, data); }
-
-    getLastLogs(count = 10): LogEntry[] {
-        return this.logs.slice(-count);
+    debug(message: string, context?: Record<string, unknown>) {
+        this.log(message, { level: 'debug', context })
     }
-    clearLogs() {
-        this.logs = [];
+
+    info(message: string, context?: Record<string, unknown>) {
+        this.log(message, { level: 'info', context })
+    }
+
+    warn(message: string, context?: Record<string, unknown>) {
+        this.log(message, { level: 'warn', context })
+    }
+
+    error(message: string, context?: Record<string, unknown>) {
+        this.log(message, { level: 'error', context })
     }
 }
 
-export const logger = new Logger();
+export const logger = Logger.getInstance()

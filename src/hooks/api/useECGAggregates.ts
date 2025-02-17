@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '../lib/supabase'
-import { logger } from '../lib/logger'
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '../../lib/supabase'
+import { logger } from '../../lib/logger'
 
 /**
  * AggregatedLeadData:
@@ -19,34 +20,47 @@ export interface AggregatedLeadData {
     quality_3_percent?: number
 }
 
+export type TimeInterval = 'hourly' | 'daily';
+
+export interface ECGAggregateFilter {
+    quality_threshold?: number;
+    lead_on_threshold?: number;
+    time_range?: {
+        start: string;
+        end: string;
+    };
+}
+
 interface UseECGAggregatesProps {
     podId: string | null
     startTime: string
     endTime: string
     bucketSize: number
+    filter?: ECGAggregateFilter
+    enabled?: boolean
 }
 
 /**
  * useECGAggregates
- * - Calls 'aggregate_leads' Supabase RPC to get aggregator bars.
+ * - Enhanced version that combines all ECG aggregation functionality
+ * - Uses react-query for better caching and state management
+ * - Supports filtering and quality thresholds
  */
-export function useECGAggregates({ podId, startTime, endTime, bucketSize }: UseECGAggregatesProps) {
-    const [data, setData] = useState<AggregatedLeadData[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+export function useECGAggregates({ 
+    podId, 
+    startTime, 
+    endTime, 
+    bucketSize,
+    filter,
+    enabled = true 
+}: UseECGAggregatesProps) {
+    const queryKey = ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter]
 
-    const fetchAggregates = useCallback(async () => {
-        if (!podId) {
-            setData([])
-            setError(null)
-            setLoading(false)
-            return
-        }
+    const { data, isLoading: loading, error } = useQuery({
+        queryKey,
+        queryFn: async () => {
+            if (!podId) return []
 
-        setLoading(true)
-        setError(null)
-
-        try {
             const { data: aggData, error: rpcError } = await supabase.rpc('aggregate_leads', {
                 p_pod_id: podId,
                 p_time_start: startTime,
@@ -63,19 +77,39 @@ export function useECGAggregates({ podId, startTime, endTime, bucketSize }: UseE
                 bucketSize, range: [startTime, endTime]
             })
 
-            setData(aggData)
-        } catch (err: any) {
-            logger.error('useECGAggregates: aggregator fetch error', err)
-            setError(err.message || 'Failed to fetch aggregator data')
-            setData([])
-        } finally {
-            setLoading(false)
-        }
-    }, [podId, startTime, endTime, bucketSize])
+            // Apply filters if provided
+            let filteredData = aggData as AggregatedLeadData[]
+            
+            const qualityThreshold = filter?.quality_threshold
+            if (typeof qualityThreshold === 'number') {
+                filteredData = filteredData.filter(d => {
+                    const avgQuality = ((d.quality_1_percent || 0) + 
+                                      (d.quality_2_percent || 0) + 
+                                      (d.quality_3_percent || 0)) / 3
+                    return avgQuality >= qualityThreshold
+                })
+            }
 
-    useEffect(() => {
-        fetchAggregates()
-    }, [fetchAggregates])
+            const leadOnThreshold = filter?.lead_on_threshold
+            if (typeof leadOnThreshold === 'number') {
+                filteredData = filteredData.filter(d => {
+                    const avgLeadOn = ((d.lead_on_p_1 || 0) + 
+                                     (d.lead_on_p_2 || 0) + 
+                                     (d.lead_on_p_3 || 0)) / 3
+                    return avgLeadOn >= leadOnThreshold
+                })
+            }
 
-    return { data, loading, error }
+            return filteredData
+        },
+        enabled: enabled && !!podId && !!startTime && !!endTime,
+        staleTime: 30000, // Consider data fresh for 30 seconds
+        gcTime: 5 * 60 * 1000 // Keep in cache for 5 minutes
+    })
+
+    return { 
+        data: data || [], 
+        loading, 
+        error: error instanceof Error ? error.message : null 
+    }
 }

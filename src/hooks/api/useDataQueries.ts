@@ -68,7 +68,7 @@ export function useDataQueries(filters: DataFilters = {}) {
 
             const { data, error: qErr, count } = await query;
             if (qErr) {
-                logger.error('DB error in useDataQueries', qErr);
+                logger.error('DB error in useDataQueries', { error: qErr.message });
                 throw new Error(qErr.message);
             }
 
@@ -76,7 +76,7 @@ export function useDataQueries(filters: DataFilters = {}) {
             setTotalCount(count || 0);
             setError(null);
         } catch (err: any) {
-            logger.error('Data fetch error', err);
+            logger.error('Data fetch error', { error: err.message });
             setError('Failed to load data');
             if (isMounted.current) {
                 setStudies([]);

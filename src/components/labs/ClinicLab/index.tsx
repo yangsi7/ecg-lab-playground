@@ -12,7 +12,7 @@ import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 interface ChartData {
-    [key: string]: string | number;
+    [key: string]: string | number | null | undefined;
 }
 
 interface SimpleBarChartProps {
@@ -26,20 +26,20 @@ interface SimpleBarChartProps {
 }
 
 interface StatusBreakdownRow {
-    clinic_id: string;
-    clinic_name: string;
+    clinic_id: string | null;
+    clinic_name: string | null;
     total_studies: number;
     open_studies: number;
     intervene_count: number;
     monitor_count: number;
     on_target_count: number;
-    to_completion_count: number;
+    near_completion_count: number;
     needs_extension_count: number;
 }
 
 interface QualityBreakdownRow {
-    clinic_id: string;
-    clinic_name: string;
+    clinic_id: string | null;
+    clinic_name: string | null;
     total_studies: number;
     open_studies: number;
     average_quality: number;
@@ -47,6 +47,13 @@ interface QualityBreakdownRow {
     soso_count: number;
     bad_count: number;
     critical_count: number;
+}
+
+interface ChartDataPoint extends ChartData {
+    week_start?: string | null;
+    month_start?: string | null;
+    average_quality?: number;
+    open_studies?: number;
 }
 
 function SimpleBarChart({
@@ -228,7 +235,7 @@ export default function ClinicLab() {
                             <div className="ml-4">
                                 <p className="text-sm text-gray-300">Recent Alerts</p>
                                 <p className="text-xl text-white font-semibold">
-                                    {overview.recent_alerts.length}
+                                    {overview.recent_alerts?.length ?? 0}
                                 </p>
                             </div>
                         </div>
@@ -251,7 +258,7 @@ export default function ClinicLab() {
                                         { key: 'intervene_count', label: 'Intervene' },
                                         { key: 'monitor_count', label: 'Monitor' },
                                         { key: 'on_target_count', label: 'On Target' },
-                                        { key: 'to_completion_count', label: '24h Completion' },
+                                        { key: 'near_completion_count', label: '24h Completion' },
                                         { key: 'needs_extension_count', label: 'Needs Ext' }
                                     ].map(col => (
                                         <th
@@ -284,7 +291,7 @@ export default function ClinicLab() {
                                         <td className="px-3 py-2">{row.intervene_count}</td>
                                         <td className="px-3 py-2">{row.monitor_count}</td>
                                         <td className="px-3 py-2">{row.on_target_count}</td>
-                                        <td className="px-3 py-2">{row.to_completion_count}</td>
+                                        <td className="px-3 py-2">{row.near_completion_count}</td>
                                         <td className="px-3 py-2">{row.needs_extension_count}</td>
                                     </tr>
                                 ))}
@@ -339,7 +346,7 @@ export default function ClinicLab() {
             <div className="flex flex-wrap gap-4">
                 {!loading && !error && weeklyQuality?.length > 0 && (
                     <SimpleBarChart
-                        data={weeklyQuality}
+                        data={weeklyQuality.map(q => ({ ...q } as ChartDataPoint))}
                         xKey="week_start"
                         yKey="average_quality"
                         label="Weekly Average Quality"
@@ -348,7 +355,7 @@ export default function ClinicLab() {
                 )}
                 {!loading && !error && monthlyQuality?.length > 0 && (
                     <SimpleBarChart
-                        data={monthlyQuality}
+                        data={monthlyQuality.map(q => ({ ...q } as ChartDataPoint))}
                         xKey="month_start"
                         yKey="average_quality"
                         label="Monthly Average Quality"
@@ -361,7 +368,7 @@ export default function ClinicLab() {
             <div className="flex flex-wrap gap-4">
                 {!loading && !error && weeklyStudies?.length > 0 && (
                     <SimpleBarChart
-                        data={weeklyStudies}
+                        data={weeklyStudies.map(s => ({ ...s } as ChartDataPoint))}
                         xKey="week_start"
                         yKey="open_studies"
                         label="Weekly Open Studies"
@@ -370,7 +377,7 @@ export default function ClinicLab() {
                 )}
                 {!loading && !error && monthlyStudies?.length > 0 && (
                     <SimpleBarChart
-                        data={monthlyStudies}
+                        data={monthlyStudies.map(s => ({ ...s } as ChartDataPoint))}
                         xKey="month_start"
                         yKey="open_studies"
                         label="Monthly Open Studies"

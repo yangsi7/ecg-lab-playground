@@ -67,54 +67,56 @@ export default function HolterLab() {
             key: 'duration',
             header: 'Duration',
             sortable: true,
-            render: (value: number) => `${value} days`
+            render: (value: string | number) => `${Number(value)} days`
         },
         { 
             key: 'daysRemaining',
             header: 'Days Rem',
-            sortable: true 
+            sortable: true,
+            render: (value: string | number) => `${Number(value)}`
         },
         { 
             key: 'totalQualityHours',
             header: 'Q Hours',
             sortable: true,
-            render: (value: number) => value.toFixed(1)
+            render: (value: string | number) => Number(value).toFixed(1)
         },
         { 
             key: 'qualityFraction',
             header: 'Q %',
             sortable: true,
-            render: (value: number) => `${(value * 100).toFixed(1)}%`
+            render: (value: string | number) => `${(Number(value) * 100).toFixed(1)}%`
         },
         { 
             key: 'totalHours',
             header: 'Total Hrs',
             sortable: true,
-            render: (value: number) => value.toFixed(1)
+            render: (value: string | number) => Number(value).toFixed(1)
         },
         { 
             key: 'interruptions',
             header: 'Interrupts',
-            sortable: true 
+            sortable: true,
+            render: (value: string | number) => `${Number(value)}`
         },
         { 
             key: 'qualityVariance',
             header: 'Variance',
             sortable: true,
-            render: (value: number) => value.toFixed(3)
+            render: (value: string | number) => Number(value).toFixed(3)
         },
         { 
             key: 'status',
             header: 'Status',
             sortable: true,
-            render: (value: string) => (
+            render: (value: string | number) => (
                 <span className={`px-2 py-1 rounded-full text-xs font-medium
-                    ${value === 'critical' ? 'bg-red-500/20 text-red-400' :
-                        value === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                        value === 'good' ? 'bg-green-500/20 text-green-400' :
+                    ${String(value) === 'critical' ? 'bg-red-500/20 text-red-400' :
+                        String(value) === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                        String(value) === 'good' ? 'bg-green-500/20 text-green-400' :
                         'bg-gray-500/20 text-gray-400'}`}
                 >
-                    {value}
+                    {String(value)}
                 </span>
             )
         }

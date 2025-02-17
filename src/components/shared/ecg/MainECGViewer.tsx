@@ -6,9 +6,9 @@
  * factor=2 => every 2nd, factor=3 => every 3rd,
  * server clamps >3 => 3
  */
-import React, { useState } from 'react'
+import React from 'react'
 import { X } from 'lucide-react'
-import { useDownsampleECG } from '../../hooks/useDownsampleECG'
+import { useECGData } from '../../../hooks/api/useECGData'
 import { AdvancedECGPlot } from './AdvancedECGPlot'
 
 interface MainECGViewerProps {
@@ -24,75 +24,42 @@ export default function MainECGViewer({
     timeEnd,
     onClose
 }: MainECGViewerProps) {
-    const [overrideFactor, setOverrideFactor] = useState<number | undefined>(1);
-
-    const { data, loading, error } = useDownsampleECG({
-        pod_id: podId,
-        time_start: timeStart,
-        time_end: timeEnd,
-        overrideFactor
+    const { data, loading, error } = useECGData({
+        podId,
+        timeStart,
+        timeEnd
     });
 
-    function handleFactorChange(val: number) {
-        if (val < 1) {
-            setOverrideFactor(1);
-        } else if (val > 3) {
-            setOverrideFactor(3);
-        } else {
-            setOverrideFactor(val);
-        }
-    }
-
     return (
-        <div className="relative rounded-xl bg-white/10 backdrop-blur-lg shadow-xl border border-white/20 p-4 
-                        animate-fade-in flex flex-col gap-4 max-w-4xl w-full">
-            <button
-                onClick={onClose}
-                className="absolute top-3 right-3 p-2 rounded-md bg-white/5 hover:bg-white/20 text-gray-300"
-                title="Close ECG Viewer"
-            >
-                <X className="h-4 w-4" />
-            </button>
-
-            <div className="flex justify-between items-center">
-                <div className="text-white font-medium text-sm">
-                    Subwindow: {timeStart} → {timeEnd}
-                </div>
-
-                <div className="flex items-center gap-2 text-gray-300">
-                    <label className="text-xs text-gray-400">Factor:</label>
-                    <input
-                        type="number"
-                        min={1}
-                        max={3}
-                        value={overrideFactor}
-                        onChange={(e) => handleFactorChange(Number(e.target.value))}
-                        className="w-16 p-1 rounded bg-white/10 border border-white/20 focus:outline-none text-xs"
-                    />
-                </div>
+        <div className="bg-gray-800 p-6 rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto border border-white/10">
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-medium text-white">ECG Viewer</h2>
+                <button
+                    onClick={onClose}
+                    className="p-1 hover:bg-white/10 rounded-lg transition-colors"
+                >
+                    <X className="h-5 w-5 text-gray-400" />
+                </button>
             </div>
 
             {loading && (
-                <div className="w-full py-6 text-center text-gray-400 text-sm">
-                    Loading ECG waveform...
-                </div>
-            )}
-            {error && !loading && (
-                <div className="w-full py-6 text-center text-red-300 text-sm">
-                    {error}
-                </div>
-            )}
-            {!loading && !error && data.length === 0 && (
-                <div className="w-full py-6 text-center text-gray-400 text-sm">
-                    No data in this time window.
+                <div className="flex items-center justify-center h-64">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
                 </div>
             )}
 
-            {!loading && !error && data.length > 0 && (
-                <div className="grid grid-cols-1 gap-6">
-                    <AdvancedECGPlot data={data} channel={1} label="Lead I (Naive Decimation)" />
-                    <AdvancedECGPlot data={data} channel={2} label="Lead II (Naive Decimation)" />
-                    <AdvancedECGPlot data={data} channel={3} label="Lead III (Naive Decimation)" />
+            {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4">
+                    <h3 className="text-sm font-medium text-red-400">Error loading ECG data</h3>
+                    <p className="mt-1 text-sm text-red-300">{error}</p>
+                </div>
+            )}
+
+            {!loading && !error && data && (
+                <div className="space-y-6">
+                    <AdvancedECGPlot data={data} channel={1} label="Lead I" />
+                    <AdvancedECGPlot data={data} channel={2} label="Lead II" />
+                    <AdvancedECGPlot data={data} channel={3} label="Lead III" />
                 </div>
             )}
         </div>

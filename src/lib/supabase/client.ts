@@ -16,7 +16,17 @@ if (!supabaseAnonKey) {
   throw new Error('Missing Supabase anonymous key');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+  },
+  global: {
+    headers: {
+      'x-application-name': 'ecg-lab',
+    },
+  },
+});
 
 // Re-export database types
 export type { Database } from '../../types/database.types';

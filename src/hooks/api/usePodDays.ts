@@ -3,8 +3,13 @@
    (Ensures we have a function returning all valid days)
    =========================================== */
    import { useState, useEffect } from 'react'
-   import { supabase } from '../lib/supabase'
-   import { logger } from '../lib/logger'
+   import { useQuery } from '@tanstack/react-query'
+   import { supabase } from '../../lib/supabase'
+   import { logger } from '../../lib/logger'
+   
+   interface PodDayResponse {
+       day_value: string
+   }
    
    interface PodDaysResult {
        days: Date[]
@@ -30,20 +35,21 @@
                try {
                    const { data, error: rpcError } = await supabase
                        .rpc('get_pod_days', { p_pod_id: podId })
-                   if (rpcError) throw new Error(rpcError.message)
-                   if (!Array.isArray(data)) {
-                       throw new Error('Invalid data from get_pod_days')
+                   if (rpcError) throw rpcError
+                   if (!data) {
+                       setDays([])
+                       return
                    }
                    if (!canceled) {
-                       const validDays = data
-                           .map((d: { day_value: string }) => new Date(`${d.day_value}T00:00:00Z`))
-                           .sort((a, b) => a.getTime() - b.getTime())
-                       setDays(validDays)
+                       const parsedDays = (data as PodDayResponse[])
+                           .map((d: PodDayResponse) => new Date(d.day_value))
+                           .sort((a: Date, b: Date) => a.getTime() - b.getTime())
+                       setDays(parsedDays)
                    }
                } catch (err: any) {
                    if (!canceled) {
-                       logger.error('usePodDays error', err)
-                       setError(err.message || 'Failed to fetch pod days')
+                       logger.error('Failed to fetch pod days', { error: err.message })
+                       setError(err.message)
                        setDays([])
                    }
                } finally {

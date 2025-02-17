@@ -80,7 +80,7 @@ export function useClinicAnalytics(clinicId?: string): ClinicAnalyticsResult {
 
         // 2) get_clinic_status_breakdown
         const { data: stData, error: stErr } = await supabase.rpc('get_clinic_status_breakdown', {
-          _clinic_id: clinicId
+          _clinic_id: clinicId || null
         })
         if (stErr) throw stErr
         setStatusBreakdown(Array.isArray(stData) ? stData.map((row: ClinicStatusRow) => ({
@@ -97,7 +97,7 @@ export function useClinicAnalytics(clinicId?: string): ClinicAnalyticsResult {
 
         // 3) get_clinic_quality_breakdown
         const { data: qbData, error: qbErr } = await supabase.rpc('get_clinic_quality_breakdown', {
-          _clinic_id: clinicId
+          _clinic_id: clinicId || null
         })
         if (qbErr) throw qbErr
         setQualityBreakdown(Array.isArray(qbData) ? qbData.map((row: ClinicQualityRow) => ({

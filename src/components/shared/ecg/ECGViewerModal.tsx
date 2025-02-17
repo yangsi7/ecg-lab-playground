@@ -7,7 +7,7 @@
  ********************************************************************/
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { useDownsampleECG } from '../../hooks/useDownsampleECG';
+import { useECGData } from '../../../hooks/api/useECGData';
 import { AdvancedECGPlot } from './AdvancedECGPlot';
 
 interface ECGViewerModalProps {
@@ -25,14 +25,14 @@ export default function ECGViewerModal({
     timeStart,
     timeEnd
 }: ECGViewerModalProps) {
-    const [overrideMaxPoints, setOverrideMaxPoints] = useState<number | undefined>(undefined);
+    const [maxPoints, setMaxPoints] = useState<number | undefined>(undefined);
 
     // Hook fetch
-    const { data, loading, error } = useDownsampleECG({
-        pod_id: podId,
-        time_start: timeStart,
-        time_end: timeEnd,
-        overrideMaxPoints
+    const { data, loading, error } = useECGData({
+        podId,
+        timeStart,
+        timeEnd,
+        maxPoints
     });
 
     if (!isOpen) return null;
@@ -58,14 +58,14 @@ export default function ECGViewerModal({
 
                 {/* Override input */}
                 <div className="flex gap-2 items-center mb-2">
-                    <label className="text-xs text-gray-400">Max Points Override:</label>
+                    <label className="text-xs text-gray-400">Max Points:</label>
                     <input
                         type="number"
                         className="bg-white/5 border border-white/10 px-2 py-1 rounded text-sm text-white"
                         placeholder="0=auto"
                         onChange={(e) => {
                             const val = Number(e.target.value);
-                            setOverrideMaxPoints(val <= 0 ? undefined : val);
+                            setMaxPoints(val <= 0 ? undefined : val);
                         }}
                     />
                 </div>

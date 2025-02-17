@@ -49,6 +49,39 @@ export interface ECGQueryOptions {
 }
 
 /**
+ * Time interval for ECG data aggregation
+ */
+export type TimeInterval = 'hourly' | 'daily';
+
+/**
+ * Filter options for ECG aggregates
+ */
+export interface ECGAggregateFilter {
+  quality_threshold?: number;
+  lead_on_threshold?: number;
+  time_range?: {
+    start: string;
+    end: string;
+  };
+}
+
+/**
+ * Aggregated lead data from RPC function
+ */
+export interface AggregatedLeadData {
+  time_bucket: string;
+  lead_on_p_1?: number;
+  lead_on_p_2?: number;
+  lead_on_p_3?: number;
+  lead_on_n_1?: number;
+  lead_on_n_2?: number;
+  lead_on_n_3?: number;
+  quality_1_percent?: number;
+  quality_2_percent?: number;
+  quality_3_percent?: number;
+}
+
+/**
  * Type guard to check if a value is ECGData
  */
 export const isECGData: TypeGuard<ECGData> = (value): value is ECGData => {

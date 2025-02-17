@@ -1,22 +1,31 @@
-import { supabase } from '../supabaseClient';
-import type { Database } from '../types/database.types';
+import { supabase } from './client';
+import type { Database } from '../../types/database.types';
+import type { ClinicRow, QueryParams, QueryResponse } from './client';
 
-export type ClinicRow = Database['public']['Tables']['clinics']['Row'];
-
-/**
- * Fetch all clinics
- */
-export async function fetchClinics(): Promise<ClinicRow[]> {
-  const { data, error } = await supabase
+export async function fetchClinics(params: QueryParams = {}): Promise<QueryResponse<ClinicRow>> {
+  let query = supabase
     .from('clinics')
-    .select('*')
-    .order('name', { ascending: true });
+    .select('*', { count: 'exact' });
 
-  if (error) {
-    throw new Error(error.message);
+  if (params.filters) {
+    for (const [field, value] of Object.entries(params.filters)) {
+      if (value) {
+        query = query.ilike(field, `%${value}%`);
+      }
+    }
   }
 
-  return data ?? [];
+  if (params.sortBy) {
+    query = query.order(params.sortBy, { ascending: params.sortDirection === 'asc' });
+  }
+
+  const { data, error, count } = await query;
+
+  return {
+    data: data ?? [],
+    error: error ? new Error(error.message) : null,
+    count: count ?? 0,
+  };
 }
 
 /**

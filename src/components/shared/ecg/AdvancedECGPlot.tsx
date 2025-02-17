@@ -12,11 +12,11 @@
  */
 
 import React, { useRef, useEffect, useState, useCallback } from 'react'
-import { DownsamplePoint } from '../../hooks/useDownsampleECG'
 import { ZoomIn, ZoomOut, Crop, EyeOff } from 'lucide-react'
+import type { ECGData } from '../../../types/domain/ecg'
 
 interface AdvancedECGPlotProps {
-    data: DownsamplePoint[]
+    data: ECGData[]
     channel: 1 | 2 | 3
     width?: number
     height?: number

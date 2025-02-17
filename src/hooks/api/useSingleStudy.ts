@@ -1,52 +1,35 @@
 // src/hooks/useSingleStudy.ts
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../../lib/supabase';
+import type { StudyRow } from '../../lib/supabase/client';
 
-interface SingleStudyRow {
-    study_id: string;
-    pod_id: string | null;
-    clinic_id: string | null;
-    start_timestamp: string | null;
-    end_timestamp: string | null;
-    earliest_time: string | null;
-    latest_time: string | null;
+interface StudyResult {
+    study: StudyRow | null;
+    loading: boolean;
+    error: string | null;
 }
 
-export function useSingleStudy(studyId?: string) {
-    const [study, setStudy] = useState<SingleStudyRow | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+export function useSingleStudy(studyId?: string): StudyResult {
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['study', studyId],
+        queryFn: async () => {
+            if (!studyId) return null;
 
-    useEffect(() => {
-        let canceled = false;
-        if (!studyId) {
-            setLoading(false);
-            return;
-        }
-        async function fetchStudy() {
-            setLoading(true);
-            setError(null);
-            try {
-                const { data, error: rpcErr } = await supabase
-                    .rpc('get_study_details_with_earliest_latest', { p_study_id: studyId });
-                if (rpcErr) throw new Error(rpcErr.message);
+            const { data, error } = await supabase
+                .from('study')
+                .select('*')
+                .eq('study_id', studyId)
+                .single();
 
-                if (!data || data.length === 0) {
-                    setStudy(null);
-                } else {
-                    setStudy(data[0]);
-                }
-            } catch (err: any) {
-                setError(err.message || 'Failed to load study');
-            } finally {
-                if (!canceled) setLoading(false);
-            }
-        }
-        fetchStudy();
-        return () => {
-            canceled = true;
-        };
-    }, [studyId]);
+            if (error) throw error;
+            return data;
+        },
+        enabled: !!studyId
+    });
 
-    return { study, loading, error };
+    return {
+        study: data,
+        loading: isLoading,
+        error: error instanceof Error ? error.message : null
+    };
 }
