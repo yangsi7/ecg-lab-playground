@@ -186,4 +186,23 @@ export const toStudyReading: Transform<StudyReadingRow, StudyReading> = (row) =>
     created_at: row.created_at ?? '',
     created_by: row.created_by ?? '',
   };
-}; 
+};
+
+export interface StudiesWithTimesRow {
+    study_id: string;
+    pod_id: string;
+    start_timestamp: string;
+    end_timestamp: string;
+    earliest_time: string;
+    latest_time: string;
+    total_count: number;
+}
+
+export interface StudyListRow {
+    study_id: string;
+    pod_id: string;
+    start_time: string;
+    end_time: string;
+    clinic_name: string;
+    patient_id: string;
+} 

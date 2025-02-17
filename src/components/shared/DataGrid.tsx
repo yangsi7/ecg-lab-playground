@@ -1,173 +1,108 @@
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
-import { evaluateExpression, validateExpression } from '../../utils/ExpressionParser';
+import React, { useState, useMemo } from 'react';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
-export type Column<T> = {
-  field: keyof T;
+export interface Column<T> {
+  key: keyof T;
   header: string;
   sortable?: boolean;
-  render?: (value: T[keyof T], row: T) => React.ReactNode;
-};
+}
 
-export type SortConfig = {
-  field: string;
-  direction: 'asc' | 'desc';
-};
-
-type DataGridProps<T extends Record<string, any>> = {
+export interface DataGridProps<T> {
   data: T[];
   columns: Column<T>[];
+  defaultSortKey?: keyof T;
   pageSize?: number;
   filterExpression?: string;
   onFilterError?: (error: Error) => void;
   className?: string;
-};
+}
 
 export function DataGrid<T extends Record<string, any>>({
   data,
   columns,
-  pageSize = 10,
+  defaultSortKey,
+  pageSize = 25,
   filterExpression,
   onFilterError,
-  className = '',
+  className = ''
 }: DataGridProps<T>) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof T | null; direction: 'asc' | 'desc' }>({
+    key: defaultSortKey || null,
+    direction: 'asc',
+  });
 
-  // Handle sorting
+  const handleSort = (key: keyof T) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc',
+    }));
+  };
+
   const sortedData = useMemo(() => {
-    if (!sortConfig) return data;
+    if (!sortConfig.key) return data;
 
     return [...data].sort((a, b) => {
-      const aValue = a[sortConfig.field];
-      const bValue = b[sortConfig.field];
+      if (sortConfig.key === null) return 0;
+      
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
 
-      if (aValue === bValue) return 0;
-      const comparison = aValue < bValue ? -1 : 1;
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
+      if (aValue === null || aValue === undefined) return 1;
+      if (bValue === null || bValue === undefined) return -1;
+
+      if (typeof aValue === 'number' && typeof bValue === 'number') {
+        return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+      } else {
+        const aStr = String(aValue);
+        const bStr = String(bValue);
+        return sortConfig.direction === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+      }
     });
   }, [data, sortConfig]);
 
-  // Handle filtering
-  const filteredData = useMemo(() => {
-    if (!filterExpression?.trim()) return sortedData;
-
-    try {
-      if (!validateExpression(filterExpression)) {
-        throw new Error('Invalid filter syntax');
-      }
-
-      return sortedData.filter(row => {
-        try {
-          return evaluateExpression(filterExpression, row);
-        } catch (error) {
-          if (error instanceof Error) {
-            onFilterError?.(error);
-          }
-          return false;
-        }
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        onFilterError?.(error);
-      }
-      return sortedData;
-    }
-  }, [sortedData, filterExpression]);
-
-  // Handle pagination
-  const totalPages = Math.ceil(filteredData.length / pageSize);
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredData.slice(start, start + pageSize);
-  }, [filteredData, currentPage, pageSize]);
-
-  const handleSort = (field: keyof T) => {
-    const column = columns.find(col => col.field === field);
-    if (!column?.sortable) return;
-
-    setSortConfig(current => {
-      if (current?.field !== field) {
-        return { field: field as string, direction: 'asc' };
-      }
-      if (current.direction === 'asc') {
-        return { field: field as string, direction: 'desc' };
-      }
-      return null;
-    });
-  };
-
-  const getSortIcon = (field: keyof T) => {
-    if (!sortConfig || sortConfig.field !== field) {
-      return <ChevronsUpDown className="w-4 h-4 text-gray-400" />;
-    }
-    return sortConfig.direction === 'asc' ? 
-      <ChevronUp className="w-4 h-4 text-blue-500" /> : 
-      <ChevronDown className="w-4 h-4 text-blue-500" />;
-  };
-
   return (
-    <div className={`overflow-x-auto ${className}`}>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            {columns.map(column => (
-              <th
-                key={column.field as string}
-                className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
-                  column.sortable ? 'cursor-pointer select-none' : ''
-                }`}
-                onClick={() => handleSort(column.field)}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{column.header}</span>
-                  {column.sortable && getSortIcon(column.field)}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {paginatedData.map((row, rowIndex) => (
-            <tr key={rowIndex} className="hover:bg-gray-50">
-              {columns.map(column => (
-                <td
-                  key={column.field as string}
-                  className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+    <div className="bg-white/10 backdrop-blur-xl rounded-xl border border-white/10 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-white/10">
+              {columns.map((column) => (
+                <th
+                  key={column.key as string}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase"
                 >
-                  {column.render
-                    ? column.render(row[column.field], row)
-                    : row[column.field]?.toString()}
-                </td>
+                  {column.sortable ? (
+                    <button
+                      onClick={() => handleSort(column.key)}
+                      className="flex items-center gap-1 hover:text-white transition"
+                    >
+                      {column.header}
+                      {sortConfig.key === column.key && (
+                        sortConfig.direction === 'asc'
+                          ? <ChevronUp className="h-4 w-4" />
+                          : <ChevronDown className="h-4 w-4" />
+                      )}
+                    </button>
+                  ) : (
+                    column.header
+                  )}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-          <div className="flex justify-between w-full">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Previous
-            </button>
-            <span className="text-sm text-gray-700">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="relative inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+          </thead>
+          <tbody className="divide-y divide-white/10">
+            {sortedData.map((item, index) => (
+              <tr key={index} className="hover:bg-white/5 transition-all duration-200 ease-in-out">
+                {columns.map((column) => (
+                  <td key={column.key as string} className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                    {item[column.key] !== null && item[column.key] !== undefined ? String(item[column.key]) : '-'}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-} 
+}
