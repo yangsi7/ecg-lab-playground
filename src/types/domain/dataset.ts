@@ -1,10 +1,14 @@
+import type { Json } from '../database.types';
+
 export interface DataSet {
     id: string;
     name: string;
-    type: 'ecg' | 'activity' | 'sleep';
-    size: number;
-    status: 'processing' | 'ready' | 'error';
+    description: string | null;
     created_at: string;
+    created_by: string | null;
+    metadata: Json | null;
     updated_at: string;
-    metadata?: Record<string, unknown>;
+    status: string | null;
+    size_bytes: number | null;
+    file_count: number | null;
 } 

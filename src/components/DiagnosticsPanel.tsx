@@ -2,15 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { 
   AlertTriangle, Info, CheckCircle2, XCircle, Database as DatabaseIcon, Code, 
-  Activity, Server, Zap
+  Server, Zap
 } from 'lucide-react';
 import { supabase } from '../lib/supabase/client';
 import { callRPC } from '../lib/supabase/client';
 import type { Database } from '../types/database.types';
 
-type DatabaseStat = Database['public']['Functions']['get_database_stats']['Returns'][0];
-type EdgeFunctionStats = Database['public']['Functions']['get_edge_function_stats']['Returns'][0];
-type ECGDiagnostics = Database['public']['Functions']['get_ecg_diagnostics']['Returns'][0];
+type EdgeFunctionStatsRPC = Database['public']['Functions']['get_edge_function_stats']['Returns'][0];
+
+interface DatabaseStat {
+  stat_type: string;
+  rolname: string | null;
+  query: string | null;
+  calls: number | null;
+  total_time: number | null;
+  min_time: number | null;
+  max_time: number | null;
+  mean_time: number | null;
+  avg_rows: number | null;
+  prop_total_time: string | null;
+  hit_rate: number | null;
+}
+
+type EdgeFunctionStats = {
+  function_name: string;
+  total_invocations: number;
+  success_rate: number;
+  average_duration_ms: number;
+  memory_usage: number;
+  cpu_time: string;
+  peak_concurrent_executions: number;
+  last_invocation: string;
+};
 
 interface RPCCallInfo {
   functionName: string;
@@ -29,7 +52,6 @@ const DiagnosticsPanel: React.FC = () => {
   const [activeComponents, setActiveComponents] = useState<Set<string>>(new Set());
   const [databaseStats, setDatabaseStats] = useState<DatabaseStat[]>([]);
   const [edgeFunctionStats, setEdgeFunctionStats] = useState<EdgeFunctionStats | null>(null);
-  const [ecgDiagnostics, setEcgDiagnostics] = useState<ECGDiagnostics | null>(null);
 
   // Check Supabase connection and fetch initial stats
   useEffect(() => {
@@ -46,8 +68,25 @@ const DiagnosticsPanel: React.FC = () => {
           const dbStats = await callRPC('get_database_stats', undefined, {
             component: 'DiagnosticsPanel',
             context: { action: 'initialize' }
-          });
-          if (dbStats) setDatabaseStats(dbStats);
+          }) as Database['public']['Functions']['get_database_stats']['Returns'];
+          
+          if (dbStats) {
+            // Convert the returned stats to match our interface
+            const convertedStats: DatabaseStat[] = dbStats.map((stat) => ({
+              stat_type: stat.stat_type,
+              rolname: stat.rolname,
+              query: stat.query,
+              calls: stat.calls,
+              total_time: stat.total_time,
+              min_time: stat.min_time,
+              max_time: stat.max_time,
+              mean_time: stat.mean_time,
+              avg_rows: stat.avg_rows,
+              prop_total_time: stat.prop_total_time,
+              hit_rate: stat.hit_rate
+            }));
+            setDatabaseStats(convertedStats);
+          }
         } catch (error) {
           // Silently ignore missing function error
           const statsError = error instanceof Error ? error.message : String(error);
@@ -69,8 +108,15 @@ const DiagnosticsPanel: React.FC = () => {
           }, {
             component: 'DiagnosticsPanel',
             context: { action: 'initialize' }
-          });
-          if (edgeStats?.[0]) setEdgeFunctionStats(edgeStats[0]);
+          }) as EdgeFunctionStatsRPC[];
+
+          if (edgeStats?.[0]) {
+            const convertedStat: EdgeFunctionStats = {
+              ...edgeStats[0],
+              cpu_time: String(edgeStats[0].cpu_time) // Convert interval to string
+            };
+            setEdgeFunctionStats(convertedStat);
+          }
         } catch (error) {
           // Silently ignore missing function error
           const statsError = error instanceof Error ? error.message : String(error);
@@ -92,47 +138,6 @@ const DiagnosticsPanel: React.FC = () => {
     const interval = setInterval(initialize, 60000);
     return () => clearInterval(interval);
   }, []);
-
-  // Fetch ECG diagnostics when on ECG viewer page
-  useEffect(() => {
-    if (!location.pathname.startsWith('/ecg/')) {
-      setEcgDiagnostics(null);
-      return;
-    }
-
-    const studyId = location.pathname.split('/')[2];
-    if (!studyId) return;
-
-    async function fetchEcgDiagnostics() {
-      try {
-        const { data: study } = await supabase
-          .from('study')
-          .select('pod_id')
-          .eq('study_id', studyId)
-          .single();
-
-        if (!study?.pod_id) return;
-
-        const now = new Date();
-        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
-        const ecgStats = await callRPC('get_ecg_diagnostics', {
-          p_pod_id: study.pod_id,
-          p_time_start: hourAgo.toISOString(),
-          p_time_end: now.toISOString()
-        }, {
-          component: 'DiagnosticsPanel',
-          context: { studyId, action: 'fetchEcgDiagnostics' }
-        });
-
-        if (ecgStats?.[0]) setEcgDiagnostics(ecgStats[0]);
-      } catch (err) {
-        console.error('Failed to fetch ECG diagnostics:', err);
-      }
-    }
-
-    fetchEcgDiagnostics();
-  }, [location.pathname]);
 
   // Track active components from RPC calls
   useEffect(() => {
@@ -165,77 +170,66 @@ const DiagnosticsPanel: React.FC = () => {
           Database Statistics
         </h3>
 
-        {/* Table Statistics */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Table Statistics</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {databaseStats.map((stat, index) => (
-              <div key={index} className="p-4 bg-white/5 rounded-lg">
-                <h5 className="font-medium">{stat.table_name}</h5>
-                <div className="mt-2 space-y-1 text-sm">
-                  <p>Rows: {stat.row_count.toLocaleString()}</p>
-                  <p>Size: {(stat.size_bytes / 1024 / 1024).toFixed(2)} MB</p>
-                  <p>Last Vacuum: {new Date(stat.last_vacuum).toLocaleString()}</p>
-                  <p>Last Analyze: {new Date(stat.last_analyze).toLocaleString()}</p>
+        {/* Cache Hit Rates */}
+        {databaseStats
+          .filter(stat => stat.stat_type === 'Cache Hit Rates' || stat.stat_type === 'Table Hit Rate')
+          .map((stat, idx) => (
+            <div key={idx} className="space-y-1">
+              <h4 className="font-medium">{stat.stat_type}</h4>
+              {stat.hit_rate !== null && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-grow bg-gray-700/50 rounded-full h-2">
+                    <div
+                      className="bg-blue-500 h-full rounded-full"
+                      style={{ width: `${stat.hit_rate}%` }}
+                    />
+                  </div>
+                  <span>{stat.hit_rate.toFixed(1)}%</span>
                 </div>
+              )}
+            </div>
+          ))}
+
+        {/* Most Time Consuming Queries */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Most Time Consuming Queries</h4>
+          <div className="space-y-4">
+            {databaseStats
+              .filter(stat => stat.stat_type === 'Most Time Consuming Queries' && stat.query)
+              .slice(0, 5)
+              .map((stat, idx) => (
+                <div key={idx} className="p-4 bg-white/5 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span>Query {idx + 1}</span>
+                    <span>{stat.rolname || 'Unknown Role'}</span>
+                  </div>
+                  <pre className="mt-2 text-xs overflow-x-auto whitespace-pre-wrap">
+                    {stat.query}
+                  </pre>
+                  <div className="mt-2 grid grid-cols-3 gap-2 text-sm text-gray-400">
+                    <span>{stat.calls?.toLocaleString() || 0} calls</span>
+                    <span>{stat.mean_time ? `${stat.mean_time.toFixed(2)}ms` : 'N/A'} avg</span>
+                    <span>{stat.avg_rows ? `${Math.round(stat.avg_rows)} rows/call` : 'N/A'}</span>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+
+        {/* Cumulative Execution Time */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Cumulative Execution Time</h4>
+          {databaseStats
+            .filter(stat => stat.stat_type === 'Cumulative Total Execution Time' && stat.query)
+            .slice(0, 3)
+            .map((stat, idx) => (
+              <div key={idx} className="flex justify-between text-sm">
+                <span className="truncate" title={stat.query || ''}>
+                  {stat.query ? `${stat.query.slice(0, 50)}...` : 'Unknown Query'}
+                </span>
+                <span>{stat.prop_total_time || '0%'}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        {/* Index Usage */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Index Usage</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {databaseStats.flatMap(stat => 
-              stat.index_usage.map((index, i) => (
-                <div key={`${stat.table_name}-${i}`} className="p-4 bg-white/5 rounded-lg">
-                  <h5 className="font-medium">{index.index_name}</h5>
-                  <div className="mt-2 space-y-1 text-sm">
-                    <p>Scans: {index.scan_count.toLocaleString()}</p>
-                    <p>Size: {(index.size_bytes / 1024 / 1024).toFixed(2)} MB</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Query Statistics */}
-        <div className="space-y-2">
-          <h4 className="font-medium">Query Performance</h4>
-          <div className="space-y-4">
-            {databaseStats.flatMap(stat => 
-              stat.query_stats
-                .sort((a, b) => b.total_time - a.total_time)
-                .slice(0, 5)
-                .map((query, i) => (
-                  <div key={i} className="p-4 bg-white/5 rounded-lg">
-                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
-                      {query.query_pattern}
-                    </pre>
-                    <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-400">Calls</p>
-                        <p>{query.calls.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Total Time</p>
-                        <p>{query.total_time.toFixed(2)}ms</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Avg Time</p>
-                        <p>{(query.total_time / query.calls).toFixed(2)}ms</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Rows</p>
-                        <p>{query.rows_processed.toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))
-            )}
-          </div>
         </div>
       </div>
     );
@@ -315,56 +309,10 @@ const DiagnosticsPanel: React.FC = () => {
               <div>Success Rate: {(edgeFunctionStats.success_rate * 100).toFixed(1)}%</div>
               <div>Avg Duration: {edgeFunctionStats.average_duration_ms.toFixed(2)}ms</div>
               <div>Memory Usage: {(edgeFunctionStats.memory_usage / 1024 / 1024).toFixed(2)}MB</div>
-              <div>CPU Time: {edgeFunctionStats.cpu_time}ms</div>
+              <div>CPU Time: {edgeFunctionStats.cpu_time}</div>
               <div>Peak Concurrent: {edgeFunctionStats.peak_concurrent_executions}</div>
               <div className="col-span-2">
                 Last Invocation: {new Date(edgeFunctionStats.last_invocation).toLocaleString()}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ECG Diagnostics */}
-        {ecgDiagnostics && (
-          <div className="p-3 rounded-lg bg-white/5">
-            <h3 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-              <Activity className="w-4 h-4" />
-              ECG Diagnostics
-            </h3>
-            <div className="space-y-3 text-xs">
-              {/* Signal Quality */}
-              <div>
-                <h4 className="text-gray-300 mb-1">Signal Quality</h4>
-                <div className="grid grid-cols-2 gap-2 text-gray-400">
-                  <div>SNR: {ecgDiagnostics.signal_quality.snr.toFixed(2)}</div>
-                  <div>Baseline Wander: {ecgDiagnostics.signal_quality.baseline_wander.toFixed(2)}</div>
-                  <div>Noise Level: {ecgDiagnostics.signal_quality.noise_level.toFixed(2)}</div>
-                  <div>Quality Scores:</div>
-                  <div>Ch1: {ecgDiagnostics.signal_quality.quality_scores.channel_1.toFixed(1)}%</div>
-                  <div>Ch2: {ecgDiagnostics.signal_quality.quality_scores.channel_2.toFixed(1)}%</div>
-                  <div>Ch3: {ecgDiagnostics.signal_quality.quality_scores.channel_3.toFixed(1)}%</div>
-                </div>
-              </div>
-
-              {/* Connection Stats */}
-              <div>
-                <h4 className="text-gray-300 mb-1">Connection Stats</h4>
-                <div className="grid grid-cols-2 gap-2 text-gray-400">
-                  <div>Total Samples: {ecgDiagnostics.connection_stats.total_samples.toLocaleString()}</div>
-                  <div>Missing: {ecgDiagnostics.connection_stats.missing_samples.toLocaleString()}</div>
-                  <div>Drops: {ecgDiagnostics.connection_stats.connection_drops}</div>
-                  <div>Sampling Rate: {ecgDiagnostics.connection_stats.sampling_frequency}Hz</div>
-                </div>
-              </div>
-
-              {/* Data Quality */}
-              <div>
-                <h4 className="text-gray-300 mb-1">Data Quality</h4>
-                <div className="grid grid-cols-2 gap-2 text-gray-400">
-                  <div>Recording Gaps: {ecgDiagnostics.data_quality.recording_gaps}</div>
-                  <div>Leads Connected: {ecgDiagnostics.data_quality.all_leads_connected_percent.toFixed(1)}%</div>
-                  <div>Max Continuous: {(ecgDiagnostics.data_quality.max_continuous_segment_seconds / 60).toFixed(1)} min</div>
-                </div>
               </div>
             </div>
           </div>

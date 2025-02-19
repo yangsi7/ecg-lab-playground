@@ -24,6 +24,45 @@ export type Database = {
         }
         Relationships: []
       }
+      datasets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          file_count: number | null
+          id: string
+          metadata: Json | null
+          name: string
+          size_bytes: number | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_count?: number | null
+          id?: string
+          metadata?: Json | null
+          name: string
+          size_bytes?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          file_count?: number | null
+          id?: string
+          metadata?: Json | null
+          name?: string
+          size_bytes?: number | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ecg_data: {
         Row: {
           channel_1: number | null
@@ -131,6 +170,42 @@ export type Database = {
           },
         ]
       }
+      edge_function_stats: {
+        Row: {
+          cpu_time: unknown | null
+          created_at: string
+          error_message: string | null
+          execution_duration: unknown
+          function_name: string
+          id: string
+          memory_usage: number | null
+          request_id: string | null
+          success: boolean
+        }
+        Insert: {
+          cpu_time?: unknown | null
+          created_at?: string
+          error_message?: string | null
+          execution_duration: unknown
+          function_name: string
+          id?: string
+          memory_usage?: number | null
+          request_id?: string | null
+          success?: boolean
+        }
+        Update: {
+          cpu_time?: unknown | null
+          created_at?: string
+          error_message?: string | null
+          execution_duration?: unknown
+          function_name?: string
+          id?: string
+          memory_usage?: number | null
+          request_id?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       pod: {
         Row: {
           assigned_study_id: string | null
@@ -162,6 +237,39 @@ export type Database = {
             referencedColumns: ["study_id"]
           },
         ]
+      }
+      rpc_call_info: {
+        Row: {
+          component: string | null
+          context: Json | null
+          error: Json | null
+          function_name: string
+          id: string
+          params: Json | null
+          status: string
+          timestamp: string
+        }
+        Insert: {
+          component?: string | null
+          context?: Json | null
+          error?: Json | null
+          function_name: string
+          id?: string
+          params?: Json | null
+          status: string
+          timestamp?: string
+        }
+        Update: {
+          component?: string | null
+          context?: Json | null
+          error?: Json | null
+          function_name?: string
+          id?: string
+          params?: Json | null
+          status?: string
+          timestamp?: string
+        }
+        Relationships: []
       }
       study: {
         Row: {
@@ -480,6 +588,41 @@ export type Database = {
           node_name: unknown
         }[]
       }
+      coalesce_array: {
+        Args: {
+          value: unknown
+          default_value: unknown
+        }
+        Returns: unknown
+      }
+      coalesce_json: {
+        Args: {
+          value: Json
+          default_value?: Json
+        }
+        Returns: Json
+      }
+      coalesce_jsonb: {
+        Args: {
+          value: Json
+          default_value?: Json
+        }
+        Returns: Json
+      }
+      coalesce_numeric: {
+        Args: {
+          value: number
+          default_value?: number
+        }
+        Returns: number
+      }
+      coalesce_text: {
+        Args: {
+          value: string
+          default_value?: string
+        }
+        Returns: string
+      }
       compress_chunk: {
         Args: {
           uncompressed_chunk: unknown
@@ -618,6 +761,22 @@ export type Database = {
           quality_3: boolean
         }[]
       }
+      downsample_ecg_chunked: {
+        Args: {
+          p_pod_id: string
+          p_time_start: string
+          p_time_end: string
+          p_factor?: number
+          p_chunk_minutes?: number
+          p_offset?: number
+          p_limit?: number
+        }
+        Returns: {
+          chunk_start: string
+          chunk_end: string
+          samples: Json
+        }[]
+      }
       downsample_ecg_naive: {
         Args: {
           p_pod_id: string
@@ -661,6 +820,17 @@ export type Database = {
         Returns: {
           column_stats_id: number
           enabled: boolean
+        }[]
+      }
+      get_clinic_analytics: {
+        Args: {
+          clinic_id?: string
+        }
+        Returns: {
+          totalpatients: number
+          activepatients: number
+          totalstudies: number
+          activestudies: number
         }[]
       }
       get_clinic_monthly_quality: {
@@ -783,6 +953,22 @@ export type Database = {
           open_studies: number
         }[]
       }
+      get_database_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          stat_type: string
+          rolname: string
+          query: string
+          calls: number
+          total_time: number
+          min_time: number
+          max_time: number
+          mean_time: number
+          avg_rows: number
+          prop_total_time: string
+          hit_rate: number
+        }[]
+      }
       get_earliest_latest_for_pod: {
         Args: {
           p_pod_id: string
@@ -790,6 +976,38 @@ export type Database = {
         Returns: {
           earliest_time: string
           latest_time: string
+        }[]
+      }
+      get_ecg_diagnostics_chunked: {
+        Args: {
+          p_pod_id: string
+          p_time_start: string
+          p_time_end: string
+          p_chunk_minutes?: number
+          p_offset?: number
+          p_limit?: number
+        }
+        Returns: {
+          chunk_start: string
+          chunk_end: string
+          metrics: Json
+        }[]
+      }
+      get_edge_function_stats: {
+        Args: {
+          p_function_name: string
+          p_time_start: string
+          p_time_end: string
+        }
+        Returns: {
+          function_name: string
+          total_invocations: number
+          success_rate: number
+          average_duration_ms: number
+          memory_usage: number
+          cpu_time: unknown
+          peak_concurrent_executions: number
+          last_invocation: string
         }[]
       }
       get_new_studies_and_growth: {
@@ -833,6 +1051,16 @@ export type Database = {
           threshold: number
         }
         Returns: number
+      }
+      get_rpc_function_info: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          function_name: string
+          return_type: string
+          arguments: string
+          definition: string
+          function_type: string
+        }[]
       }
       get_studies_with_aggregates: {
         Args: Record<PropertyKey, never>
@@ -1113,6 +1341,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      rpccallinfo: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          function_name: string
+          return_type: string
+          arguments: string
+          definition: string
+          function_type: string
+        }[]
+      }
       set_adaptive_chunking: {
         Args: {
           hypertable: unknown
@@ -1366,88 +1604,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      get_edge_function_stats: {
-        Args: {
-          p_function_name: string;
-          p_time_start: string;
-          p_time_end: string;
-        };
-        Returns: {
-          function_name: string;
-          total_invocations: number;
-          average_duration_ms: number;
-          error_count: number;
-          success_rate: number;
-          memory_usage: number;
-          cpu_time: number;
-          last_invocation: string;
-          peak_concurrent_executions: number;
-        }[];
-      };
-      get_database_stats: {
-        Args: {
-          p_table_name?: string;
-        };
-        Returns: {
-          table_name: string;
-          row_count: number;
-          size_bytes: number;
-          last_vacuum: string;
-          last_analyze: string;
-          index_usage: {
-            index_name: string;
-            scan_count: number;
-            size_bytes: number;
-          }[];
-          query_stats: {
-            query_pattern: string;
-            calls: number;
-            total_time: number;
-            rows_processed: number;
-          }[];
-        }[];
-      };
-      get_ecg_diagnostics: {
-        Args: {
-          p_pod_id: string;
-          p_time_start: string;
-          p_time_end: string;
-        };
-        Returns: {
-          signal_quality: {
-            snr: number;
-            baseline_wander: number;
-            noise_level: number;
-            quality_scores: {
-              channel_1: number;
-              channel_2: number;
-              channel_3: number;
-            };
-          };
-          connection_stats: {
-            total_samples: number;
-            missing_samples: number;
-            connection_drops: number;
-            sampling_frequency: number;
-          };
-          data_quality: {
-            recording_gaps: number;
-            all_leads_connected_percent: number;
-            max_continuous_segment_seconds: number;
-          };
-        }[];
-      };
-      get_clinic_analytics: {
-        Args: {
-          clinic_id?: string;
-        };
-        Returns: {
-          totalPatients: number;
-          activePatients: number;
-          totalStudies: number;
-          activeStudies: number;
-        }[];
-      };
     }
     Enums: {
       [_ in never]: never
