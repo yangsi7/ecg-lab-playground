@@ -8,8 +8,8 @@ import { supabase } from '../lib/supabase/client';
 import { callRPC } from '../lib/supabase/client';
 import type { Database } from '../types/database.types';
 
+type DatabaseStat = Database['public']['Functions']['get_database_stats']['Returns'][0];
 type EdgeFunctionStats = Database['public']['Functions']['get_edge_function_stats']['Returns'][0];
-type DatabaseStats = Database['public']['Functions']['get_database_stats']['Returns'][0];
 type ECGDiagnostics = Database['public']['Functions']['get_ecg_diagnostics']['Returns'][0];
 
 interface RPCCallInfo {
@@ -27,7 +27,7 @@ const DiagnosticsPanel: React.FC = () => {
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeComponents, setActiveComponents] = useState<Set<string>>(new Set());
-  const [databaseStats, setDatabaseStats] = useState<DatabaseStats | null>(null);
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStat[]>([]);
   const [edgeFunctionStats, setEdgeFunctionStats] = useState<EdgeFunctionStats | null>(null);
   const [ecgDiagnostics, setEcgDiagnostics] = useState<ECGDiagnostics | null>(null);
 
@@ -41,25 +41,45 @@ const DiagnosticsPanel: React.FC = () => {
         setSupabaseStatus('connected');
         setErrorMessage(null);
 
-        // Fetch database stats
-        const dbStats = await callRPC('get_database_stats', undefined, {
-          component: 'DiagnosticsPanel',
-          context: { action: 'initialize' }
-        });
-        if (dbStats?.[0]) setDatabaseStats(dbStats[0]);
+        try {
+          // Fetch database stats (wrapped in try-catch since function might not exist)
+          const dbStats = await callRPC('get_database_stats', undefined, {
+            component: 'DiagnosticsPanel',
+            context: { action: 'initialize' }
+          });
+          if (dbStats) setDatabaseStats(dbStats);
+        } catch (error) {
+          // Silently ignore missing function error
+          const statsError = error instanceof Error ? error.message : String(error);
+          if (statsError.includes('Could not find the function')) {
+            console.info('Database stats function not available yet');
+          } else {
+            throw error;
+          }
+        }
 
-        // Fetch edge function stats for last hour
-        const now = new Date();
-        const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        const edgeStats = await callRPC('get_edge_function_stats', {
-          p_function_name: 'downsample-ecg',
-          p_time_start: hourAgo.toISOString(),
-          p_time_end: now.toISOString()
-        }, {
-          component: 'DiagnosticsPanel',
-          context: { action: 'initialize' }
-        });
-        if (edgeStats?.[0]) setEdgeFunctionStats(edgeStats[0]);
+        try {
+          // Fetch edge function stats for last hour
+          const now = new Date();
+          const hourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+          const edgeStats = await callRPC('get_edge_function_stats', {
+            p_function_name: 'downsample-ecg',
+            p_time_start: hourAgo.toISOString(),
+            p_time_end: now.toISOString()
+          }, {
+            component: 'DiagnosticsPanel',
+            context: { action: 'initialize' }
+          });
+          if (edgeStats?.[0]) setEdgeFunctionStats(edgeStats[0]);
+        } catch (error) {
+          // Silently ignore missing function error
+          const statsError = error instanceof Error ? error.message : String(error);
+          if (statsError.includes('Could not find the function')) {
+            console.info('Edge function stats not available yet');
+          } else {
+            throw error;
+          }
+        }
 
       } catch (err) {
         setSupabaseStatus('error');
@@ -134,6 +154,93 @@ const DiagnosticsPanel: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Render database stats section
+  const renderDatabaseStats = () => {
+    if (!databaseStats || databaseStats.length === 0) return null;
+
+    return (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <DatabaseIcon className="w-5 h-5" />
+          Database Statistics
+        </h3>
+
+        {/* Table Statistics */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Table Statistics</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {databaseStats.map((stat, index) => (
+              <div key={index} className="p-4 bg-white/5 rounded-lg">
+                <h5 className="font-medium">{stat.table_name}</h5>
+                <div className="mt-2 space-y-1 text-sm">
+                  <p>Rows: {stat.row_count.toLocaleString()}</p>
+                  <p>Size: {(stat.size_bytes / 1024 / 1024).toFixed(2)} MB</p>
+                  <p>Last Vacuum: {new Date(stat.last_vacuum).toLocaleString()}</p>
+                  <p>Last Analyze: {new Date(stat.last_analyze).toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Index Usage */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Index Usage</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {databaseStats.flatMap(stat => 
+              stat.index_usage.map((index, i) => (
+                <div key={`${stat.table_name}-${i}`} className="p-4 bg-white/5 rounded-lg">
+                  <h5 className="font-medium">{index.index_name}</h5>
+                  <div className="mt-2 space-y-1 text-sm">
+                    <p>Scans: {index.scan_count.toLocaleString()}</p>
+                    <p>Size: {(index.size_bytes / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Query Statistics */}
+        <div className="space-y-2">
+          <h4 className="font-medium">Query Performance</h4>
+          <div className="space-y-4">
+            {databaseStats.flatMap(stat => 
+              stat.query_stats
+                .sort((a, b) => b.total_time - a.total_time)
+                .slice(0, 5)
+                .map((query, i) => (
+                  <div key={i} className="p-4 bg-white/5 rounded-lg">
+                    <pre className="text-xs overflow-x-auto whitespace-pre-wrap">
+                      {query.query_pattern}
+                    </pre>
+                    <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <p className="text-gray-400">Calls</p>
+                        <p>{query.calls.toLocaleString()}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Total Time</p>
+                        <p>{query.total_time.toFixed(2)}ms</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Avg Time</p>
+                        <p>{(query.total_time / query.calls).toFixed(2)}ms</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Rows</p>
+                        <p>{query.rows_processed.toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <aside className="w-96 border-l border-white/10 p-4 bg-gray-900/50 overflow-y-auto">
       <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -194,52 +301,7 @@ const DiagnosticsPanel: React.FC = () => {
         </div>
 
         {/* Database Stats */}
-        {databaseStats && (
-          <div className="p-3 rounded-lg bg-white/5">
-            <h3 className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-              <Server className="w-4 h-4" />
-              Database Statistics
-            </h3>
-            <div className="space-y-2 text-xs text-gray-400">
-              <div className="grid grid-cols-2 gap-2">
-                <div>Rows: {databaseStats.row_count.toLocaleString()}</div>
-                <div>Size: {(databaseStats.size_bytes / 1024 / 1024).toFixed(2)} MB</div>
-                <div>Last Vacuum: {new Date(databaseStats.last_vacuum).toLocaleString()}</div>
-                <div>Last Analyze: {new Date(databaseStats.last_analyze).toLocaleString()}</div>
-              </div>
-              
-              {/* Index Usage */}
-              <div className="mt-2">
-                <h4 className="text-gray-300 mb-1">Index Usage</h4>
-                <div className="space-y-1">
-                  {databaseStats.index_usage.map((index) => (
-                    <div key={index.index_name} className="flex justify-between">
-                      <span>{index.index_name}</span>
-                      <span>{index.scan_count.toLocaleString()} scans</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Query Stats */}
-              <div className="mt-2">
-                <h4 className="text-gray-300 mb-1">Top Queries</h4>
-                <div className="space-y-1">
-                  {databaseStats.query_stats.map((query, i) => (
-                    <div key={i} className="space-y-1">
-                      <div className="font-mono text-xs break-all">{query.query_pattern}</div>
-                      <div className="flex gap-4 text-gray-500">
-                        <span>{query.calls.toLocaleString()} calls</span>
-                        <span>{query.total_time.toFixed(2)}ms total</span>
-                        <span>{query.rows_processed.toLocaleString()} rows</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {renderDatabaseStats()}
 
         {/* Edge Function Stats */}
         {edgeFunctionStats && (

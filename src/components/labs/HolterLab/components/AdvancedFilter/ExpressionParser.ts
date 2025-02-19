@@ -68,17 +68,38 @@ function validateAst(node: Expression): void {
   }
 }
 
+/**
+ * Evaluates a simple JavaScript-like expression against a study object.
+ * Supports basic comparisons and logical operators.
+ * 
+ * Example expressions:
+ * - "qualityFraction < 0.5"
+ * - "totalHours > 10 && qualityFraction >= 0.7"
+ */
 export function evaluateExpression(expression: string, study: HolterStudy): boolean {
-  if (!expression.trim()) return true;
-  
-  try {
-    const ast = jsep(expression);
-    if (!ast) return true;
-    return Boolean(evaluateAst(ast, study));
-  } catch (error) {
-    console.error('Filter evaluation error:', error);
-    return false;
-  }
+    if (!expression.trim()) return true;
+
+    try {
+        // Create a safe evaluation context with only the study properties
+        const context = {
+            qualityFraction: study.qualityFraction,
+            totalHours: study.totalHours,
+            // Add other safe properties as needed
+        };
+
+        // Replace property references with context references
+        const safeExpression = expression.replace(
+            /\b(qualityFraction|totalHours)\b/g,
+            'context.$1'
+        );
+
+        // Create a function that evaluates the expression in the context
+        const evaluator = new Function('context', `return ${safeExpression};`);
+        return evaluator(context);
+    } catch (error) {
+        console.error('Error evaluating filter expression:', error);
+        return false;
+    }
 }
 
 function evaluateAst(node: Expression, study: HolterStudy): number {

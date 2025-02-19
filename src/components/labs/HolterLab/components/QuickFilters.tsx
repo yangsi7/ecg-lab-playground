@@ -1,35 +1,32 @@
 import { AlertTriangle } from 'lucide-react';
 import type { QuickFilterId } from '../hooks/useHolterFilters';
 
-interface QuickFilter {
+export interface QuickFilter {
   id: QuickFilterId;
   label: string;
-  icon: typeof AlertTriangle;
+  description: string;
 }
 
-const QUICK_FILTERS: QuickFilter[] = [
-  { id: 'bad-quality', label: 'Bad Quality (<0.5)', icon: AlertTriangle },
-  { id: 'needs-intervention', label: 'Needs Intervention (<20h)', icon: AlertTriangle },
-  { id: 'under-target', label: 'Under Target (<10h)', icon: AlertTriangle }
-];
-
 interface QuickFiltersProps {
+  filters: QuickFilter[];
   activeFilter: QuickFilterId | undefined;
   onFilterChange: (id: QuickFilterId | undefined) => void;
   className?: string;
 }
 
 export function QuickFilters({
+  filters,
   activeFilter,
   onFilterChange,
   className = ''
 }: QuickFiltersProps) {
   return (
     <div className={`flex gap-2 ${className}`}>
-      {QUICK_FILTERS.map(filter => (
+      {filters.map(filter => (
         <button
           key={filter.id}
           onClick={() => onFilterChange(activeFilter === filter.id ? undefined : filter.id)}
+          title={filter.description}
           className={`
             flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
             transition-all duration-200
@@ -39,7 +36,6 @@ export function QuickFilters({
             }
           `}
         >
-          <filter.icon className="h-4 w-4" />
           {filter.label}
         </button>
       ))}

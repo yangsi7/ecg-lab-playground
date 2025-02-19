@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { evaluateExpression } from '../components/AdvancedFilter/ExpressionParser';
 import type { HolterStudy } from '../../../../types/domain/holter';
 
-export type QuickFilterId = 'bad-quality' | 'needs-intervention' | 'under-target';
+export type QuickFilterId = 'all' | 'recent' | 'low-quality' | 'high-quality';
 
 interface UseHolterFiltersResult {
   quickFilter: QuickFilterId | undefined;
@@ -13,9 +13,10 @@ interface UseHolterFiltersResult {
 }
 
 const QUICK_FILTER_EXPRESSIONS: Record<QuickFilterId, string> = {
-  'bad-quality': 'qualityFraction < 0.5',
-  'needs-intervention': 'totalHours < 20',
-  'under-target': 'totalHours < 10'
+  'all': '',
+  'recent': 'created_at > now() - interval "7 days"',
+  'low-quality': 'qualityFraction < 0.8',
+  'high-quality': 'qualityFraction >= 0.8'
 };
 
 export function useHolterFilters(): UseHolterFiltersResult {
@@ -23,14 +24,14 @@ export function useHolterFilters(): UseHolterFiltersResult {
   const [advancedFilter, setAdvancedFilter] = useState('');
 
   const filterStudies = useCallback((studies: HolterStudy[]): HolterStudy[] => {
-    // If no filters are active, return all studies
-    if (!quickFilter && !advancedFilter.trim()) {
+    // If no filters are active or 'all' is selected, return all studies
+    if ((!quickFilter && !advancedFilter.trim()) || quickFilter === 'all') {
       return studies;
     }
 
     // Combine quick filter and advanced filter expressions
     const expressions: string[] = [];
-    if (quickFilter) {
+    if (quickFilter && QUICK_FILTER_EXPRESSIONS[quickFilter]) {
       expressions.push(QUICK_FILTER_EXPRESSIONS[quickFilter]);
     }
     if (advancedFilter.trim()) {

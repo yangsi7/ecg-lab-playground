@@ -9,19 +9,21 @@ import {
     Star,
     MoreHorizontal,
 } from 'lucide-react'
-import { useHolterData } from '../../../hooks/api/useHolterData';
+import { useHolterFilters } from './hooks/useHolterFilters';
+import { useHolterStudies } from "../../../hooks/api/useHolterStudies";
 import { DataGrid, type Column } from '../../../components/shared/DataGrid';
 import { QuickFilters } from './components/QuickFilters';
-import { AdvancedFilter } from './components/AdvancedFilter/AdvancedFilter';
-import { useHolterFilters } from './hooks/useHolterFilters';
+import { AdvancedFilter } from './components/AdvancedFilter/AdvancedFilter.tsx';
 import { useDataGrid } from '../../../hooks/useDataGrid';
 import type { HolterStudy } from '../../../types/domain/holter';
+import { logger } from '../../../lib/logger';
 
 const QUICK_FILTERS = [
-    { id: 'bad-quality', label: 'Bad Quality (&lt;0.5)', icon: AlertTriangle },
-    { id: 'needs-intervention', label: 'Needs Intervention (&lt;20h)', icon: AlertTriangle },
-    { id: 'under-target', label: 'Under Target (&lt;10h)', icon: AlertTriangle }
-] as const
+    { id: 'all', label: 'All', description: 'Show all studies' },
+    { id: 'recent', label: 'Recent', description: 'Studies from last 7 days' },
+    { id: 'low-quality', label: 'Low Quality', description: 'Quality < 80%' },
+    { id: 'high-quality', label: 'High Quality', description: 'Quality > 80%' }
+];
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 
@@ -56,90 +58,56 @@ export default function HolterLab() {
         filterStudies
     } = useHolterFilters();
 
-    const { studies = [], loading, error: fetchError, totalCount = 0, isRefreshing } = useHolterData();
+    const {
+        studies,
+        loading,
+        error: fetchError,
+        totalCount
+    } = useHolterStudies();
 
-    // Filter studies based on both quick and advanced filters
-    const filteredStudies = useMemo(() => 
-        filterStudies(studies),
-        [studies, filterStudies]
-    );
+    const filteredStudies = useMemo(() => {
+        try {
+            logger.info('Filtering studies...');
+            const filtered = filterStudies(studies);
+            logger.info(`Filtered to ${filtered.length} studies`);
+            return filtered;
+        } catch (err) {
+            const errorObj = err instanceof Error ? {
+                message: err.message,
+                name: err.name,
+                stack: err.stack
+            } : { message: String(err) };
+            
+            logger.error('Error filtering studies:', errorObj);
+            return [];
+        }
+    }, [studies, filterStudies]);
 
     // Format error message
     const errorMessage = fetchError ? 
-        (typeof fetchError === 'string' ? fetchError : 
-         fetchError instanceof Error ? fetchError.message : 
-         'An unknown error occurred') 
+        (typeof fetchError === 'string' ? fetchError : 'An unknown error occurred') 
         : null;
 
-    const columns = useMemo<Column<HolterStudy>[]>(() => [
-        { 
+    // Define columns for the DataGrid
+    const columns: Column<HolterStudy>[] = [
+        {
             key: 'study_id',
             header: 'Study ID',
-            sortable: true 
+            sortable: true
         },
-        { 
-            key: 'clinic_name',
-            header: 'Clinic',
-            sortable: true 
-        },
-        { 
-            key: 'duration',
-            header: 'Duration',
-            sortable: true,
-            render: (value: string | number) => `${Number(value)} days`
-        },
-        { 
-            key: 'daysRemaining',
-            header: 'Days Rem',
-            sortable: true,
-            render: (value: string | number) => `${Number(value)}`
-        },
-        { 
-            key: 'totalQualityHours',
-            header: 'Q Hours',
-            sortable: true,
-            render: (value: string | number) => Number(value).toFixed(1)
-        },
-        { 
+        {
             key: 'qualityFraction',
-            header: 'Q %',
+            header: 'Quality',
             sortable: true,
             render: (value: string | number) => `${(Number(value) * 100).toFixed(1)}%`
         },
-        { 
+        {
             key: 'totalHours',
-            header: 'Total Hrs',
+            header: 'Total Hours',
             sortable: true,
             render: (value: string | number) => Number(value).toFixed(1)
-        },
-        { 
-            key: 'interruptions',
-            header: 'Interrupts',
-            sortable: true,
-            render: (value: string | number) => `${Number(value)}`
-        },
-        { 
-            key: 'qualityVariance',
-            header: 'Variance',
-            sortable: true,
-            render: (value: string | number) => Number(value).toFixed(3)
-        },
-        { 
-            key: 'status',
-            header: 'Status',
-            sortable: true,
-            render: (value: string | number) => (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium
-                    ${String(value) === 'critical' ? 'bg-red-500/20 text-red-400' :
-                        String(value) === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                        String(value) === 'good' ? 'bg-green-500/20 text-green-400' :
-                        'bg-gray-500/20 text-gray-400'}`}
-                >
-                    {String(value)}
-                </span>
-            )
         }
-    ], []);
+    ];
 
     if (loading) {
         return (
@@ -171,7 +139,7 @@ export default function HolterLab() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Heart className="h-8 w-8 text-blue-400" />
-                    <h1 className="text-2xl font-semibold text-white">Holter Studies</h1>
+                    <h1 className="text-2xl font-semibold text-white">Holter Lab</h1>
                 </div>
                 <div className="flex items-center gap-4">
                     <select
@@ -179,9 +147,9 @@ export default function HolterLab() {
                         onChange={(e) => onPageSizeChange(Number(e.target.value))}
                         className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
                     >
-                        <option value="10">10 per page</option>
-                        <option value="25">25 per page</option>
-                        <option value="50">50 per page</option>
+                        {PAGE_SIZE_OPTIONS.map(size => (
+                            <option key={size} value={size}>{size} per page</option>
+                        ))}
                     </select>
                     <button
                         onClick={() => {/* TODO: Implement export */}}
@@ -195,13 +163,15 @@ export default function HolterLab() {
 
             {/* Quick Filters */}
             <QuickFilters
+                filters={QUICK_FILTERS}
                 activeFilter={quickFilter}
                 onFilterChange={setQuickFilter}
             />
 
             {/* Advanced Filter */}
             <AdvancedFilter
-                onFilterChange={setAdvancedFilter}
+                expression={advancedFilter}
+                onExpressionChange={setAdvancedFilter}
                 className="mt-4"
             />
 
@@ -209,25 +179,9 @@ export default function HolterLab() {
             <DataGrid
                 data={filteredStudies}
                 columns={columns}
-                loading={loading || isRefreshing}
+                loading={loading}
                 error={errorMessage}
-                page={page}
-                pageSize={pageSize}
-                onPageChange={onPageChange}
-                hasMore={(totalCount) > page * pageSize}
                 totalCount={totalCount}
-                
-                // Use server-side operations for pagination and sorting
-                paginationMode="server"
-                sortMode="server"
-                
-                // But use client-side filtering since we handle it with useHolterFilters
-                filterMode="client"
-                
-                // Callbacks
-                onSort={onSortChange}
-                onFilterChange={onFilterChange}
-                onFilterError={onFilterError}
             />
         </div>
     )
