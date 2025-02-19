@@ -10,8 +10,9 @@ import type { TableRow, TypeGuard, Transform } from '../utils';
 type ECGSampleRow = TableRow<'ecg_sample'>;
 
 /**
- * Domain-specific ECG data type with computed fields
+ * ECG data types for visualization and analysis.
  */
+
 export interface ECGData {
   // Timing
   sample_time: string;
@@ -33,6 +34,27 @@ export interface ECGData {
   quality_1: boolean;
   quality_2: boolean;
   quality_3: boolean;
+}
+
+export interface ECGMetrics {
+  signal_quality: {
+    noise_levels: {
+      channel_1: number;
+      channel_2: number;
+      channel_3: number;
+    };
+    quality_scores: {
+      channel_1: number;
+      channel_2: number;
+      channel_3: number;
+    };
+  };
+  connection_stats: {
+    total_samples: number;
+    missing_samples: number;
+    connection_drops: number;
+    sampling_frequency: number;
+  };
 }
 
 /**

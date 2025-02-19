@@ -6,7 +6,7 @@
  * - Row click navigates to a "ClinicDetail" page for deeper analysis.
  */
 
-import React, { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useClinicAnalytics } from '../../../hooks/api/useClinicAnalytics'
 import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -114,7 +114,7 @@ function SimpleBarChart({
 }
 
 export default function ClinicLab() {
-    const [clinicId, setClinicId] = useState('')
+    const [clinicId, setClinicId] = useState<string | undefined>(undefined)
     const navigate = useNavigate()
 
     const {
@@ -127,7 +127,7 @@ export default function ClinicLab() {
         monthlyQuality,
         weeklyStudies,
         monthlyStudies
-    } = useClinicAnalytics(clinicId || undefined)
+    } = useClinicAnalytics(clinicId)
 
     // We'll keep track of sorting for "statusBreakdown"
     const [sortKey, setSortKey] = useState<keyof StatusBreakdownRow | null>(null)
@@ -174,8 +174,8 @@ export default function ClinicLab() {
                     id="clinic_id"
                     type="text"
                     placeholder="e.g. d4f7d9f2-..."
-                    value={clinicId}
-                    onChange={(e) => setClinicId(e.target.value)}
+                    value={clinicId || ''}
+                    onChange={(e) => setClinicId(e.target.value || undefined)}
                     className="bg-white/10 border border-white/20 rounded-md px-3 py-1 text-white text-sm 
                                focus:outline-none focus:border-blue-400 transition w-72"
                 />

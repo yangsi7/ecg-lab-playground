@@ -1,24 +1,24 @@
-import React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { BarChart3, Users, Heart, Box } from 'lucide-react';
 
-interface NavigationTab {
-  id: string;
-  name: string;
-  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-}
+const tabs = [
+  { id: '/clinic', name: 'Clinics', icon: Users },
+  { id: '/holter', name: 'Holter Lab', icon: Heart },
+  { id: '/pod', name: 'Pod Inventory', icon: Box },
+  { id: '/', name: 'Data Lab', icon: BarChart3 },
+];
 
-interface NavigationProps {
-  tabs?: NavigationTab[];
-  activeTab: string;
-  onTabChange: (id: string) => void;
-}
+function Navigation() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = tabs.find(tab => location.pathname === tab.id)?.id ?? '/';
 
-function Navigation({ tabs = [], activeTab, onTabChange }: NavigationProps) {
   return (
     <nav className="px-2 py-4">
       {tabs.map((tab) => (
         <button
           key={tab.id}
-          onClick={() => onTabChange(tab.id)}
+          onClick={() => navigate(tab.id)}
           className={`
             w-full flex items-center gap-3 px-4 py-3 mb-1 rounded-lg
             transition-all duration-200 group

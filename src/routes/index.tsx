@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { GenericErrorBoundary } from '../components/shared/GenericErrorBoundary';
+import RootLayout from '../components/RootLayout';
 
 // Lazy load components
 const DataLab = lazy(() => import('../components/labs/DataLab'));
@@ -16,7 +17,7 @@ export interface AppRoute extends Omit<RouteObject, 'path'> {
   label?: string;
 }
 
-export const routes: AppRoute[] = [
+const routes: AppRoute[] = [
   {
     path: '/',
     element: <GenericErrorBoundary><DataLab /></GenericErrorBoundary>,
@@ -48,10 +49,16 @@ export const routes: AppRoute[] = [
 ];
 
 // Wrap all routes with Suspense for lazy loading
-const wrappedRoutes: RouteObject[] = routes.map(route => ({
+const wrappedRoutes = routes.map(route => ({
   ...route,
   element: <Suspense fallback={<LoadingSpinner />}>{route.element}</Suspense>,
-  index: undefined
-}));
+  index: undefined,
+} as RouteObject));
 
-export const router = createBrowserRouter(wrappedRoutes); 
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <RootLayout />,
+    children: wrappedRoutes,
+  },
+]); 

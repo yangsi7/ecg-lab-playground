@@ -1,111 +1,218 @@
-import { useState, useMemo } from 'react';
-import { RefreshCw, Search } from 'lucide-react';
-import { useStudiesWithTimes } from '../../../hooks/api';
-import { DataGrid, type Column } from '../../../components/shared/DataGrid';
-import type { StudiesWithTimesRow } from '../../../types/domain/study';
+import React, { useMemo } from 'react';
+import { Database, Filter, Download, Undo, Redo } from 'lucide-react';
+import { DataGrid, type Column } from '../../shared/DataGrid';
+import { useDataGrid } from '../../../hooks/useDataGrid';
+import { useDatasets } from '../../../hooks/api/useDatasets';
+import { supabase } from '../../../lib/supabase/client';
+import type { DataSet } from '../../../types/domain/dataset';
 
 export default function DataLab() {
-    const [page, setPage] = useState(0);
-    const [pageSize, setPageSize] = useState(25);
-    const [search, setSearch] = useState('');
-    const [sortBy, setSortBy] = useState<keyof StudiesWithTimesRow>('study_id');
-    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
-    const { data, isLoading, error } = useStudiesWithTimes({
-        search,
+    const {
         page,
         pageSize,
-        sortBy,
-        sortDirection
+        sortConfig,
+        filterConfig,
+        onPageChange,
+        onPageSizeChange,
+        onSortChange,
+        onFilterChange,
+        onFilterError,
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+        resetFilters
+    } = useDataGrid<DataSet>();
+
+    // Fetch data using the hook
+    const { data, isLoading, error } = useDatasets({
+        page,
+        pageSize,
+        sortConfig,
+        filterConfig
     });
 
-    const studies = data?.data ?? [];
-    const totalCount = data?.totalCount ?? 0;
+    // Handle data export
+    const handleExport = async () => {
+        try {
+            // Fetch all data for export (no pagination)
+            const { data: exportData } = await supabase
+                .from('datasets')
+                .select('*')
+                .order(sortConfig.key as string, {
+                    ascending: sortConfig.direction === 'asc'
+                });
 
-    const columns = useMemo<Column<StudiesWithTimesRow>[]>(() => [
-        { key: 'study_id', header: 'Study ID', sortable: true },
-        { key: 'pod_id', header: 'Pod ID', sortable: true },
-        { key: 'start_timestamp', header: 'Start Time', sortable: true },
-        { key: 'end_timestamp', header: 'End Time', sortable: true },
-        { key: 'earliest_time', header: 'Earliest Time', sortable: true },
-        { key: 'latest_time', header: 'Latest Time', sortable: true }
+            if (!exportData) return;
+
+            // Convert data to CSV
+            const headers = columns.map(col => col.header).join(',');
+            const rows = exportData.map((row: DataSet) => 
+                columns.map(col => {
+                    const value = row[col.key];
+                    // Handle special rendering for size and status
+                    if (col.key === 'size') {
+                        return `${(Number(value) / 1024 / 1024).toFixed(2)}`;
+                    }
+                    return String(value).replace(/,/g, '');
+                }).join(',')
+            ).join('\n');
+
+            const csv = `${headers}\n${rows}`;
+            
+            // Create and download file
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `datasets-export-${new Date().toISOString()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Export failed:', err);
+            // TODO: Show error toast
+        }
+    };
+
+    const columns = useMemo<Column<DataSet>[]>(() => [
+        {
+            key: 'id',
+            header: 'Dataset ID',
+            sortable: true,
+            filterable: true,
+            filterType: 'text'
+        },
+        {
+            key: 'name',
+            header: 'Name',
+            sortable: true,
+            filterable: true,
+            filterType: 'text'
+        },
+        {
+            key: 'type',
+            header: 'Type',
+            sortable: true,
+            filterable: true,
+            filterType: 'select',
+            filterOptions: [
+                { label: 'ECG', value: 'ecg' },
+                { label: 'Activity', value: 'activity' },
+                { label: 'Sleep', value: 'sleep' }
+            ]
+        },
+        {
+            key: 'size',
+            header: 'Size',
+            sortable: true,
+            filterable: true,
+            filterType: 'number',
+            render: (value) => `${(Number(value) / 1024 / 1024).toFixed(2)} MB`
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            filterable: true,
+            filterType: 'select',
+            filterOptions: [
+                { label: 'Processing', value: 'processing' },
+                { label: 'Ready', value: 'ready' },
+                { label: 'Error', value: 'error' }
+            ],
+            render: (value) => (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium
+                    ${String(value) === 'error' ? 'bg-red-500/20 text-red-400' :
+                    String(value) === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
+                    'bg-green-500/20 text-green-400'}`}
+                >
+                    {String(value)}
+                </span>
+            )
+        }
     ], []);
-
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <RefreshCw className="h-8 w-8 text-blue-400 animate-spin" />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-red-400">Error loading study data</h3>
-                <p className="mt-1 text-sm text-red-300">{error.message}</p>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
+            {/* Header */}
             <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold text-white">Data Lab</h1>
+                <div className="flex items-center gap-3">
+                    <Database className="h-8 w-8 text-blue-400" />
+                    <h1 className="text-2xl font-semibold text-white">Datasets</h1>
+                </div>
                 <div className="flex items-center gap-4">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search studies..."
-                            className="pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                        />
+                    {/* Filter History Controls */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={undo}
+                            disabled={!canUndo}
+                            className={`p-2 rounded-lg ${
+                                canUndo ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white/5 text-white/40'
+                            }`}
+                        >
+                            <Undo className="h-4 w-4" />
+                        </button>
+                        <button
+                            onClick={redo}
+                            disabled={!canRedo}
+                            className={`p-2 rounded-lg ${
+                                canRedo ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white/5 text-white/40'
+                            }`}
+                        >
+                            <Redo className="h-4 w-4" />
+                        </button>
                     </div>
+
+                    {/* Page Size Selector */}
                     <select
                         value={pageSize}
-                        onChange={(e) => setPageSize(Number(e.target.value))}
-                        className="bg-white/5 border border-white/10 rounded-lg text-white px-3 py-2"
+                        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                        className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
                     >
                         <option value="10">10 per page</option>
                         <option value="25">25 per page</option>
                         <option value="50">50 per page</option>
-                        <option value="100">100 per page</option>
                     </select>
+
+                    {/* Export Button */}
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-medium"
+                    >
+                        <Download className="h-4 w-4" />
+                        Export Data
+                    </button>
                 </div>
             </div>
 
-            <DataGrid 
-                data={studies} 
+            {/* Data Grid */}
+            <DataGrid
+                data={data?.data ?? []}
                 columns={columns}
-                defaultSortKey={sortBy}
+                loading={isLoading}
+                error={error?.message}
+                page={page}
                 pageSize={pageSize}
-                filterExpression={search}
+                onPageChange={onPageChange}
+                hasMore={(data?.count ?? 0) > page * pageSize}
+                totalCount={data?.count}
+                
+                // Use server-side operations
+                paginationMode="server"
+                filterMode="server"
+                sortMode="server"
+                
+                // Callbacks
+                onSort={onSortChange}
+                onFilterChange={onFilterChange}
+                onFilterError={onFilterError}
+                
+                // Current state
+                quickFilter={filterConfig.quickFilter}
+                filterExpression={filterConfig.expression}
             />
-
-            <div className="flex justify-between items-center text-sm text-gray-400">
-                <div>
-                    Showing {studies.length} of {totalCount} studies
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setPage(Math.max(0, page - 1))}
-                        disabled={page === 0}
-                        className="px-3 py-1 bg-white/5 rounded disabled:opacity-50"
-                    >
-                        Previous
-                    </button>
-                    <span>Page {page + 1}</span>
-                    <button
-                        onClick={() => setPage(page + 1)}
-                        disabled={studies.length < pageSize}
-                        className="px-3 py-1 bg-white/5 rounded disabled:opacity-50"
-                    >
-                        Next
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }

@@ -11,8 +11,7 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeftCircle } from 'lucide-react'
 import CalendarSelectorPodDays from '../CalendarSelectorPodDays'
-import { ECGAggregator } from './ECGAggregator'
-import { HourlyECGAggregator } from './HourlyECGAggregator'
+import { EcgAggregatorView } from './EcgAggregatorView'
 import MainECGViewer from './MainECGViewer'
 import { useSingleStudy } from '../../../hooks/api/useSingleStudy'
 import { usePodDays } from '../../../hooks/api/usePodDays'
@@ -71,7 +70,7 @@ function ECGViewerFlow() {
 
                     {/* Step 2: Daily aggregator */}
                     {selectedDay && (
-                        <ECGAggregator 
+                        <EcgAggregatorView
                             podId={study.pod_id}
                             timeInterval="daily"
                             initialDate={selectedDay}
@@ -81,18 +80,21 @@ function ECGViewerFlow() {
                                 setSubwindow(null)
                                 setViewerOpen(false)
                             }}
+                            className="mb-6"
                         />
                     )}
 
                     {/* Step 3: Hour aggregator => subwindow selection */}
                     {selectedDay && selectedHour !== null && (
-                        <HourlyECGAggregator
+                        <EcgAggregatorView
                             podId={study.pod_id}
-                            date={selectedDay}
-                            hour={selectedHour}
-                            onSubwindowFinal={(startIso, endIso) => {
-                                setSubwindow({ start: startIso, end: endIso })
+                            timeInterval="hourly"
+                            initialDate={selectedDay}
+                            onTimeRangeSelect={(start, end) => {
+                                setSelectedHour(null)
+                                setSubwindow({ start: start, end: end })
                             }}
+                            pageSize={60}
                         />
                     )}
 

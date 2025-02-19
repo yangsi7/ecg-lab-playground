@@ -4,7 +4,7 @@
    =========================================== */
    import { useState, useEffect } from 'react'
    import { useQuery } from '@tanstack/react-query'
-   import { supabase } from '../../lib/supabase'
+   import { supabase, type PodRow } from '../../lib/supabase'
    import { logger } from '../../lib/logger'
    
    interface PodDayResponse {

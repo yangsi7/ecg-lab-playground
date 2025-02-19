@@ -1,8 +1,11 @@
 import { supabase } from './client';
-import type { Database } from '../../types/database.types';
-import type { ClinicRow, QueryParams, QueryResponse } from './client';
+import type { QueryParams, QueryResponse } from './client';
+import type { TableRow } from '@/types/utils';
 
-export async function fetchClinics(params: QueryParams = {}): Promise<QueryResponse<ClinicRow>> {
+// Use the TableRow utility type from utils
+type ClinicRow = TableRow<'clinics'>;
+
+export async function fetchClinics(params: QueryParams<'clinics'> = {}): Promise<QueryResponse<ClinicRow>> {
   let query = supabase
     .from('clinics')
     .select('*', { count: 'exact' });

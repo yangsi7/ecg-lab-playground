@@ -4,6 +4,11 @@ export {
   type Database,
   type QueryParams,
   type QueryResponse,
+  type StudyRow,
+  type StudyReadingRow,
+  type ClinicRow,
+  type ECGSampleRow,
+  queryTable
 } from './client';
 
 // Export pod-related functions
@@ -27,7 +32,7 @@ export {
   fetchClinicById,
 } from './clinic';
 
-// Export RPC functions
+// Export study-related functions
 export {
   fetchStudyById,
   fetchClinicStudies,

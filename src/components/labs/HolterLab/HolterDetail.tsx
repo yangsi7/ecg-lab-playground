@@ -5,7 +5,7 @@
  * then can open an aggregator-based "ECGViewer" or
  * the new "ECGViewerModal" if desired.
  ********************************************************************/
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
@@ -14,7 +14,6 @@ import { HolterHeader } from './components/HolterHeader';
 import { HolterHistogram24h } from './components/HolterHistogram24h';
 import { CalendarSelectorPodDays } from './components/CalendarSelectorPodDays';
 import { useECGAggregates } from '../../../hooks/api/useECGAggregates';
-import { logger } from '../../../lib/logger';
 
 // Add type definitions at the top of the file
 type StudyStatus = 'active' | 'error' | 'interrupted' | 'completed';

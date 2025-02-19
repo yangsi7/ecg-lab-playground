@@ -1,7 +1,6 @@
 // src/hooks/useSingleStudy.ts
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
-import type { StudyRow } from '../../lib/supabase/client';
+import { supabase, type StudyRow } from '../../lib/supabase';
 
 interface StudyResult {
     study: StudyRow | null;
@@ -22,13 +21,13 @@ export function useSingleStudy(studyId?: string): StudyResult {
                 .single();
 
             if (error) throw error;
-            return data;
+            return data as StudyRow;
         },
         enabled: !!studyId
     });
 
     return {
-        study: data,
+        study: data ?? null,
         loading: isLoading,
         error: error instanceof Error ? error.message : null
     };

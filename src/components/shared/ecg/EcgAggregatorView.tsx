@@ -1,14 +1,14 @@
-import React, { useState, useCallback } from 'react';
-import { useECGAggregates } from '../../../hooks/api/useECGAggregates';
-import { Heart, Filter, Download, AlertTriangle, Save, Star, MoreHorizontal } from 'lucide-react';
-import type { TimeInterval, ECGAggregateFilter, AggregatedLeadData } from '../../../types/domain/ecg';
+import { useState, useCallback } from 'react';
+import { useECGAggregates, type TimeInterval } from '../../../hooks/api/useECGAggregates';
+import { Heart, Filter, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 
-interface ECGAggregatorProps {
+interface EcgAggregatorViewProps {
   podId: string;
   timeInterval: TimeInterval;
   initialDate?: Date;
   onTimeRangeSelect?: (start: string, end: string) => void;
   className?: string;
+  pageSize?: number;
 }
 
 const BUCKET_SECONDS: Record<TimeInterval, number> = {
@@ -28,15 +28,19 @@ const alphaFromLeadOn = (leadOnFactor: number) => {
   return Math.min(1, Math.max(0.3, alpha));
 };
 
-export function ECGAggregator({
+export function EcgAggregatorView({
   podId,
   timeInterval,
   initialDate = new Date(),
   onTimeRangeSelect,
   className = '',
-}: ECGAggregatorProps) {
-  const [currentDate, setCurrentDate] = useState(initialDate);
-  const [filter, setFilter] = useState<ECGAggregateFilter>({
+  pageSize = 60 // Default to showing 1 hour worth of minute buckets
+}: EcgAggregatorViewProps) {
+  const [currentDate] = useState(initialDate);
+  const [page, setPage] = useState(1);
+  const [filter, setFilter] = useState({
+    quality_threshold: 0,
+    lead_on_threshold: 0,
     time_range: {
       start: new Date(
         currentDate.getFullYear(),
@@ -57,23 +61,27 @@ export function ECGAggregator({
     },
   });
 
-  const { data: aggregates, loading, error } = useECGAggregates({
+  const offset = (page - 1) * pageSize;
+
+  const { data: aggregates, count, loading, error } = useECGAggregates({
     podId,
-    startTime: filter.time_range?.start ?? '',
-    endTime: filter.time_range?.end ?? '',
+    startTime: filter.time_range.start,
+    endTime: filter.time_range.end,
     bucketSize: BUCKET_SECONDS[timeInterval],
     filter,
+    offset,
+    limit: pageSize
   });
 
   const handleQualityThresholdChange = useCallback((threshold: number) => {
-    setFilter((prev: ECGAggregateFilter) => ({
+    setFilter(prev => ({
       ...prev,
       quality_threshold: threshold,
     }));
   }, []);
 
   const handleLeadOnThresholdChange = useCallback((threshold: number) => {
-    setFilter((prev: ECGAggregateFilter) => ({
+    setFilter(prev => ({
       ...prev,
       lead_on_threshold: threshold,
     }));
@@ -102,6 +110,8 @@ export function ECGAggregator({
       </div>
     );
   }
+
+  const totalPages = Math.ceil(count / pageSize);
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -139,7 +149,7 @@ export function ECGAggregator({
               min="0"
               max="100"
               step="5"
-              value={filter.quality_threshold || 0}
+              value={filter.quality_threshold}
               onChange={(e) => handleQualityThresholdChange(Number(e.target.value))}
               className="w-full"
             />
@@ -151,7 +161,7 @@ export function ECGAggregator({
               min="0"
               max="100"
               step="5"
-              value={filter.lead_on_threshold || 0}
+              value={filter.lead_on_threshold}
               onChange={(e) => handleLeadOnThresholdChange(Number(e.target.value))}
               className="w-full"
             />
@@ -161,7 +171,7 @@ export function ECGAggregator({
 
       {/* Data Visualization */}
       <div className="flex gap-1 p-1 border border-white/10 bg-white/5 rounded-md overflow-x-auto">
-        {aggregates.map((aggregate: AggregatedLeadData, idx: number) => {
+        {aggregates.map((aggregate) => {
           const qualities = [
             aggregate.quality_1_percent ?? 0,
             aggregate.quality_2_percent ?? 0,
@@ -199,10 +209,31 @@ Lead-On: ${(avgLeadOn * 100).toFixed(1)}%`}
         })}
       </div>
 
-      {/* Summary */}
-      <div className="text-sm text-gray-300">
-        Showing {aggregates.length} data points
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-300">
+          Showing {aggregates.length} of {count} data points
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm text-gray-300">
+            Page {page} of {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+} 

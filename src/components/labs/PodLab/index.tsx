@@ -1,25 +1,59 @@
-import React, { useState, useMemo } from 'react';
-import { DataGrid, type Column } from '../../../components/shared/DataGrid';
+import { useMemo } from 'react';
+import { DataGrid, type Column } from '../../shared/DataGrid';
 import { queryPods, type PodRow } from '../../../lib/supabase/pod';
 import { useQuery } from '@tanstack/react-query';
+import { useDataGrid } from '../../../hooks/useDataGrid';
 
 export default function PodLab() {
-    const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(25);
-    const [filter, setFilter] = useState('');
+    const {
+        page,
+        pageSize,
+        sortConfig,
+        filterConfig,
+        onPageChange,
+        onPageSizeChange,
+        onSortChange,
+        onFilterChange,
+        onFilterError
+    } = useDataGrid<PodRow>();
 
+    // Query with all parameters
     const { data, isLoading, error } = useQuery({
-        queryKey: ['pods', { page, pageSize, filter }],
-        queryFn: () => queryPods({ page, pageSize, filter })
+        queryKey: ['pods', { page, pageSize, sortConfig, filterConfig }],
+        queryFn: () => queryPods({ 
+            page, 
+            pageSize, 
+            sortBy: sortConfig.key as keyof PodRow | undefined, 
+            sortDirection: sortConfig.direction,
+            filter: filterConfig.quickFilter
+        })
     });
 
     const columns = useMemo<Column<PodRow>[]>(() => [
-        { key: 'pod_id', header: 'Pod ID', sortable: true },
-        { key: 'study_id', header: 'Study ID', sortable: true },
-        { key: 'status', header: 'Status', sortable: true },
-        { key: 'created_at', header: 'Created', sortable: true },
-        { key: 'last_data_at', header: 'Last Data', sortable: true },
-        { key: 'firmware_version', header: 'Firmware', sortable: true }
+        { 
+            key: 'id', 
+            header: 'Pod ID', 
+            sortable: true,
+            filterable: true
+        },
+        { 
+            key: 'assigned_study_id', 
+            header: 'Study ID', 
+            sortable: true,
+            filterable: true
+        },
+        { 
+            key: 'status', 
+            header: 'Status', 
+            sortable: true,
+            filterable: true
+        },
+        { 
+            key: 'time_since_first_use', 
+            header: 'Time Since First Use', 
+            sortable: true,
+            render: (value) => typeof value === 'number' ? `${value} days` : '-'
+        }
     ], []);
 
     return (
@@ -27,16 +61,9 @@ export default function PodLab() {
             <h1 className="text-2xl font-semibold text-white">Pod Management</h1>
             
             <div className="flex items-center gap-4">
-                <input
-                    type="text"
-                    value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
-                    placeholder="Filter pods..."
-                    className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
-                />
                 <select
                     value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    onChange={(e) => onPageSizeChange(Number(e.target.value))}
                     className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
                 >
                     <option value="10">10 per page</option>
@@ -51,8 +78,24 @@ export default function PodLab() {
                 loading={isLoading}
                 error={error?.message}
                 page={page}
-                onPageChange={setPage}
+                pageSize={pageSize}
+                onPageChange={onPageChange}
                 hasMore={(data?.count ?? 0) > page * pageSize}
+                totalCount={data?.count}
+                
+                // Use server-side operations
+                paginationMode="server"
+                filterMode="server"
+                sortMode="server"
+                
+                // Callbacks
+                onSort={onSortChange}
+                onFilterChange={onFilterChange}
+                onFilterError={onFilterError}
+                
+                // Current state
+                quickFilter={filterConfig.quickFilter}
+                filterExpression={filterConfig.expression}
             />
         </div>
     );

@@ -1,15 +1,31 @@
-import React from 'react';
 import { AlertTriangle } from 'lucide-react';
-import { QUICK_FILTERS, type QuickFilterId } from '../../../utils/filterHelpers';
+import type { QuickFilterId } from '../hooks/useHolterFilters';
 
-interface QuickFiltersProps {
-  activeFilter?: QuickFilterId;
-  onFilterChange: (id: QuickFilterId | undefined) => void;
+interface QuickFilter {
+  id: QuickFilterId;
+  label: string;
+  icon: typeof AlertTriangle;
 }
 
-export function QuickFilters({ activeFilter, onFilterChange }: QuickFiltersProps) {
+const QUICK_FILTERS: QuickFilter[] = [
+  { id: 'bad-quality', label: 'Bad Quality (<0.5)', icon: AlertTriangle },
+  { id: 'needs-intervention', label: 'Needs Intervention (<20h)', icon: AlertTriangle },
+  { id: 'under-target', label: 'Under Target (<10h)', icon: AlertTriangle }
+];
+
+interface QuickFiltersProps {
+  activeFilter: QuickFilterId | undefined;
+  onFilterChange: (id: QuickFilterId | undefined) => void;
+  className?: string;
+}
+
+export function QuickFilters({
+  activeFilter,
+  onFilterChange,
+  className = ''
+}: QuickFiltersProps) {
   return (
-    <div className="flex gap-2">
+    <div className={`flex gap-2 ${className}`}>
       {QUICK_FILTERS.map(filter => (
         <button
           key={filter.id}
@@ -23,7 +39,7 @@ export function QuickFilters({ activeFilter, onFilterChange }: QuickFiltersProps
             }
           `}
         >
-          <AlertTriangle className="h-4 w-4" />
+          <filter.icon className="h-4 w-4" />
           {filter.label}
         </button>
       ))}

@@ -10,8 +10,8 @@
  * @module
  */
 
-import type { Database } from '../database.types';
-import { TableRow, TypeGuard, Transform, TransformError } from '../utils';
+import type { TableRow, TypeGuard, Transform } from '../utils';
+import { TransformError } from '../utils';
 
 // Raw database types
 type StudyRow = TableRow<'study'>;
@@ -152,18 +152,6 @@ export const toStudy: Transform<StudyRow, Study> = (row) => {
     created_by: row.created_by ?? '',
   };
 };
-
-// Type for validated study reading row
-interface ValidatedStudyReadingRow extends StudyReadingRow {
-  id: string;
-  study_id: string;
-  timestamp: string;
-}
-
-// Type predicate to validate required fields
-function hasRequiredFields(row: StudyReadingRow): row is ValidatedStudyReadingRow {
-  return Boolean(row.id && row.study_id && row.timestamp);
-}
 
 /**
  * Transform database row to domain StudyReading type
