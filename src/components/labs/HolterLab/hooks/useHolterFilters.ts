@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { evaluateExpression } from '../components/AdvancedFilter/ExpressionParser';
+import { evaluateExpression } from '../../../../lib/utils/ExpressionParser';
 import type { HolterStudy } from '../../../../types/domain/holter';
 
 export type QuickFilterId = 'all' | 'recent' | 'low-quality' | 'high-quality';

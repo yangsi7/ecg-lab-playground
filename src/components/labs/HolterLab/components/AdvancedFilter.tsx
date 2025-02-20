@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Filter, Save, Star, MoreHorizontal } from 'lucide-react';
-import { TOKEN_SUGGESTIONS, type FilterPreset } from '../../../utils/filterHelpers';
+import { FILTERABLE_FIELDS } from "../../../../lib/utils/ExpressionParser";
+
+export interface FilterPreset {
+  id: string;
+  name: string;
+  expression: string;
+}
 
 interface AdvancedFilterProps {
   value: string;
@@ -73,7 +79,7 @@ export function AdvancedFilter({
       {showFields && (
         <div className="rounded-md bg-white/5 p-3 border border-white/10 space-y-2">
           <div className="text-xs text-gray-200 italic">
-            Available fields: {TOKEN_SUGGESTIONS.join(', ')}
+            Available fields: {FILTERABLE_FIELDS.join(', ')}
           </div>
           {presets.length > 0 && (
             <div className="mt-2 space-x-1">

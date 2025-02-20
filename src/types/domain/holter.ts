@@ -6,9 +6,14 @@
 import type { Database } from '../database.types';
 import type { TableRow, TypeGuard, Transform, Required } from '../utils';
 import type { Study } from './study';
+import type { TableRow as SupabaseTableRow } from '../supabase';
 
 // Raw database type
 type StudyRow = TableRow<'study'>;
+
+// Base types from database
+export type HolterStudyRow = SupabaseTableRow<'holter_studies'>;
+export type HolterDataRow = SupabaseTableRow<'holter_data'>;
 
 /**
  * Status type for Holter studies
@@ -18,6 +23,8 @@ export type HolterStatus = 'critical' | 'warning' | 'good' | 'normal';
 /**
  * Domain-specific Holter Study type with computed fields
  */
+export interface HolterStudy extends HolterStudyRow {
+  qualityFraction: number;
 export interface HolterStudy extends Omit<Study, 'duration_days'> {
   // Required fields from Study
   study_id: string;

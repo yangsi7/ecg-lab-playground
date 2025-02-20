@@ -1,25 +1,28 @@
-import jsep, { Expression, BinaryExpression, Identifier, Literal, UnaryExpression } from 'jsep';
+import jsep from 'jsep';
 import type { HolterStudy } from '../../types/domain/holter';
 
 // Types
 type SupportedValue = string | number | boolean | null;
 type DataRecord = HolterStudy;
 
-export type FilterableField = keyof Pick<HolterStudy, 
-  'daysRemaining' | 
-  'qualityFraction' | 
-  'totalHours' | 
-  'interruptions' | 
-  'qualityVariance'
->;
-
-export const FILTERABLE_FIELDS: FilterableField[] = [
+// Define filterable fields and their types
+export const FILTERABLE_FIELDS = [
   'daysRemaining',
   'qualityFraction',
   'totalHours',
   'interruptions',
-  'qualityVariance'
-];
+  'qualityVariance',
+  'created_at',
+  'updated_at',
+  'status',
+] as const;
+
+export type FilterableField = typeof FILTERABLE_FIELDS[number];
+
+// Type guard for filterable fields
+export function isFilterableField(field: string): field is FilterableField {
+  return FILTERABLE_FIELDS.includes(field as FilterableField);
+}
 
 // Error types
 export class ExpressionEvaluationError extends Error {
@@ -38,140 +41,123 @@ export class ExpressionEvaluationError extends Error {
  * - "totalHours > 10 && qualityFraction >= 0.7"
  * - "daysRemaining <= 3"
  */
-export const evaluateExpression = (expression: string, data: DataRecord): boolean => {
+export function evaluateExpression<T extends Record<string, unknown>>(
+  expression: string,
+  record: T
+): boolean {
   if (!expression.trim()) return true;
 
   try {
     const ast = jsep(expression);
-    return evaluateAst(ast, data);
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new ExpressionEvaluationError(`Invalid filter expression: ${error.message}`);
+    return evaluateNode(ast, record);
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new ExpressionEvaluationError(err.message);
     }
-    throw new ExpressionEvaluationError('Invalid filter expression: Unknown error');
+    throw new ExpressionEvaluationError('Expression evaluation failed');
   }
-};
+}
 
-const evaluateAst = (node: Expression, data: DataRecord): any => {
-  switch (node.type) {
-    case 'BinaryExpression':
-      return evaluateBinaryExpression(node as BinaryExpression, data);
-    case 'Identifier':
-      return evaluateIdentifier(node as Identifier, data);
-    case 'Literal':
-      return (node as Literal).value;
-    case 'UnaryExpression':
-      return evaluateUnaryExpression(node as UnaryExpression, data);
-    default:
-      throw new ExpressionEvaluationError(`Unsupported expression type: ${node.type}`);
-  }
-};
+// Validate expression syntax and field names
+export function validateExpression(expression: string): void {
+  if (!expression.trim()) return;
 
-const evaluateBinaryExpression = (node: BinaryExpression, data: DataRecord): boolean => {
-  const left = evaluateAst(node.left, data);
-  const right = evaluateAst(node.right, data);
-
-  switch (node.operator) {
-    case '==': return left == right;
-    case '===': return left === right;
-    case '!=': return left != right;
-    case '!==': return left !== right;
-    case '<': return left < right;
-    case '<=': return left <= right;
-    case '>': return left > right;
-    case '>=': return left >= right;
-    case '&&': return left && right;
-    case '||': return left || right;
-    default:
-      throw new ExpressionEvaluationError(`Unsupported operator: ${node.operator}`);
-  }
-};
-
-const evaluateUnaryExpression = (node: UnaryExpression, data: DataRecord): boolean => {
-  const argument = evaluateAst(node.argument, data);
-  
-  switch (node.operator) {
-    case '!': return !argument;
-    default:
-      throw new ExpressionEvaluationError(`Unsupported unary operator: ${node.operator}`);
-  }
-};
-
-const evaluateIdentifier = (node: Identifier, data: DataRecord): SupportedValue => {
-  const key = node.name as keyof DataRecord;
-  
-  // Validate that the field is filterable
-  if (!FILTERABLE_FIELDS.includes(key as FilterableField)) {
-    throw new ExpressionEvaluationError(`Unknown or unsupported field: ${node.name}`);
-  }
-
-  const value = data[key];
-  if (value === undefined) {
-    throw new ExpressionEvaluationError(`Field not found: ${node.name}`);
-  }
-  return value;
-};
-
-/**
- * Validates an expression without evaluating it.
- * Returns true if the expression is valid, false otherwise.
- * Throws an ExpressionEvaluationError with details if throwError is true.
- */
-export const validateExpression = (expression: string, throwError = false): boolean => {
-  if (!expression.trim()) return true;
-  
   try {
     const ast = jsep(expression);
-    validateAst(ast);
-    return true;
-  } catch (error) {
-    if (throwError) {
-      throw new ExpressionEvaluationError(
-        error instanceof Error ? error.message : 'Invalid expression'
-      );
+    validateNode(ast);
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new ExpressionEvaluationError(err.message);
     }
-    return false;
+    throw new ExpressionEvaluationError('Invalid expression');
   }
-};
+}
 
-const validateAst = (node: Expression): void => {
+// Helper functions for AST validation and evaluation
+function validateNode(node: jsep.Expression): void {
   switch (node.type) {
     case 'BinaryExpression': {
-      const binaryNode = node as BinaryExpression;
-      if (!['>', '<', '>=', '<=', '==', '===', '!=', '!==', '&&', '||'].includes(binaryNode.operator)) {
-        throw new ExpressionEvaluationError(`Unsupported operator: ${binaryNode.operator}`);
-      }
-      validateAst(binaryNode.left);
-      validateAst(binaryNode.right);
+      const binExpr = node as jsep.BinaryExpression;
+      validateNode(binExpr.left);
+      validateNode(binExpr.right);
       break;
     }
-    
     case 'Identifier': {
-      const identNode = node as Identifier;
-      if (!FILTERABLE_FIELDS.includes(identNode.name as FilterableField)) {
-        throw new ExpressionEvaluationError(`Unknown field: ${identNode.name}`);
+      const idNode = node as jsep.Identifier;
+      if (!isFilterableField(idNode.name)) {
+        throw new ExpressionEvaluationError(`Invalid field: ${idNode.name}`);
       }
       break;
     }
-    
-    case 'Literal': {
-      const literalNode = node as Literal;
-      if (typeof literalNode.value !== 'number' && typeof literalNode.value !== 'boolean') {
-        throw new ExpressionEvaluationError('Only numeric and boolean literals are supported');
-      }
+    case 'Literal':
       break;
-    }
-    
-    case 'UnaryExpression': {
-      const unaryNode = node as UnaryExpression;
-      if (unaryNode.operator !== '!') {
-        throw new ExpressionEvaluationError(`Unsupported unary operator: ${unaryNode.operator}`);
-      }
-      validateAst(unaryNode.argument);
-      break;
-    }
-    
     default:
       throw new ExpressionEvaluationError(`Unsupported expression type: ${node.type}`);
   }
-}; 
+}
+
+function evaluateNode<T extends Record<string, unknown>>(
+  node: jsep.Expression,
+  record: T
+): boolean {
+  switch (node.type) {
+    case 'BinaryExpression': {
+      const binExpr = node as jsep.BinaryExpression;
+      const left = evaluateNode(binExpr.left, record);
+      const right = evaluateNode(binExpr.right, record);
+
+      switch (binExpr.operator) {
+        case '==':
+        case '===':
+          return left === right;
+        case '!=':
+        case '!==':
+          return left !== right;
+        case '<':
+          return left < right;
+        case '<=':
+          return left <= right;
+        case '>':
+          return left > right;
+        case '>=':
+          return left >= right;
+        case '&&':
+          return left && right;
+        case '||':
+          return left || right;
+        default:
+          throw new ExpressionEvaluationError(`Unsupported operator: ${binExpr.operator}`);
+      }
+    }
+    case 'Identifier': {
+      const idNode = node as jsep.Identifier;
+      if (!isFilterableField(idNode.name)) {
+        throw new ExpressionEvaluationError(`Invalid field: ${idNode.name}`);
+      }
+      return record[idNode.name];
+    }
+    case 'Literal': {
+      const litNode = node as jsep.Literal;
+      return litNode.value;
+    }
+    default:
+      throw new ExpressionEvaluationError(`Unsupported expression type: ${node.type}`);
+  }
+}
+
+// Helper functions for common filter patterns
+export function createDateRangeFilter(
+  field: FilterableField,
+  startDate: Date,
+  endDate: Date
+): string {
+  return `${field} >= "${startDate.toISOString()}" && ${field} <= "${endDate.toISOString()}"`;
+}
+
+export function createQualityFilter(threshold: number, operator: '>=' | '<='): string {
+  return `qualityFraction ${operator} ${threshold}`;
+}
+
+export function createCompoundFilter(...expressions: string[]): string {
+  return expressions.filter(Boolean).join(' && ');
+} 

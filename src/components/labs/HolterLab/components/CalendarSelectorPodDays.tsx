@@ -1,6 +1,15 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
+import { CalendarSelector } from '../../../shared/CalendarSelector';
 
+/**
+ * @deprecated Use CalendarSelector directly with appropriate styling props.
+ * Migration guide:
+ * Replace:
+ *   <CalendarSelectorPodDays>
+ * With:
+ *   <CalendarSelector className="bg-white/5 rounded-xl p-4 space-y-4">
+ */
 interface CalendarSelectorPodDaysProps {
     availableDays: string[];
     selectedDate: Date | null;
@@ -12,8 +21,6 @@ export function CalendarSelectorPodDays({
     selectedDate, 
     onSelectDay 
 }: CalendarSelectorPodDaysProps) {
-    const availableDatesSet = new Set(availableDays.map(d => d.split('T')[0]));
-
     return (
         <div className="bg-white/5 rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-2">
@@ -21,38 +28,12 @@ export function CalendarSelectorPodDays({
                 <h3 className="text-lg font-medium text-white">Select Date</h3>
             </div>
 
-            <div className="grid grid-cols-7 gap-1">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                    <div key={day} className="text-center text-sm text-gray-400 py-1">
-                        {day}
-                    </div>
-                ))}
-
-                {availableDays.map(dateStr => {
-                    const date = new Date(dateStr);
-                    const isSelected = selectedDate?.toDateString() === date.toDateString();
-                    const isAvailable = availableDatesSet.has(dateStr.split('T')[0]);
-
-                    return (
-                        <button
-                            key={dateStr}
-                            onClick={() => onSelectDay(date)}
-                            disabled={!isAvailable}
-                            className={`
-                                p-2 text-sm rounded-lg transition-colors
-                                ${isSelected 
-                                    ? 'bg-blue-500 text-white' 
-                                    : isAvailable 
-                                        ? 'bg-white/10 text-white hover:bg-white/20' 
-                                        : 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                }
-                            `}
-                        >
-                            {date.getDate()}
-                        </button>
-                    );
-                })}
-            </div>
+            <CalendarSelector
+                availableDays={availableDays}
+                selectedDate={selectedDate}
+                onSelectDay={onSelectDay}
+                showUnavailableDays={false}
+            />
         </div>
     );
 } 

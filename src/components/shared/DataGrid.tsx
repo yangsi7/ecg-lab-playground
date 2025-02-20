@@ -387,35 +387,48 @@ export function DataGrid<T extends Record<string, any>>({
 
   // Column header with filter UI
   const renderColumnHeader = (column: Column<T>) => {
-    if (!column.filterable) {
-      return column.header;
-    }
-
-    const isFilterActive = columnFilters.some(f => f.field === column.key);
-    const currentFilter = columnFilters.find(f => f.field === column.key);
-
-    return (
+    const content = (
       <div className="flex items-center justify-between gap-2">
         <span>{column.header}</span>
-        <button
-          onClick={() => setActiveFilterColumn(activeFilterColumn === column.key ? null : String(column.key))}
-          className={`p-1 rounded-md transition ${
-            isFilterActive ? 'text-blue-400 bg-blue-400/10' : 'text-gray-400 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Filter className="h-3 w-3" />
-        </button>
-        {activeFilterColumn === column.key && (
-          <div className="absolute top-full mt-2 right-0 bg-gray-800 rounded-lg border border-white/10 shadow-lg z-10">
-            <FilterUI
-              column={column}
-              onFilterChange={handleColumnFilterChange}
-              currentFilter={currentFilter}
-            />
+        {column.filterable && (
+          <div
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent triggering sort when clicking filter
+              setActiveFilterColumn(activeFilterColumn === column.key ? null : String(column.key));
+            }}
+            className={`p-1 rounded-md transition cursor-pointer ${
+              columnFilters.some(f => f.field === column.key)
+                ? 'text-blue-400 bg-blue-400/10'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+            }`}
+          >
+            <Filter className="h-3 w-3" />
           </div>
+        )}
+        {column.sortable && sortConfig.key === column.key && (
+          <span className="ml-1">
+            {sortConfig.direction === 'asc' ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </span>
         )}
       </div>
     );
+
+    if (column.sortable) {
+      return (
+        <button
+          onClick={() => handleSort(column.key)}
+          className="w-full flex items-center gap-1 hover:text-white transition"
+        >
+          {content}
+        </button>
+      );
+    }
+
+    return content;
   };
 
   return (
@@ -475,25 +488,7 @@ export function DataGrid<T extends Record<string, any>>({
                     key={column.key as string}
                     className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase"
                   >
-                    {column.sortable ? (
-                      <button
-                        onClick={() => handleSort(column.key)}
-                        className="flex items-center gap-1 hover:text-white transition"
-                      >
-                        {renderColumnHeader(column)}
-                        {sortConfig.key === column.key && (
-                          <span className="ml-1">
-                            {sortConfig.direction === 'asc' ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </span>
-                        )}
-                      </button>
-                    ) : (
-                      renderColumnHeader(column)
-                    )}
+                    {renderColumnHeader(column)}
                   </th>
                 ))}
               </tr>

@@ -12,18 +12,18 @@ import {
 import { useHolterFilters } from './hooks/useHolterFilters';
 import { useHolterStudies } from "../../../hooks/api/useHolterStudies";
 import { DataGrid, type Column } from '../../../components/shared/DataGrid';
-import { QuickFilters } from './components/QuickFilters';
-import { AdvancedFilter } from './components/AdvancedFilter/AdvancedFilter.tsx';
+import { QuickFilters, type QuickFilter } from './components/QuickFilters';
+import { AdvancedFilter } from './components/AdvancedFilter';
 import { useDataGrid } from '../../../hooks/useDataGrid';
 import type { HolterStudy } from '../../../types/domain/holter';
 import { logger } from '../../../lib/logger';
 
-const QUICK_FILTERS = [
+const QUICK_FILTERS: QuickFilter[] = [
     { id: 'all', label: 'All', description: 'Show all studies' },
     { id: 'recent', label: 'Recent', description: 'Studies from last 7 days' },
     { id: 'low-quality', label: 'Low Quality', description: 'Quality < 80%' },
     { id: 'high-quality', label: 'High Quality', description: 'Quality > 80%' }
-];
+] as const;
 
 const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const
 

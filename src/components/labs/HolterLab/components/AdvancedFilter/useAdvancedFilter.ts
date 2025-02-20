@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { validateExpression, ParseError } from './ExpressionParser';
+import { validateExpression, ExpressionEvaluationError as ParseError } from '../../../../../lib/utils/ExpressionParser';
 
 export interface FilterPreset {
   id: string;

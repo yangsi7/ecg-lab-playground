@@ -8,6 +8,9 @@ import { supabase } from '../lib/supabase/client';
 import { callRPC } from '../lib/supabase/client';
 import type { RPCFunctionReturns, RPCCallInfo } from '../types/utils';
 import type { Database } from '../types/database.types';
+import { useQuery } from '@tanstack/react-query';
+import { StatTypes } from '../types/supabase';
+import type { DatabaseStat, StatType } from '../types/supabase';
 
 // Helper function for consistent number formatting
 function formatNumber(val: number | null | undefined, decimals = 1): string {
@@ -22,20 +25,131 @@ function formatLocaleNumber(val: number | null | undefined): string {
 }
 
 // Helper function for percentage formatting with width calculation
-function formatPercentage(val: number | null | undefined): { display: string; width: string } {
-  if (val == null) return { display: 'N/A', width: '0%' };
-  const safeValue = Math.max(0, Math.min(100, val)); // Clamp between 0-100
+function formatPercentage(value: number | null): { display: string; width: string } {
+  if (value == null) {
+    return { display: 'N/A', width: '0%' };
+  }
+  const percentage = Math.min(Math.max(value, 0), 100);
   return {
-    display: `${safeValue.toFixed(1)}%`,
-    width: `${safeValue}%`
+    display: `${percentage.toFixed(1)}%`,
+    width: `${percentage}%`
   };
 }
 
 // Use exact types from the database
-type DatabaseStatsRPC = RPCFunctionReturns<'get_database_stats'>;
+type DatabaseStatsRPC = {
+  stat_type: string;
+  rolname: string | null;
+  query: string | null;
+  calls: number | null;
+  total_time: number | null;
+  min_time: number | null;
+  max_time: number | null;
+  mean_time: number | null;
+  avg_rows: number | null;
+  prop_total_time: string | null;
+  hit_rate: number | null;
+};
+
+// Helper function to safely stringify unknown values
+function safeStringify(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '[Complex Object]';
+    }
+  }
+  return String(value);
+}
+
+// Helper function to safely convert unknown to ReactNode
+function toReactNode(value: unknown): React.ReactNode {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '[Complex Object]';
+    }
+  }
+  return String(value);
+}
+
+// Exact stat types as returned by the database
+const STAT_TYPES = {
+  CACHE_HIT_RATES: 'Cache Hit Rates',
+  TABLE_HIT_RATE: 'Table Hit Rate',
+  TIME_CONSUMING_QUERIES: 'Most Time Consuming Queries',
+  CUMULATIVE_EXECUTION_TIME: 'Cumulative Total Execution Time'
+} as const;
+
+async function fetchDatabaseStats(): Promise<DatabaseStatsRPC[]> {
+  const { data, error } = await supabase.rpc('get_database_stats');
+  
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    return [];
+  }
+
+  // Validate the structure of the returned data
+  if (!Array.isArray(data) || !data.every(item => 
+    typeof item === 'object' && 
+    item !== null && 
+    'stat_type' in item
+  )) {
+    throw new Error('Invalid response format from get_database_stats');
+  }
+
+  return data;
+}
+
+function formatStatValue(stat: DatabaseStatsRPC): string {
+  if (stat.stat_type === STAT_TYPES.CACHE_HIT_RATES || stat.stat_type === STAT_TYPES.TABLE_HIT_RATE) {
+    return stat.hit_rate != null ? `${stat.hit_rate.toFixed(1)}%` : 'N/A';
+  }
+  
+  if (stat.stat_type === STAT_TYPES.TIME_CONSUMING_QUERIES) {
+    if (stat.calls == null || stat.mean_time == null) return 'N/A';
+    return `${stat.calls} calls, ${stat.mean_time.toFixed(2)}ms avg`;
+  }
+  
+  if (stat.prop_total_time) {
+    return stat.prop_total_time;
+  }
+  
+  return 'N/A';
+}
+
+function getStatLabel(stat: DatabaseStatsRPC): string {
+  switch (stat.stat_type) {
+    case STAT_TYPES.CACHE_HIT_RATES:
+      return 'Cache Hit Rate';
+    case STAT_TYPES.TABLE_HIT_RATE:
+      return 'Table Hit Rate';
+    case STAT_TYPES.TIME_CONSUMING_QUERIES:
+      return `Query: ${stat.query?.substring(0, 50) || 'Unknown'}...`;
+    case STAT_TYPES.CUMULATIVE_EXECUTION_TIME:
+      return `${stat.rolname || 'Unknown'}: ${stat.query?.substring(0, 50) || 'Unknown'}...`;
+    default:
+      return stat.stat_type;
+  }
+}
+
 type EdgeFunctionStatsRPC = RPCFunctionReturns<'get_edge_function_stats'>;
 
-type DatabaseStat = NonNullable<DatabaseStatsRPC>[number];
 type EdgeFunctionStats = NonNullable<EdgeFunctionStatsRPC>[number];
 
 // Define the type for RPC diagnostics
@@ -60,43 +174,18 @@ declare global {
   }
 }
 
-// Exact stat types as returned by the database
-const STAT_TYPES = {
-  CACHE_HIT_RATES: 'Cache Hit Rates',
-  TABLE_HIT_RATE: 'Table Hit Rate',
-  TIME_CONSUMING_QUERIES: 'Most Time Consuming Queries',
-  CUMULATIVE_EXECUTION_TIME: 'Cumulative Total Execution Time'
-} as const;
-
-// Helper function to safely stringify unknown values
-function safeStringify(value: unknown): string {
-  if (value === null) return 'null';
-  if (value === undefined) return 'undefined';
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  if (value instanceof Error) return value.message;
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value, null, 2);
-    } catch {
-      return '[Complex Object]';
-    }
-  }
-  return String(value);
-}
-
-// Helper function to safely convert unknown to ReactNode
-function toReactNode(value: unknown): React.ReactNode {
-  return safeStringify(value);
-}
-
 const DiagnosticsPanel: React.FC = () => {
   const location = useLocation();
   const [supabaseStatus, setSupabaseStatus] = useState<'checking' | 'connected' | 'error'>('checking');
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [activeComponents, setActiveComponents] = useState<Set<string>>(new Set());
-  const [databaseStats, setDatabaseStats] = useState<DatabaseStat[]>([]);
+  const [databaseStats, setDatabaseStats] = useState<DatabaseStatsRPC[]>([]);
   const [edgeFunctionStats, setEdgeFunctionStats] = useState<EdgeFunctionStats | null>(null);
+
+  const { data: stats, error } = useQuery({
+    queryKey: ['database-stats'],
+    queryFn: fetchDatabaseStats,
+    refetchInterval: 5000, // Refresh every 5 seconds
+  });
 
   // Check Supabase connection and fetch initial stats
   useEffect(() => {
@@ -106,7 +195,6 @@ const DiagnosticsPanel: React.FC = () => {
         const { error: connError } = await supabase.from('study').select('count', { count: 'exact', head: true });
         if (connError) throw connError;
         setSupabaseStatus('connected');
-        setErrorMessage(null);
 
         try {
           // Fetch database stats (wrapped in try-catch since function might not exist)
@@ -160,7 +248,8 @@ const DiagnosticsPanel: React.FC = () => {
 
       } catch (err) {
         setSupabaseStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : String(err));
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        console.error('Supabase connection error:', errorMessage);
       }
     }
     initialize();
@@ -232,7 +321,9 @@ const DiagnosticsPanel: React.FC = () => {
             {databaseStats
               .filter(stat => 
                 stat.stat_type === STAT_TYPES.TIME_CONSUMING_QUERIES && 
-                stat.query != null
+                stat.query != null &&
+                stat.calls != null &&
+                stat.mean_time != null
               )
               .slice(0, 5)
               .map((stat, idx) => (
@@ -264,7 +355,8 @@ const DiagnosticsPanel: React.FC = () => {
           {databaseStats
             .filter(stat => 
               stat.stat_type === STAT_TYPES.CUMULATIVE_EXECUTION_TIME && 
-              stat.query != null
+              stat.query != null &&
+              stat.prop_total_time != null
             )
             .slice(0, 3)
             .map((stat, idx) => (
@@ -274,12 +366,62 @@ const DiagnosticsPanel: React.FC = () => {
                     ? `${stat.query.slice(0, 50)}${stat.query.length > 50 ? '...' : ''}`
                     : 'Unknown Query'}
                 </span>
-                <span>{stat.prop_total_time || 'N/A'}</span>
+                <span>{stat.prop_total_time}</span>
               </div>
             ))}
         </div>
       </div>
     );
+  };
+
+  // Render RPC call details
+  const renderRPCCalls = () => {
+    if (!window.__rpcDiagnostics?.calls) return null;
+
+    return window.__rpcDiagnostics.calls.map((call, index) => {
+      // Safely convert any unknown values to strings
+      const params = call.params ? toReactNode(call.params) : null;
+      const context = call.context ? toReactNode(call.context) : null;
+      const error = call.error ? toReactNode(call.error) : null;
+
+      return (
+        <div key={index} className="text-sm border-l-2 pl-2 py-1 space-y-1"
+             style={{ 
+               borderColor: call.status === 'success' ? '#4ade80' : 
+                          call.status === 'error' ? '#f87171' : '#60a5fa'
+             }}>
+          <div className="flex items-center gap-2">
+            {call.status === 'pending' && <AlertTriangle className="w-3 h-3 text-blue-400" />}
+            {call.status === 'success' && <CheckCircle2 className="w-3 h-3 text-green-400" />}
+            {call.status === 'error' && <XCircle className="w-3 h-3 text-red-400" />}
+            <span className="text-white/70">{call.functionName}</span>
+            {call.component && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-500/20 text-gray-400">
+                {call.component}
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {call.timestamp.toLocaleTimeString()}
+            </span>
+          </div>
+          {params && (
+            <div className="text-xs text-gray-400/70 pl-6 font-mono break-all">
+              Args: {params}
+            </div>
+          )}
+          {context && (
+            <div className="text-xs text-gray-400/70 pl-6">
+              Context: {context}
+            </div>
+          )}
+          {error && (
+            <div className="text-xs text-red-400/70 pl-6 break-all">
+              {error}
+            </div>
+          )}
+        </div>
+      );
+    });
   };
 
   return (
@@ -329,8 +471,8 @@ const DiagnosticsPanel: React.FC = () => {
                   <XCircle className="w-4 h-4" />
                   <span>Connection Error</span>
                 </div>
-                {errorMessage && (
-                  <p className="text-xs text-red-400/70 pl-6">{errorMessage}</p>
+                {error && (
+                  <p className="text-xs text-red-400/70 pl-6">{error.message}</p>
                 )}
               </div>
             )}
@@ -342,7 +484,23 @@ const DiagnosticsPanel: React.FC = () => {
         </div>
 
         {/* Database Stats */}
-        {renderDatabaseStats()}
+        <div className="p-3 rounded-lg bg-white/5">
+          <h3 className="text-sm font-medium text-gray-300 mb-2">Database Stats</h3>
+          {error ? (
+            <p className="text-sm text-red-400">Failed to load database stats: {error.message}</p>
+          ) : !stats ? (
+            <p className="text-sm text-gray-400">Loading stats...</p>
+          ) : (
+            <div className="space-y-2">
+              {stats.map((stat, index) => (
+                <div key={`${stat.stat_type}-${index}`} className="flex justify-between items-center">
+                  <span className="text-sm text-gray-400">{getStatLabel(stat)}</span>
+                  <span className="text-sm text-white">{formatStatValue(stat)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Edge Function Stats */}
         {edgeFunctionStats && (
@@ -384,51 +542,7 @@ const DiagnosticsPanel: React.FC = () => {
             Recent RPC Calls
           </h3>
           <div className="space-y-2">
-            {window.__rpcDiagnostics?.calls.map((call, index) => (
-              <div key={index} className="text-sm border-l-2 pl-2 py-1 space-y-1"
-                   style={{ 
-                     borderColor: call.status === 'success' ? '#4ade80' : 
-                                call.status === 'error' ? '#f87171' : '#60a5fa'
-                   }}>
-                <div className="flex items-center gap-2">
-                  {call.status === 'pending' && <AlertTriangle className="w-3 h-3 text-blue-400" />}
-                  {call.status === 'success' && <CheckCircle2 className="w-3 h-3 text-green-400" />}
-                  {call.status === 'error' && <XCircle className="w-3 h-3 text-red-400" />}
-                  <span className="text-white/70">{call.functionName}</span>
-                  {call.component && (
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-gray-500/20 text-gray-400">
-                      {call.component}
-                    </span>
-                  )}
-                  <span className="text-xs text-gray-500">
-                    {call.timestamp.toLocaleTimeString()}
-                  </span>
-                </div>
-                {/* Display parameters */}
-                {call.params && (
-                  <div className="text-xs text-gray-400/70 pl-6 font-mono break-all">
-                    Args: {toReactNode(call.params)}
-                  </div>
-                )}
-                {/* Display context if available */}
-                {call.context && (
-                  <div className="text-xs text-gray-400/70 pl-6">
-                    Context: {toReactNode(call.context)}
-                  </div>
-                )}
-                {call.error && (
-                  <div className="text-xs text-red-400/70 pl-6 break-all">
-                    {(() => {
-                      if (call.error instanceof Error) return call.error.message;
-                      if (typeof call.error === 'object' && call.error !== null && 'message' in call.error) {
-                        return toReactNode((call.error as { message: unknown }).message);
-                      }
-                      return toReactNode(call.error);
-                    })()}
-                  </div>
-                )}
-              </div>
-            ))}
+            {renderRPCCalls()}
           </div>
         </div>
       </div>

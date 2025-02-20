@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { LoadingSpinner } from '../components/shared/LoadingSpinner';
 import { GenericErrorBoundary } from '../components/shared/GenericErrorBoundary';
+import { AuthGuard } from '../components/shared/AuthGuard';
 import RootLayout from '../components/RootLayout';
 
 // Lazy load components
@@ -11,40 +12,52 @@ const HolterLab = lazy(() => import('../components/labs/HolterLab'));
 const HolterDetail = lazy(() => import('../components/labs/HolterLab/HolterDetail'));
 const PodLab = lazy(() => import('../components/labs/PodLab'));
 const ECGViewerPage = lazy(() => import('../components/shared/ecg/ECGViewerPage'));
+const LoginPage = lazy(() => import('../components/auth/LoginPage'));
 
 export interface AppRoute extends Omit<RouteObject, 'path'> {
   path: string;
   label?: string;
+  requiresAuth?: boolean;
 }
 
 const routes: AppRoute[] = [
   {
+    path: '/login',
+    element: <GenericErrorBoundary><LoginPage /></GenericErrorBoundary>,
+  },
+  {
     path: '/',
-    element: <GenericErrorBoundary><DataLab /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Data',
+    requiresAuth: true,
   },
   {
     path: '/clinic',
-    element: <GenericErrorBoundary><ClinicLab /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Clinic',
+    requiresAuth: true,
   },
   {
     path: '/holter',
-    element: <GenericErrorBoundary><HolterLab /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><HolterLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Holter',
+    requiresAuth: true,
   },
   {
     path: '/holter/:studyId',
-    element: <GenericErrorBoundary><HolterDetail /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><HolterDetail /></AuthGuard></GenericErrorBoundary>,
+    requiresAuth: true,
   },
   {
     path: '/pod',
-    element: <GenericErrorBoundary><PodLab /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><PodLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Pod',
+    requiresAuth: true,
   },
   {
     path: '/ecg/:studyId',
-    element: <GenericErrorBoundary><ECGViewerPage /></GenericErrorBoundary>,
+    element: <GenericErrorBoundary><AuthGuard><ECGViewerPage /></AuthGuard></GenericErrorBoundary>,
+    requiresAuth: true,
   },
 ];
 
