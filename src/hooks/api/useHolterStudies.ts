@@ -27,10 +27,23 @@ export function useHolterStudies(): UseHolterStudiesResult {
             try {
                 logger.info('Fetching Holter studies...');
                 
-                const { data: studies, error: dbError } = await supabase
+                let query = supabase
                     .from('study')
                     .select('*')
                     .eq('study_type', 'holter');
+
+                // Handle UUID filtering
+                if (quickFilter) {
+                    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(quickFilter);
+                    if (isUUID) {
+                        query = query.or(`study_id.eq.${quickFilter},pod_id.eq.${quickFilter}`);
+                    } else {
+                        // For non-UUID fields, use ilike
+                        query = query.or('clinic_name.ilike.%' + quickFilter + '%,status.ilike.%' + quickFilter + '%');
+                    }
+                }
+
+                const { data: studies, error: dbError } = await query;
 
                 if (dbError) {
                     logger.error('Database error:', { 

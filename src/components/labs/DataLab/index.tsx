@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { Database, Filter, Download, Undo, Redo } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useDataGrid } from '../../../hooks/useDataGrid';
-import { useDatasets } from '../../../hooks/api/useDatasets';
+import { useStudiesWithTimes } from '../../../hooks/api/useStudiesWithTimes';
 import { supabase } from '../../../lib/supabase/client';
-import type { DataSet } from '../../../types/domain/dataset';
+import type { StudiesWithTimesRow } from '../../../types/domain/study';
 
 export default function DataLab() {
     const {
@@ -22,37 +22,38 @@ export default function DataLab() {
         undo,
         redo,
         resetFilters
-    } = useDataGrid<DataSet>();
+    } = useDataGrid<StudiesWithTimesRow>();
 
     // Fetch data using the hook
-    const { data, isLoading, error } = useDatasets({
+    const { data, isLoading, error } = useStudiesWithTimes({
+        search: filterConfig.quickFilter,
         page,
         pageSize,
-        sortConfig,
-        filterConfig
+        sortBy: sortConfig.key as string,
+        sortDirection: sortConfig.direction
     });
 
     // Handle data export
     const handleExport = async () => {
         try {
             // Fetch all data for export (no pagination)
-            const { data: exportData } = await supabase
-                .from('datasets')
-                .select('*')
-                .order(sortConfig.key as string, {
-                    ascending: sortConfig.direction === 'asc'
+            const { data: exportData, error: rpcErr } = await supabase
+                .rpc('get_study_list_with_earliest_latest', {
+                    p_search: '',
+                    p_offset: 0,
+                    p_limit: 1000
                 });
 
+            if (rpcErr) throw rpcErr;
             if (!exportData) return;
 
             // Convert data to CSV
             const headers = columns.map(col => col.header).join(',');
-            const rows = exportData.map((row: DataSet) => 
+            const rows = exportData.map((row: StudiesWithTimesRow) => 
                 columns.map(col => {
-                    const value = row[col.key];
-                    // Handle special rendering for size and status
-                    if (col.key === 'size') {
-                        return `${(Number(value) / 1024 / 1024).toFixed(2)}`;
+                    const value = row[col.key as keyof StudiesWithTimesRow];
+                    if (value instanceof Date) {
+                        return value.toISOString();
                     }
                     return String(value).replace(/,/g, '');
                 }).join(',')
@@ -65,7 +66,7 @@ export default function DataLab() {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `datasets-export-${new Date().toISOString()}.csv`;
+            a.download = `studies-export-${new Date().toISOString()}.csv`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -76,61 +77,43 @@ export default function DataLab() {
         }
     };
 
-    const columns = useMemo<Column<DataSet>[]>(() => [
+    const columns = useMemo<Column<StudiesWithTimesRow>[]>(() => [
         {
-            key: 'id',
-            header: 'Dataset ID',
+            key: 'study_id',
+            header: 'Study ID',
             sortable: true,
             filterable: true,
             filterType: 'text'
         },
         {
-            key: 'name',
-            header: 'Name',
+            key: 'pod_id',
+            header: 'Pod ID',
             sortable: true,
             filterable: true,
             filterType: 'text'
         },
         {
-            key: 'type',
+            key: 'earliest_time',
+            header: 'Earliest Data',
+            sortable: true,
+            render: (value) => value ? new Date(value as string).toLocaleString() : 'N/A'
+        },
+        {
+            key: 'latest_time',
+            header: 'Latest Data',
+            sortable: true,
+            render: (value) => value ? new Date(value as string).toLocaleString() : 'N/A'
+        },
+        {
+            key: 'study_type',
             header: 'Type',
             sortable: true,
             filterable: true,
             filterType: 'select',
             filterOptions: [
-                { label: 'ECG', value: 'ecg' },
-                { label: 'Activity', value: 'activity' },
-                { label: 'Sleep', value: 'sleep' }
+                { label: 'Holter', value: 'holter' },
+                { label: 'Event', value: 'event' }
             ]
-        },
-        {
-            key: 'size',
-            header: 'Size',
-            sortable: true,
-            filterable: true,
-            filterType: 'number',
-            render: (value) => `${(Number(value) / 1024 / 1024).toFixed(2)} MB`
-        },
-        {
-            key: 'status',
-            header: 'Status',
-            sortable: true,
-            filterable: true,
-            filterType: 'select',
-            filterOptions: [
-                { label: 'Processing', value: 'processing' },
-                { label: 'Ready', value: 'ready' },
-                { label: 'Error', value: 'error' }
-            ],
-            render: (value) => (
-                <span className={`px-2 py-1 rounded-full text-xs font-medium
-                    ${String(value) === 'error' ? 'bg-red-500/20 text-red-400' :
-                    String(value) === 'processing' ? 'bg-yellow-500/20 text-yellow-400' :
-                    'bg-green-500/20 text-green-400'}`}
-                >
-                    {String(value)}
-                </span>
-            )
         }
     ], []);
 
@@ -140,7 +123,7 @@ export default function DataLab() {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <Database className="h-8 w-8 text-blue-400" />
-                    <h1 className="text-2xl font-semibold text-white">Datasets</h1>
+                    <h1 className="text-2xl font-semibold text-white">Studies</h1>
                 </div>
                 <div className="flex items-center gap-4">
                     {/* Filter History Controls */}
@@ -196,8 +179,8 @@ export default function DataLab() {
                 page={page}
                 pageSize={pageSize}
                 onPageChange={onPageChange}
-                hasMore={(data?.count ?? 0) > page * pageSize}
-                totalCount={data?.count}
+                hasMore={(data?.totalCount ?? 0) > page * pageSize}
+                totalCount={data?.totalCount}
                 
                 // Use server-side operations
                 paginationMode="server"

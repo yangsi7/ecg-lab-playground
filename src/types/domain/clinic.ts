@@ -4,7 +4,7 @@
  */
 
 import type { Database } from '../database.types';
-import type { TableRow, TypeGuard, Transform, Required } from '../utils';
+import type { TableRow, TypeGuard, Transform, NonNullRequired } from '../utils';
 
 // Raw database type
 type ClinicRow = TableRow<'clinics'>;
@@ -13,7 +13,7 @@ type ClinicRow = TableRow<'clinics'>;
  * Domain-specific Clinic type
  * Enforces non-null name field unlike the database type
  */
-export interface Clinic extends Required<ClinicRow> {
+export interface Clinic extends NonNullRequired<ClinicRow> {
   id: string;
   name: string;
 }

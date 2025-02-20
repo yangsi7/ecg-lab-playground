@@ -8,6 +8,7 @@ import RootLayout from '../components/RootLayout';
 // Lazy load components
 const DataLab = lazy(() => import('../components/labs/DataLab'));
 const ClinicLab = lazy(() => import('../components/labs/ClinicLab'));
+const ClinicDetail = lazy(() => import('../components/labs/ClinicLab/ClinicDetail'));
 const HolterLab = lazy(() => import('../components/labs/HolterLab'));
 const HolterDetail = lazy(() => import('../components/labs/HolterLab/HolterDetail'));
 const PodLab = lazy(() => import('../components/labs/PodLab'));
@@ -26,15 +27,20 @@ const routes: AppRoute[] = [
     element: <GenericErrorBoundary><LoginPage /></GenericErrorBoundary>,
   },
   {
-    path: '/',
-    element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
-    label: 'Data',
-    requiresAuth: true,
-  },
-  {
     path: '/clinic',
     element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Clinic',
+    requiresAuth: true,
+  },
+  {
+    path: '/clinic/:clinicId',
+    element: <GenericErrorBoundary><AuthGuard><ClinicDetail /></AuthGuard></GenericErrorBoundary>,
+    requiresAuth: true,
+  },
+  {
+    path: '/data',
+    element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
+    label: 'Data',
     requiresAuth: true,
   },
   {

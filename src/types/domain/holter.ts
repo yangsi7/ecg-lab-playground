@@ -4,16 +4,11 @@
  */
 
 import type { Database } from '../database.types';
-import type { TableRow, TypeGuard, Transform, Required } from '../utils';
+import type { TableRow, TypeGuard, Transform, NonNullRequired } from '../utils';
 import type { Study } from './study';
-import type { TableRow as SupabaseTableRow } from '../supabase';
 
 // Raw database type
 type StudyRow = TableRow<'study'>;
-
-// Base types from database
-export type HolterStudyRow = SupabaseTableRow<'holter_studies'>;
-export type HolterDataRow = SupabaseTableRow<'holter_data'>;
 
 /**
  * Status type for Holter studies
@@ -22,21 +17,20 @@ export type HolterStatus = 'critical' | 'warning' | 'good' | 'normal';
 
 /**
  * Domain-specific Holter Study type with computed fields
+ * Extends Study type but replaces duration_days with Holter-specific fields
  */
-export interface HolterStudy extends HolterStudyRow {
-  qualityFraction: number;
 export interface HolterStudy extends Omit<Study, 'duration_days'> {
-  // Required fields from Study
+  // Required fields from Study (non-nullable)
   study_id: string;
   clinic_id: string;
   pod_id: string;
 
-  // Holter-specific fields
+  // Holter-specific fields (non-nullable)
   clinic_name: string;
   duration: number;
   daysRemaining: number;
 
-  // Quality metrics
+  // Quality metrics (non-nullable)
   totalQualityHours: number;
   qualityFraction: number;
   totalHours: number;
