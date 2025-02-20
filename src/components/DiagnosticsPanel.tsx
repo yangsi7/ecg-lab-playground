@@ -6,43 +6,88 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase/client';
 import { callRPC } from '../lib/supabase/client';
+import type { RPCFunctionReturns, RPCCallInfo } from '../types/utils';
 import type { Database } from '../types/database.types';
 
-type EdgeFunctionStatsRPC = Database['public']['Functions']['get_edge_function_stats']['Returns'][0];
-
-interface DatabaseStat {
-  stat_type: string;
-  rolname: string | null;
-  query: string | null;
-  calls: number | null;
-  total_time: number | null;
-  min_time: number | null;
-  max_time: number | null;
-  mean_time: number | null;
-  avg_rows: number | null;
-  prop_total_time: string | null;
-  hit_rate: number | null;
+// Helper function for consistent number formatting
+function formatNumber(val: number | null | undefined, decimals = 1): string {
+  if (val == null) return 'N/A';
+  return val.toFixed(decimals);
 }
 
-type EdgeFunctionStats = {
-  function_name: string;
-  total_invocations: number;
-  success_rate: number;
-  average_duration_ms: number;
-  memory_usage: number;
-  cpu_time: string;
-  peak_concurrent_executions: number;
-  last_invocation: string;
+// Helper function for locale string formatting
+function formatLocaleNumber(val: number | null | undefined): string {
+  if (val == null) return 'N/A';
+  return val.toLocaleString();
+}
+
+// Helper function for percentage formatting with width calculation
+function formatPercentage(val: number | null | undefined): { display: string; width: string } {
+  if (val == null) return { display: 'N/A', width: '0%' };
+  const safeValue = Math.max(0, Math.min(100, val)); // Clamp between 0-100
+  return {
+    display: `${safeValue.toFixed(1)}%`,
+    width: `${safeValue}%`
+  };
+}
+
+// Use exact types from the database
+type DatabaseStatsRPC = RPCFunctionReturns<'get_database_stats'>;
+type EdgeFunctionStatsRPC = RPCFunctionReturns<'get_edge_function_stats'>;
+
+type DatabaseStat = NonNullable<DatabaseStatsRPC>[number];
+type EdgeFunctionStats = NonNullable<EdgeFunctionStatsRPC>[number];
+
+// Define the type for RPC diagnostics
+type RPCDiagnostics = {
+  lastCall?: {
+    component?: string;
+    context?: unknown;
+  };
+  calls: RPCCallInfo[];
+  stats: {
+    totalCalls: number;
+    successfulCalls: number;
+    failedCalls: number;
+    averageExecutionTime: number;
+  };
 };
 
-interface RPCCallInfo {
-  functionName: string;
-  status: 'pending' | 'success' | 'error';
-  error?: any;
-  timestamp: Date;
-  params?: any;
-  component?: string;
-  context?: any;
+// Declare the global property with the correct type
+declare global {
+  interface Window {
+    __rpcDiagnostics?: RPCDiagnostics;
+  }
+}
+
+// Exact stat types as returned by the database
+const STAT_TYPES = {
+  CACHE_HIT_RATES: 'Cache Hit Rates',
+  TABLE_HIT_RATE: 'Table Hit Rate',
+  TIME_CONSUMING_QUERIES: 'Most Time Consuming Queries',
+  CUMULATIVE_EXECUTION_TIME: 'Cumulative Total Execution Time'
+} as const;
+
+// Helper function to safely stringify unknown values
+function safeStringify(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (value instanceof Error) return value.message;
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return '[Complex Object]';
+    }
+  }
+  return String(value);
+}
+
+// Helper function to safely convert unknown to ReactNode
+function toReactNode(value: unknown): React.ReactNode {
+  return safeStringify(value);
 }
 
 const DiagnosticsPanel: React.FC = () => {
@@ -68,24 +113,10 @@ const DiagnosticsPanel: React.FC = () => {
           const dbStats = await callRPC('get_database_stats', undefined, {
             component: 'DiagnosticsPanel',
             context: { action: 'initialize' }
-          }) as Database['public']['Functions']['get_database_stats']['Returns'];
+          });
           
           if (dbStats) {
-            // Convert the returned stats to match our interface
-            const convertedStats: DatabaseStat[] = dbStats.map((stat) => ({
-              stat_type: stat.stat_type,
-              rolname: stat.rolname,
-              query: stat.query,
-              calls: stat.calls,
-              total_time: stat.total_time,
-              min_time: stat.min_time,
-              max_time: stat.max_time,
-              mean_time: stat.mean_time,
-              avg_rows: stat.avg_rows,
-              prop_total_time: stat.prop_total_time,
-              hit_rate: stat.hit_rate
-            }));
-            setDatabaseStats(convertedStats);
+            setDatabaseStats(dbStats);
           }
         } catch (error) {
           // Silently ignore missing function error
@@ -108,14 +139,14 @@ const DiagnosticsPanel: React.FC = () => {
           }, {
             component: 'DiagnosticsPanel',
             context: { action: 'initialize' }
-          }) as EdgeFunctionStatsRPC[];
+          });
 
           if (edgeStats?.[0]) {
-            const convertedStat: EdgeFunctionStats = {
-              ...edgeStats[0],
-              cpu_time: String(edgeStats[0].cpu_time) // Convert interval to string
-            };
-            setEdgeFunctionStats(convertedStat);
+            const stat = edgeStats[0];
+            setEdgeFunctionStats({
+              ...stat,
+              cpu_time: String(stat.cpu_time) // Convert interval to string
+            });
           }
         } catch (error) {
           // Silently ignore missing function error
@@ -129,7 +160,7 @@ const DiagnosticsPanel: React.FC = () => {
 
       } catch (err) {
         setSupabaseStatus('error');
-        setErrorMessage(err instanceof Error ? err.message : 'Unknown error');
+        setErrorMessage(err instanceof Error ? err.message : String(err));
       }
     }
     initialize();
@@ -143,7 +174,7 @@ const DiagnosticsPanel: React.FC = () => {
   useEffect(() => {
     function updateActiveComponents() {
       const components = new Set<string>();
-      window.__rpcDiagnostics?.calls?.forEach(call => {
+      window.__rpcDiagnostics?.calls.forEach(call => {
         if (call.component) {
           components.add(call.component);
         }
@@ -172,30 +203,37 @@ const DiagnosticsPanel: React.FC = () => {
 
         {/* Cache Hit Rates */}
         {databaseStats
-          .filter(stat => stat.stat_type === 'Cache Hit Rates' || stat.stat_type === 'Table Hit Rate')
-          .map((stat, idx) => (
-            <div key={idx} className="space-y-1">
-              <h4 className="font-medium">{stat.stat_type}</h4>
-              {stat.hit_rate !== null && (
+          .filter(stat => 
+            stat.stat_type === STAT_TYPES.CACHE_HIT_RATES || 
+            stat.stat_type === STAT_TYPES.TABLE_HIT_RATE
+          )
+          .map((stat, idx) => {
+            const { display, width } = formatPercentage(stat.hit_rate);
+            return (
+              <div key={idx} className="space-y-1">
+                <h4 className="font-medium">{stat.stat_type}</h4>
                 <div className="flex items-center gap-2">
                   <div className="flex-grow bg-gray-700/50 rounded-full h-2">
                     <div
                       className="bg-blue-500 h-full rounded-full"
-                      style={{ width: `${stat.hit_rate}%` }}
+                      style={{ width }}
                     />
                   </div>
-                  <span>{stat.hit_rate.toFixed(1)}%</span>
+                  <span>{display}</span>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
 
         {/* Most Time Consuming Queries */}
         <div className="space-y-2">
           <h4 className="font-medium">Most Time Consuming Queries</h4>
           <div className="space-y-4">
             {databaseStats
-              .filter(stat => stat.stat_type === 'Most Time Consuming Queries' && stat.query)
+              .filter(stat => 
+                stat.stat_type === STAT_TYPES.TIME_CONSUMING_QUERIES && 
+                stat.query != null
+              )
               .slice(0, 5)
               .map((stat, idx) => (
                 <div key={idx} className="p-4 bg-white/5 rounded-lg">
@@ -204,12 +242,16 @@ const DiagnosticsPanel: React.FC = () => {
                     <span>{stat.rolname || 'Unknown Role'}</span>
                   </div>
                   <pre className="mt-2 text-xs overflow-x-auto whitespace-pre-wrap">
-                    {stat.query}
+                    {stat.query || 'Query text not available'}
                   </pre>
                   <div className="mt-2 grid grid-cols-3 gap-2 text-sm text-gray-400">
-                    <span>{stat.calls?.toLocaleString() || 0} calls</span>
-                    <span>{stat.mean_time ? `${stat.mean_time.toFixed(2)}ms` : 'N/A'} avg</span>
-                    <span>{stat.avg_rows ? `${Math.round(stat.avg_rows)} rows/call` : 'N/A'}</span>
+                    <span>{formatLocaleNumber(stat.calls)} calls</span>
+                    <span>{formatNumber(stat.mean_time, 2)}ms avg</span>
+                    <span>
+                      {stat.avg_rows != null 
+                        ? `${formatLocaleNumber(Math.round(stat.avg_rows))} rows/call` 
+                        : 'N/A'}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -218,16 +260,21 @@ const DiagnosticsPanel: React.FC = () => {
 
         {/* Cumulative Execution Time */}
         <div className="space-y-2">
-          <h4 className="font-medium">Cumulative Execution Time</h4>
+          <h4 className="font-medium">Cumulative Total Execution Time</h4>
           {databaseStats
-            .filter(stat => stat.stat_type === 'Cumulative Total Execution Time' && stat.query)
+            .filter(stat => 
+              stat.stat_type === STAT_TYPES.CUMULATIVE_EXECUTION_TIME && 
+              stat.query != null
+            )
             .slice(0, 3)
             .map((stat, idx) => (
               <div key={idx} className="flex justify-between text-sm">
                 <span className="truncate" title={stat.query || ''}>
-                  {stat.query ? `${stat.query.slice(0, 50)}...` : 'Unknown Query'}
+                  {stat.query 
+                    ? `${stat.query.slice(0, 50)}${stat.query.length > 50 ? '...' : ''}`
+                    : 'Unknown Query'}
                 </span>
-                <span>{stat.prop_total_time || '0%'}</span>
+                <span>{stat.prop_total_time || 'N/A'}</span>
               </div>
             ))}
         </div>
@@ -305,14 +352,14 @@ const DiagnosticsPanel: React.FC = () => {
               Edge Function Performance
             </h3>
             <div className="grid grid-cols-2 gap-2 text-xs text-gray-400">
-              <div>Invocations: {edgeFunctionStats.total_invocations.toLocaleString()}</div>
-              <div>Success Rate: {(edgeFunctionStats.success_rate * 100).toFixed(1)}%</div>
-              <div>Avg Duration: {edgeFunctionStats.average_duration_ms.toFixed(2)}ms</div>
-              <div>Memory Usage: {(edgeFunctionStats.memory_usage / 1024 / 1024).toFixed(2)}MB</div>
-              <div>CPU Time: {edgeFunctionStats.cpu_time}</div>
-              <div>Peak Concurrent: {edgeFunctionStats.peak_concurrent_executions}</div>
+              <div>Invocations: {formatLocaleNumber(edgeFunctionStats.total_invocations)}</div>
+              <div>Success Rate: {formatNumber(edgeFunctionStats.success_rate * 100)}%</div>
+              <div>Avg Duration: {formatNumber(edgeFunctionStats.average_duration_ms, 2)}ms</div>
+              <div>Memory Usage: {formatNumber(edgeFunctionStats.memory_usage / 1024 / 1024, 2)}MB</div>
+              <div>CPU Time: {String(edgeFunctionStats.cpu_time)}</div>
+              <div>Peak Concurrent: {formatLocaleNumber(edgeFunctionStats.peak_concurrent_executions)}</div>
               <div className="col-span-2">
-                Last Invocation: {new Date(edgeFunctionStats.last_invocation).toLocaleString()}
+                Last Invocation: {edgeFunctionStats.last_invocation ? new Date(edgeFunctionStats.last_invocation).toLocaleString() : 'N/A'}
               </div>
             </div>
           </div>
@@ -337,7 +384,7 @@ const DiagnosticsPanel: React.FC = () => {
             Recent RPC Calls
           </h3>
           <div className="space-y-2">
-            {window.__rpcDiagnostics?.calls?.map((call, index) => (
+            {window.__rpcDiagnostics?.calls.map((call, index) => (
               <div key={index} className="text-sm border-l-2 pl-2 py-1 space-y-1"
                    style={{ 
                      borderColor: call.status === 'success' ? '#4ade80' : 
@@ -360,18 +407,24 @@ const DiagnosticsPanel: React.FC = () => {
                 {/* Display parameters */}
                 {call.params && (
                   <div className="text-xs text-gray-400/70 pl-6 font-mono break-all">
-                    Args: {JSON.stringify(call.params)}
+                    Args: {toReactNode(call.params)}
                   </div>
                 )}
                 {/* Display context if available */}
                 {call.context && (
                   <div className="text-xs text-gray-400/70 pl-6">
-                    Context: {JSON.stringify(call.context)}
+                    Context: {toReactNode(call.context)}
                   </div>
                 )}
                 {call.error && (
                   <div className="text-xs text-red-400/70 pl-6 break-all">
-                    {call.error.message || JSON.stringify(call.error)}
+                    {(() => {
+                      if (call.error instanceof Error) return call.error.message;
+                      if (typeof call.error === 'object' && call.error !== null && 'message' in call.error) {
+                        return toReactNode((call.error as { message: unknown }).message);
+                      }
+                      return toReactNode(call.error);
+                    })()}
                   </div>
                 )}
               </div>

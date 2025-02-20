@@ -8,132 +8,142 @@
  */
 
 import React, { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 
-interface CalendarSelectorPodDaysProps {
-  availableDays: Date[]         // array of valid days
-  onSelectDay: (day: Date) => void
-  // rename for clarity, i.e. "defaultSelectedDay" if needed
+interface CalendarSelectorProps {
+  availableDays?: string[] | Date[];  // Support both string and Date arrays
+  onSelectDay: (day: Date) => void;
+  selectedDate?: Date | null;
+  className?: string;
+  showUnavailableDays?: boolean;
 }
 
-function sameDay(a: Date, b: Date) {
-  return a.getUTCFullYear() === b.getUTCFullYear() &&
-         a.getUTCMonth() === b.getUTCMonth() &&
-         a.getUTCDate() === b.getUTCDate()
-}
+export function CalendarSelector({ 
+  availableDays = [],
+  onSelectDay,
+  selectedDate = null,
+  className = '',
+  showUnavailableDays = false
+}: CalendarSelectorProps) {
+  const [currentDate, setCurrentDate] = useState<Date | null>(selectedDate);
+  const [viewMonth, setViewMonth] = useState<Date>(() => selectedDate || new Date());
+  
+  // Convert all available days to Date objects and create a Set of date strings for comparison
+  const availableDatesSet = new Set(
+    availableDays.map(d => 
+      typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]
+    )
+  );
 
-/**
- * A responsive monthly calendar. 
- * Sizing approach: 7 columns x up to 6 rows => ~42 squares.
- * If no availableDays, no highlight. If day not in availableDays => grayed out + disabled.
- */
-export default function CalendarSelectorPodDays({
-  availableDays,
-  onSelectDay
-}: CalendarSelectorPodDaysProps) {
-  const [currentDate, setCurrentDate] = useState<Date | null>(null)
-  const [viewMonth, setViewMonth] = useState<Date>(() => {
-    return new Date()
-  })
-
-  // On mount or whenever availableDays changes, default to the *latest day* if it exists
   useEffect(() => {
-    if (availableDays.length) {
-      const latest = availableDays[availableDays.length - 1]
-      setCurrentDate(latest)
-      setViewMonth(new Date(latest.getFullYear(), latest.getMonth(), 1))
-      onSelectDay(latest)
-    } else {
-      setCurrentDate(null)
+    if (availableDays.length && !currentDate) {
+      // Default to latest available day
+      const latest = availableDays[availableDays.length - 1];
+      const latestDate = typeof latest === 'string' ? new Date(latest.split('T')[0]) : latest;
+      setCurrentDate(latestDate);
+      setViewMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
+      onSelectDay(latestDate);
     }
-  }, [availableDays])
+  }, [availableDays, currentDate]);
+
+  useEffect(() => {
+    if (selectedDate) {
+      setCurrentDate(selectedDate);
+      setViewMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
+    }
+  }, [selectedDate]);
 
   const handleSelect = (day: Date) => {
-    setCurrentDate(day)
-    onSelectDay(day)
-  }
+    if (!isAvailable(day) && !showUnavailableDays) return;
+    setCurrentDate(day);
+    onSelectDay(day);
+  };
+
+  const handlePrevMonth = () => {
+    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
 
   // Build the 6-week grid
-  const startOfView = new Date(viewMonth)
-  const dayOfWeek = startOfView.getDay() // 0..6 (Sun..Sat)
-  startOfView.setDate(startOfView.getDate() - dayOfWeek)
+  const startOfView = new Date(viewMonth);
+  const dayOfWeek = startOfView.getDay();
+  startOfView.setDate(startOfView.getDate() - dayOfWeek);
 
-  const daysInView: Date[] = []
-  for (let i=0; i<42; i++) {
-    const d = new Date(startOfView)
-    d.setDate(startOfView.getDate() + i)
-    daysInView.push(d)
+  const daysInView: Date[] = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(startOfView);
+    d.setDate(startOfView.getDate() + i);
+    daysInView.push(d);
   }
 
   function isAvailable(day: Date) {
-    return availableDays.some(d => sameDay(d, day))
+    if (!availableDays.length) return true;
+    return availableDatesSet.has(day.toISOString().split('T')[0]);
+  }
+
+  function isSameDay(d1: Date, d2: Date) {
+    return d1.getFullYear() === d2.getFullYear() &&
+           d1.getMonth() === d2.getMonth() &&
+           d1.getDate() === d2.getDate();
   }
 
   return (
-    <div className="bg-white/10 p-4 rounded-xl border border-white/10 w-full max-w-md space-y-3 
-                    shadow-md backdrop-blur-sm transition-colors">
-      <div className="flex items-center justify-between">
+    <div className={`w-full max-w-md ${className}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <button
-          onClick={() => {
-            const prev = new Date(viewMonth)
-            prev.setMonth(prev.getMonth() - 1)
-            setViewMonth(prev)
-          }}
-          className="p-2 rounded-md hover:bg-white/20 active:scale-95 transition"
+          onClick={handlePrevMonth}
+          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
         >
-          <ChevronLeft className="h-5 w-5 text-sky-300" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
-        <span className="text-white text-base font-medium">
+        <h2 className="text-lg font-semibold">
           {viewMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-        </span>
+        </h2>
         <button
-          onClick={() => {
-            const next = new Date(viewMonth)
-            next.setMonth(next.getMonth() + 1)
-            setViewMonth(next)
-          }}
-          className="p-2 rounded-md hover:bg-white/20 active:scale-95 transition"
+          onClick={handleNextMonth}
+          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
         >
-          <ChevronRight className="h-5 w-5 text-sky-300" />
+          <ChevronRight className="h-5 w-5" />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-400">
-        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => (
-          <div key={day}>{day}</div>
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1">
+        {/* Weekday headers */}
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+            {day}
+          </div>
         ))}
-      </div>
 
-      <div
-        className="grid grid-cols-7 gap-1 auto-rows-[3rem] 
-                   sm:auto-rows-[2.75rem] text-center text-sm"
-      >
-        {daysInView.map((dateItem, idx) => {
-          const inThisMonth = (dateItem.getMonth() === viewMonth.getMonth())
-          const isSelected = currentDate && sameDay(currentDate, dateItem)
-          const available = isAvailable(dateItem)
+        {/* Calendar days */}
+        {daysInView.map((day, i) => {
+          const isSelected = currentDate && isSameDay(day, currentDate);
+          const isDayAvailable = isAvailable(day);
+          const isCurrentMonth = day.getMonth() === viewMonth.getMonth();
+
           return (
             <button
-              key={idx}
-              disabled={!available}
-              onClick={() => handleSelect(dateItem)}
+              key={i}
+              onClick={() => handleSelect(day)}
+              disabled={!showUnavailableDays && !isDayAvailable}
               className={`
-                flex items-center justify-center rounded-md transition-colors 
-                ${inThisMonth ? 'text-white' : 'text-gray-500 opacity-70'}
-                ${!available ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/20 cursor-pointer'}
-                ${isSelected ? 'bg-sky-500 text-white hover:bg-sky-600' : ''}
+                aspect-square p-2 text-sm rounded-lg transition-colors
+                ${isCurrentMonth ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'}
+                ${isSelected ? 'bg-blue-500 text-white' : ''}
+                ${!isSelected && isDayAvailable && isCurrentMonth ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : ''}
+                ${!isDayAvailable && !showUnavailableDays ? 'opacity-50 cursor-not-allowed' : ''}
               `}
-              title={
-                !available 
-                  ? 'No data for this day' 
-                  : `Select ${dateItem.toDateString()}`
-              }
             >
-              {dateItem.getDate()}
+              {day.getDate()}
             </button>
-          )
+          );
         })}
       </div>
     </div>
-  )
+  );
 }

@@ -11,9 +11,10 @@
  *   <AdvancedECGPlot data={downsampleData} channel={1} />
  */
 
-import React, { useRef, useEffect, useState, useCallback } from 'react'
+import React, { useEffect } from 'react'
 import { ZoomIn, ZoomOut, Crop, EyeOff } from 'lucide-react'
 import type { ECGData } from '../../../types/domain/ecg'
+import { useECGCanvas } from '../../../hooks/api/ecg'
 
 interface AdvancedECGPlotProps {
     data: ECGData[]
@@ -36,127 +37,41 @@ export function AdvancedECGPlot({
     defaultYMax = 50,
     colorBlindMode = false
 }: AdvancedECGPlotProps) {
-    const canvasRef = useRef<HTMLCanvasElement>(null)
-
-    // Horizontal zoom/pan
-    const [scaleX, setScaleX] = useState(1)         // horizontal zoom factor
-    const [translateX, setTranslateX] = useState(0) // horizontal shift in px
-    const [panning, setPanning] = useState(false)
-    const [panStartX, setPanStartX] = useState(0)
-
-    // Y-range management
-    const [yMin, setYMin] = useState(defaultYMin)
-    const [yMax, setYMax] = useState(defaultYMax)
-
-    // Tooltip
-    const [showTooltip, setShowTooltip] = useState(false)
-    const [tooltipX, setTooltipX] = useState(0)
-    const [tooltipY, setTooltipY] = useState(0)
-    const [tooltipText, setTooltipText] = useState('')
-
-    // color-blind mode
-    const [isColorBlindMode, setIsColorBlindMode] = useState(colorBlindMode)
-    const waveColorNormal = 'rgba(129,230,217,0.8)' // pastel teal
-    const waveColorBlind  = 'rgba(0,120,180,0.9)'
-    const waveColor = isColorBlindMode ? waveColorBlind : waveColorNormal
+    const {
+        canvasRef,
+        scaleX,
+        translateX,
+        yMin,
+        yMax,
+        isColorBlindMode,
+        showTooltip,
+        tooltipX,
+        tooltipY,
+        tooltipText,
+        waveColor,
+        handleWheel,
+        handleMouseDown,
+        handleMouseMove,
+        handleMouseUp,
+        handleMouseLeave,
+        zoomInRange,
+        zoomOutRange,
+        fitYRange,
+        toggleColorBlindMode
+    } = useECGCanvas({
+        data,
+        channel,
+        width,
+        height,
+        defaultYMin,
+        defaultYMax,
+        colorBlindMode
+    })
 
     // Compute time domain
     const t0 = data.length ? new Date(data[0].sample_time).getTime() : 0
     const t1 = data.length ? new Date(data[data.length - 1].sample_time).getTime() : 0
     const totalMs = Math.max(1, t1 - t0)
-
-    // MouseWheel => horizontal zoom
-    const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
-        e.preventDefault()
-        // negative delta => zoom in
-        const direction = e.deltaY < 0 ? 1.1 : 0.9
-        setScaleX((prev) => {
-            const next = prev * direction
-            if (next < 0.5) return 0.5
-            if (next > 10) return 10
-            return next
-        })
-    }, [])
-
-    // Pan
-    const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        setPanning(true)
-        setPanStartX(e.clientX)
-    }
-    const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!canvasRef.current) return
-        const rect = canvasRef.current.getBoundingClientRect()
-        const xPos = e.clientX - rect.left
-        const yPos = e.clientY - rect.top
-
-        if (panning) {
-            // dragging => pan
-            const dx = e.clientX - panStartX
-            setTranslateX((t) => t + dx)
-            setPanStartX(e.clientX)
-        } else {
-            // show tooltip if data
-            if (!data.length) return
-            setShowTooltip(true)
-
-            const msInView = totalMs / scaleX
-            const panMsOffset = (-translateX / width) * msInView
-            const localMs = (xPos / width) * msInView - panMsOffset
-            const actualMs = t0 + localMs
-            // find closest point
-            let closest = data[0]
-            let minDist = Infinity
-            for (let i = 0; i < data.length; i++) {
-                const thisMs = new Date(data[i].sample_time).getTime()
-                const dist = Math.abs(thisMs - actualMs)
-                if (dist < minDist) {
-                    minDist = dist
-                    closest = data[i]
-                }
-            }
-            let waveVal = 0
-            if (channel === 1) waveVal = closest.downsampled_channel_1
-            else if (channel === 2) waveVal = closest.downsampled_channel_2
-            else waveVal = closest.downsampled_channel_3
-
-            const ts = new Date(closest.sample_time).toLocaleTimeString([], { hour12: false })
-            setTooltipText(`${ts} • ${waveVal.toFixed(1)}µV`)
-            setTooltipX(xPos)
-            setTooltipY(yPos)
-        }
-    }
-    const handleMouseUp = () => setPanning(false)
-    const handleMouseLeave = () => {
-        setPanning(false)
-        setShowTooltip(false)
-    }
-
-    // Y-range adjustments
-    const zoomOutRange = () => {
-        setYMin(m => m * 1.2)
-        setYMax(m => m * 1.2)
-    }
-    const zoomInRange = () => {
-        setYMin(m => m * 0.8)
-        setYMax(m => m * 0.8)
-    }
-    const fitYRange = () => {
-        if (!data.length) return
-        let minVal = Infinity
-        let maxVal = -Infinity
-        data.forEach(pt => {
-            let v = 0
-            if (channel === 1) v = pt.downsampled_channel_1
-            else if (channel === 2) v = pt.downsampled_channel_2
-            else v = pt.downsampled_channel_3
-            if (v < minVal) minVal = v
-            if (v > maxVal) maxVal = v
-        })
-        if (minVal === Infinity || maxVal === -Infinity) return
-        const pad = (maxVal - minVal) * 0.1
-        setYMin(minVal - pad)
-        setYMax(maxVal + pad)
-    }
 
     // Drawing
     useEffect(() => {
@@ -241,7 +156,7 @@ export function AdvancedECGPlot({
         ctx.fillStyle = 'white'
         ctx.font = '12px sans-serif'
         ctx.fillText(`${label} (zoom x${scaleX.toFixed(1)})`, 8, 14)
-    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor])
+    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label, t0, totalMs])
 
     return (
         <div 
@@ -272,7 +187,7 @@ export function AdvancedECGPlot({
                     <Crop className="h-4 w-4"/>
                 </button>
                 <button
-                    onClick={() => setIsColorBlindMode(b => !b)}
+                    onClick={toggleColorBlindMode}
                     className={`p-1 rounded text-sm transition-colors ${
                         isColorBlindMode ? 'bg-orange-500/20 text-orange-300' : 'bg-white/10 text-gray-300 hover:bg-white/20'
                     }`}

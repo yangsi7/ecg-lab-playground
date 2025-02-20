@@ -9,6 +9,7 @@
  */
 
 import type { Database } from './database.types';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Helper type to extract Row types from Database tables
@@ -17,9 +18,7 @@ import type { Database } from './database.types';
  * type StudyRow = TableRow<'study'>;
  * // Returns Database['public']['Tables']['study']['Row']
  */
-export type TableRow<
-  T extends keyof Database['public']['Tables']
-> = Database['public']['Tables'][T]['Row'];
+export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 
 /**
  * Helper type to extract Insert types from Database tables
@@ -28,9 +27,7 @@ export type TableRow<
  * type StudyInsert = TableInsert<'study'>;
  * // Returns Database['public']['Tables']['study']['Insert']
  */
-export type TableInsert<
-  T extends keyof Database['public']['Tables']
-> = Database['public']['Tables'][T]['Insert'];
+export type TableInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
 
 /**
  * Helper type to extract Update types from Database tables
@@ -39,9 +36,7 @@ export type TableInsert<
  * type StudyUpdate = TableUpdate<'study'>;
  * // Returns Database['public']['Tables']['study']['Update']
  */
-export type TableUpdate<
-  T extends keyof Database['public']['Tables']
-> = Database['public']['Tables'][T]['Update'];
+export type TableUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
 
 /**
  * Helper type to extract RPC function return types
@@ -147,22 +142,102 @@ export type SupabaseInsert<T extends keyof Database['public']['Tables']> = Datab
  */
 export type SupabaseUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
 
-/**
- * Query parameters for table operations
- */
-export interface QueryParams {
+// Query Types
+export type QueryParams = {
   start?: number;
   end?: number;
   filters?: Record<string, string>;
   sortBy?: string;
   sortDirection?: 'asc' | 'desc';
-}
+};
 
-/**
- * Query response type
- */
 export interface QueryResponse<T> {
   data: T[];
-  error: Error | null;
+  error: SupabaseError | null;
   count: number;
-} 
+  metadata?: {
+    executionTime: number;
+    cached?: boolean;
+  };
+}
+
+// Supabase Query Types
+export type PostgrestResponse<T> = {
+  data: T | null;
+  error: SupabaseError | null;
+  count?: number | null;
+  status: number;
+  statusText: string;
+};
+
+// Base error types
+export class SupabaseError extends Error {
+  code?: string;
+  details?: string;
+
+  constructor(message: string, code?: string, details?: string) {
+    super(message);
+    this.name = 'SupabaseError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export class RPCError extends Error {
+  code?: string;
+  details?: string;
+  params?: unknown;
+
+  constructor(
+    message: string,
+    code?: string,
+    details?: string,
+    params?: unknown
+  ) {
+    super(message);
+    this.name = 'RPCError';
+    this.code = code;
+    this.details = details;
+    this.params = params;
+  }
+}
+
+// Strongly typed client
+export type TypedSupabaseClient = SupabaseClient<Database>;
+
+// RPC Types
+export type DatabaseFunctions = Database['public']['Functions'];
+export type RPCFunctionName = keyof DatabaseFunctions;
+export type RPCFunctionArgs<T extends RPCFunctionName> = DatabaseFunctions[T]['Args'];
+export type RPCFunctionReturns<T extends RPCFunctionName> = DatabaseFunctions[T]['Returns'];
+
+// Diagnostic Types
+export interface RPCCallInfo {
+  id: string;
+  functionName: string;
+  params: unknown;
+  context: unknown;
+  status: 'pending' | 'success' | 'error';
+  error?: Error | { message: string } | string;
+  timestamp: Date;
+  component?: string;
+  executionTime?: number;
+  attempt?: number;
+}
+
+export interface DiagnosticOptions {
+  component?: string;
+  context?: Record<string, unknown>;
+  retryConfig?: {
+    maxAttempts?: number;
+    timeWindow?: number;
+    backoffFactor?: number;
+  };
+}
+
+// Common table row types
+export type StudyRow = TableRow<'study'>;
+export type StudyReadingRow = TableRow<'study_readings'>;
+export type PodRow = TableRow<'pod'>;
+export type ClinicRow = TableRow<'clinics'>;
+export type ECGSampleRow = TableRow<'ecg_sample'>; 
