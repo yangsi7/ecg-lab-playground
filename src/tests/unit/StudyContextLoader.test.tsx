@@ -6,12 +6,15 @@
 /// <reference types="vitest" />
 /// <reference types="vite/client" />
 import '@testing-library/jest-dom'
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { createMemoryRouter, RouterProvider } from 'react-router-dom'
-import ECGViewerPage from '../components/shared/ecg/ECGViewerPage'
+import ECGViewerPage from '@/components/shared/ecg/ECGViewerPage'
 import { setupServer, rest } from 'msw/node'
 import { HttpRequest, HttpResponse, Context } from 'msw'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { StudyProvider } from '@/context/StudyContext'
+import { supabase } from '@/hooks/api/supabase'
 
 const server = setupServer(
   rest.post<any, any>('*/rest/v1/study', async (req: HttpRequest, res: HttpResponse<any>, ctx: Context) => {

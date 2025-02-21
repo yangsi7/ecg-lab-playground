@@ -10,173 +10,75 @@
  * @module
  */
 
-import type { Database } from '../database.types';
-import type { TypeGuard, Transform } from '../utils';
-import { TransformError } from '../utils';
+import type { Database } from '@/types/database.types';
+import type { TypeGuard, Transform } from '@/types/utils';
 
-// Raw database types from generated types
+// Base study type from DB
 export type StudyRow = Database['public']['Tables']['study']['Row'];
 export type StudyReadingRow = Database['public']['Tables']['study_readings']['Row'];
 
-/**
- * Domain-specific Study type with computed fields and transformations
- * Represents a complete study with all required fields and computed values
- */
-export interface Study {
-  // Required fields (will throw TransformError if missing)
-  study_id: string;
-  clinic_id: string;
-  pod_id: string;
-  duration_days: number;  // Computed from duration
+// Enhanced study type with required fields
+export type Study = {
+    study_id: string;
+    clinic_id: string;
+    pod_id: string;
+    start_timestamp: string;
+    end_timestamp: string;
+    expected_end_timestamp: string;
+    duration: number;
+    study_type: string;
+    aggregated_quality_minutes: number;
+    aggregated_total_minutes: number;
+    created_at: string;
+    created_by: string;
+    updated_at: string;
+    user_id: string;
+    status: 'active' | 'completed' | 'error' | 'interrupted';
+};
 
-  // Timestamps (ISO 8601 format)
-  start_timestamp: string;
-  end_timestamp: string;
-  expected_end_timestamp: string;
-  created_at: string;
-  updated_at: string;
-
-  // Metrics (defaults to 0 if missing)
-  aggregated_quality_minutes: number;
-  aggregated_total_minutes: number;
-
-  // Metadata (defaults to empty string if missing)
-  study_type: string;
-  user_id: string;
-  created_by: string;
+// Study with readings
+export interface StudyWithReadings extends Study {
+    readings: StudyReadingRow[];
 }
 
-/**
- * Domain-specific StudyReading type
- * Represents a single reading from a study with quality metrics
- */
-export interface StudyReading {
-  // Required fields (will throw TransformError if missing)
-  id: string;
-  study_id: string;
-  timestamp: string;
-
-  // Metrics (defaults to 0 if missing)
-  quality_minutes: number;
-  total_minutes: number;
-  battery_level: number;
-
-  // Metadata (defaults to empty string if missing)
-  status: string;
-  created_at: string;
-  created_by: string;
-}
-
-/**
- * Type guard to check if a value is a Study
- * @throws {TransformError} If required fields are missing or invalid
- */
+// Type guard
 export const isStudy: TypeGuard<Study> = (value): value is Study => {
-  if (typeof value !== 'object' || value === null) {
-    throw new TransformError('Value must be an object');
-  }
-
-  // Check required fields
-  const requiredFields = ['study_id', 'clinic_id', 'pod_id', 'duration_days'];
-  const missingFields = requiredFields.filter(field => !(field in value));
-  
-  if (missingFields.length > 0) {
-    throw new TransformError('Missing required fields', {
-      missing: missingFields.join(', ')
-    });
-  }
-
-  // Validate field types
-  if (typeof (value as any).duration_days !== 'number') {
-    throw new TransformError('duration_days must be a number');
-  }
-
-  return true;
+    if (!value || typeof value !== 'object') return false;
+    
+    const study = value as Partial<Study>;
+    return typeof study.study_id === 'string' &&
+           typeof study.clinic_id === 'string' &&
+           typeof study.pod_id === 'string' &&
+           typeof study.start_timestamp === 'string' &&
+           typeof study.end_timestamp === 'string';
 };
 
-/**
- * Type guard to check if a value is a StudyReading
- * @throws {TransformError} If required fields are missing or invalid
- */
-export const isStudyReading: TypeGuard<StudyReading> = (value): value is StudyReading => {
-  if (typeof value !== 'object' || value === null) {
-    throw new TransformError('Value must be an object');
-  }
-
-  // Check required fields
-  const requiredFields = ['id', 'study_id', 'timestamp'];
-  const missingFields = requiredFields.filter(field => !(field in value));
-  
-  if (missingFields.length > 0) {
-    throw new TransformError('Missing required fields', {
-      missing: missingFields.join(', ')
-    });
-  }
-
-  return true;
-};
-
-/**
- * Transform database row to domain Study type
- * @throws {TransformError} If required fields are missing or invalid
- */
+// Domain transformations
 export const toStudy: Transform<StudyRow, Study> = (row) => {
-  // Validate required fields
-  if (!row.study_id) {
-    throw new TransformError('study_id is required');
-  }
-
-  // Calculate duration_days
-  const duration_days = row.duration ? Math.ceil(row.duration / (24 * 60)) : 0;
-
-  return {
-    // Required fields
-    study_id: row.study_id,
-    clinic_id: row.clinic_id ?? '',
-    pod_id: row.pod_id ?? '',
-    duration_days,
-
-    // Timestamps
-    start_timestamp: row.start_timestamp ?? '',
-    end_timestamp: row.end_timestamp ?? '',
-    expected_end_timestamp: row.expected_end_timestamp ?? '',
-    created_at: row.created_at ?? '',
-    updated_at: row.updated_at ?? '',
-
-    // Metrics
-    aggregated_quality_minutes: row.aggregated_quality_minutes ?? 0,
-    aggregated_total_minutes: row.aggregated_total_minutes ?? 0,
-
-    // Metadata
-    study_type: row.study_type ?? '',
-    user_id: row.user_id ?? '',
-    created_by: row.created_by ?? '',
-  };
+    if (!row.study_id || !row.pod_id || !row.clinic_id) {
+        throw new Error('Invalid study row: missing required fields');
+    }
+    
+    return {
+        study_id: row.study_id,
+        clinic_id: row.clinic_id,
+        pod_id: row.pod_id,
+        start_timestamp: row.start_timestamp ?? '',
+        end_timestamp: row.end_timestamp ?? '',
+        expected_end_timestamp: row.expected_end_timestamp ?? '',
+        duration: row.duration ?? 0,
+        study_type: row.study_type ?? '',
+        aggregated_quality_minutes: row.aggregated_quality_minutes ?? 0,
+        aggregated_total_minutes: row.aggregated_total_minutes ?? 0,
+        created_at: row.created_at ?? '',
+        created_by: row.created_by ?? '',
+        updated_at: row.updated_at ?? '',
+        user_id: row.user_id ?? '',
+        status: row.study_type === 'completed' ? 'completed' : 'active'
+    };
 };
 
-/**
- * Transform database row to domain StudyReading type
- * @throws {TransformError} If required fields are missing or invalid
- */
-export const toStudyReading: Transform<StudyReadingRow, StudyReading> = (row) => {
-  return {
-    // Required fields (non-nullable in database)
-    id: row.id,
-    study_id: row.study_id,
-    timestamp: row.timestamp,
-
-    // Metrics (nullable with defaults)
-    quality_minutes: row.quality_minutes ?? 0,
-    total_minutes: row.total_minutes ?? 0,
-    battery_level: row.battery_level ?? 0,
-
-    // Metadata (nullable with defaults)
-    status: row.status ?? '',
-    created_at: row.created_at ?? '',
-    created_by: row.created_by ?? '',
-  };
-};
-
+// Additional types for study list views
 export interface StudiesWithTimesRow {
     study_id: string;
     pod_id: string;

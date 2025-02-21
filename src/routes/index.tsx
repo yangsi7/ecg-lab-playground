@@ -27,6 +27,12 @@ const routes: AppRoute[] = [
     element: <GenericErrorBoundary><LoginPage /></GenericErrorBoundary>,
   },
   {
+    path: '/',
+    element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
+    label: 'Clinic',
+    requiresAuth: true,
+  },
+  {
     path: '/clinic',
     element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Clinic',

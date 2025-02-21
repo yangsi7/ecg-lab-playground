@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
+import { supabase, handleSupabaseError } from './supabase'
 import { logger } from '@/lib/logger'
-import type { Database } from '@/types/database.types'
+import type { AggregatedLeadData, ECGAggregateFilter } from '@/types/domain/ecg'
 
 // Types from the database schema
-type AggregateLeadsArgs = {
+interface AggregateLeadsArgs {
     p_pod_id: string
     p_time_start: string
     p_time_end: string
@@ -12,29 +12,7 @@ type AggregateLeadsArgs = {
 }
 
 // Domain types
-export interface AggregatedLeadData {
-    time_bucket: string
-    lead_on_p_1?: number
-    lead_on_p_2?: number
-    lead_on_p_3?: number
-    lead_on_n_1?: number
-    lead_on_n_2?: number
-    lead_on_n_3?: number
-    quality_1_percent?: number
-    quality_2_percent?: number
-    quality_3_percent?: number
-}
-
-export interface ECGAggregateFilter {
-    quality_threshold?: number
-    lead_on_threshold?: number
-    time_range?: {
-        start: string
-        end: string
-    }
-}
-
-interface UseECGAggregatesProps {
+export interface UseECGAggregatesProps {
     podId: string | null
     startTime: string
     endTime: string
@@ -63,10 +41,8 @@ export function useECGAggregates({
     filter,
     enabled = true
 }: UseECGAggregatesProps) {
-    const queryKey = ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter]
-
     return useQuery<AggregateResponse>({
-        queryKey,
+        queryKey: ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter],
         queryFn: async () => {
             if (!podId) return { data: [], count: 0 }
 
@@ -87,7 +63,7 @@ export function useECGAggregates({
 
             if (error) {
                 logger.error('Failed to fetch ECG aggregates', { error })
-                throw new Error(error.message)
+                throw handleSupabaseError(error)
             }
 
             if (!Array.isArray(data)) {
@@ -95,40 +71,22 @@ export function useECGAggregates({
             }
 
             let filteredData = data as AggregatedLeadData[]
-
-            // Apply filters if provided
+            
+            // Apply filters if needed
             if (filter) {
-                // Quality threshold filter
-                if (typeof filter.quality_threshold === 'number') {
-                    filteredData = filteredData.filter(d => {
-                        const avgQuality = (
-                            (d.quality_1_percent ?? 0) +
-                            (d.quality_2_percent ?? 0) +
-                            (d.quality_3_percent ?? 0)
-                        ) / 3
-                        return avgQuality >= filter.quality_threshold!
-                    })
+                if (filter.quality_threshold) {
+                    filteredData = filteredData.filter(row => 
+                        ((row.quality_1_percent ?? 0) + 
+                         (row.quality_2_percent ?? 0) + 
+                         (row.quality_3_percent ?? 0)) / 3 >= filter.quality_threshold!
+                    )
                 }
-
-                // Lead-on threshold filter
-                if (typeof filter.lead_on_threshold === 'number') {
-                    filteredData = filteredData.filter(d => {
-                        const avgLeadOn = (
-                            (d.lead_on_p_1 ?? 0) +
-                            (d.lead_on_p_2 ?? 0) +
-                            (d.lead_on_p_3 ?? 0)
-                        ) / 3
-                        return avgLeadOn >= filter.lead_on_threshold!
-                    })
-                }
-
-                // Time range filter
-                if (filter.time_range?.start && filter.time_range?.end) {
-                    filteredData = filteredData.filter(d => {
-                        const time = new Date(d.time_bucket).getTime()
-                        return time >= new Date(filter.time_range!.start).getTime() && 
-                               time <= new Date(filter.time_range!.end).getTime()
-                    })
+                if (filter.lead_on_threshold) {
+                    filteredData = filteredData.filter(row =>
+                        ((row.lead_on_p_1 ?? 0) + 
+                         (row.lead_on_p_2 ?? 0) + 
+                         (row.lead_on_p_3 ?? 0)) / 3 >= filter.lead_on_threshold!
+                    )
                 }
             }
 

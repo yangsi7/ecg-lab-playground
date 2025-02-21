@@ -2,73 +2,50 @@
  * Hook for managing Holter study filters
  * Provides both quick filters and advanced filtering capabilities
  */
-import { useState, useCallback } from 'react';
-import type { HolterStudy } from '@/types/domain/holter';
+import { create } from 'zustand';
 import { logger } from '@/lib/logger';
 
-export type QuickFilterId = 'all' | 'recent' | 'low-quality' | 'high-quality';
-
-interface UseHolterFilterResult {
-    quickFilter: QuickFilterId | undefined;
-    advancedFilter: string;
-    setQuickFilter: (id: QuickFilterId | undefined) => void;
-    setAdvancedFilter: (filter: string) => void;
-    applyFilters: (studies: HolterStudy[]) => HolterStudy[];
+interface HolterFilterState {
+  filters: {
+    quality?: number;
+    leadOn?: number;
+    timeRange?: {
+      start: string;
+      end: string;
+    };
+  };
+  setFilter: (type: string, value: unknown) => void;
+  resetFilters: () => void;
 }
 
-export function useHolterFilter(): UseHolterFilterResult {
-    const [quickFilter, setQuickFilter] = useState<QuickFilterId>();
-    const [advancedFilter, setAdvancedFilter] = useState('');
+export const useHolterFilter = create<HolterFilterState>((set) => ({
+  filters: {},
+  setFilter: (type, value) => {
+    set((state) => {
+      const newFilters = { ...state.filters };
 
-    const applyFilters = useCallback((studies: HolterStudy[]): HolterStudy[] => {
-        let filtered = [...studies];
+      switch (type) {
+        case 'quality':
+          if (typeof value === 'number') {
+            newFilters.quality = value;
+          }
+          break;
+        case 'leadOn':
+          if (typeof value === 'number') {
+            newFilters.leadOn = value;
+          }
+          break;
+        case 'timeRange':
+          if (value && typeof value === 'object') {
+            newFilters.timeRange = value as { start: string; end: string };
+          }
+          break;
+        default:
+          logger.warn('Unknown filter type:', type);
+      }
 
-        try {
-            // Apply quick filters
-            if (quickFilter) {
-                switch (quickFilter) {
-                    case 'recent':
-                        const sevenDaysAgo = new Date();
-                        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                        filtered = filtered.filter(study => 
-                            new Date(study.start_timestamp) >= sevenDaysAgo
-                        );
-                        break;
-                    case 'low-quality':
-                        filtered = filtered.filter(study => 
-                            study.qualityFraction < 0.8
-                        );
-                        break;
-                    case 'high-quality':
-                        filtered = filtered.filter(study => 
-                            study.qualityFraction >= 0.8
-                        );
-                        break;
-                    case 'all':
-                    default:
-                        break;
-                }
-            }
-
-            // Apply advanced filter if present
-            if (advancedFilter.trim()) {
-                // Here you would parse and apply the advanced filter expression
-                // For now, we'll just log that it's not implemented
-                logger.warn('Advanced filtering not yet implemented');
-            }
-
-            return filtered;
-        } catch (error) {
-            logger.error('Error applying filters:', error);
-            return studies;
-        }
-    }, [quickFilter, advancedFilter]);
-
-    return {
-        quickFilter,
-        advancedFilter,
-        setQuickFilter,
-        setAdvancedFilter,
-        applyFilters
-    };
-} 
+      return { filters: newFilters };
+    });
+  },
+  resetFilters: () => set({ filters: {} })
+})); 

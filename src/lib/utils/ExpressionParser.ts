@@ -2,6 +2,8 @@
  * Expression parser for advanced filtering
  */
 import type { FilterExpression, FilterField, FilterOperator } from '@/types/filter';
+import { jsep, Expression } from 'jsep';
+import { logger } from '@/lib/logger';
 
 export class ExpressionEvaluationError extends Error {
   constructor(message: string) {
@@ -119,5 +121,90 @@ export function evaluateExpression<T>(item: T, expression: FilterExpression): bo
       return String(itemValue).toLowerCase().endsWith(String(exprValue).toLowerCase());
     default:
       return false;
+  }
+}
+
+export function parseExpression(expression: string): Expression {
+  try {
+    return jsep(expression);
+  } catch (error) {
+    logger.error('Failed to parse expression:', error);
+    throw error;
+  }
+}
+
+export function evaluateExpression(node: Expression, context: Record<string, unknown>): unknown {
+  if (!node) return null;
+
+  try {
+    switch (node.type) {
+      case 'BinaryExpression': {
+        const left = evaluateExpression((node as any).left, context);
+        const right = evaluateExpression((node as any).right, context);
+        const operator = (node as any).operator;
+
+        switch (operator) {
+          case '+': return Number(left) + Number(right);
+          case '-': return Number(left) - Number(right);
+          case '*': return Number(left) * Number(right);
+          case '/': return Number(left) / Number(right);
+          case '==': return left == right;
+          case '===': return left === right;
+          case '!=': return left != right;
+          case '!==': return left !== right;
+          case '>': return Number(left) > Number(right);
+          case '<': return Number(left) < Number(right);
+          case '>=': return Number(left) >= Number(right);
+          case '<=': return Number(left) <= Number(right);
+          case '&&': return Boolean(left) && Boolean(right);
+          case '||': return Boolean(left) || Boolean(right);
+          default:
+            throw new Error(`Unsupported operator: ${operator}`);
+        }
+      }
+
+      case 'UnaryExpression': {
+        const argument = evaluateExpression((node as any).argument, context);
+        const operator = (node as any).operator;
+
+        switch (operator) {
+          case '!': return !argument;
+          case '-': return -Number(argument);
+          case '+': return +Number(argument);
+          default:
+            throw new Error(`Unsupported unary operator: ${operator}`);
+        }
+      }
+
+      case 'Identifier':
+        return context[(node as any).name];
+
+      case 'Literal':
+        return (node as any).value;
+
+      case 'CallExpression': {
+        const callee = (node as any).callee;
+        if (callee.type !== 'Identifier') {
+          throw new Error('Only simple function calls are supported');
+        }
+
+        const args = (node as any).arguments.map((arg: Expression) => 
+          evaluateExpression(arg, context)
+        );
+
+        const fn = context[callee.name];
+        if (typeof fn !== 'function') {
+          throw new Error(`Function ${callee.name} not found in context`);
+        }
+
+        return fn(...args);
+      }
+
+      default:
+        throw new Error(`Unsupported expression type: ${node.type}`);
+    }
+  } catch (error) {
+    logger.error('Failed to evaluate expression:', error);
+    throw error;
   }
 } 

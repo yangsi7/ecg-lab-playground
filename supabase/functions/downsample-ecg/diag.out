@@ -1,0 +1,219 @@
+../../../src/components/labs/ClinicLab/index.tsx(9,20): error TS6133: 'useRef' is declared but its value is never read.
+../../../src/components/labs/ClinicLab/index.tsx(9,28): error TS6133: 'useEffect' is declared but its value is never read.
+../../../src/components/labs/ClinicLab/index.tsx(64,28): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string | null'.
+  Type 'undefined' is not assignable to type 'string | null'.
+../../../src/components/labs/ClinicLab/index.tsx(283,25): error TS2322: Type 'ChartDataPoint[]' is not assignable to type 'ChartData[]'.
+  Property 'value' is missing in type 'ChartDataPoint' but required in type 'ChartData'.
+../../../src/components/labs/ClinicLab/index.tsx(292,25): error TS2322: Type 'ChartDataPoint[]' is not assignable to type 'ChartData[]'.
+  Property 'value' is missing in type 'ChartDataPoint' but required in type 'ChartData'.
+../../../src/components/labs/ClinicLab/index.tsx(305,25): error TS2322: Type 'ChartDataPoint[]' is not assignable to type 'ChartData[]'.
+  Property 'value' is missing in type 'ChartDataPoint' but required in type 'ChartData'.
+../../../src/components/labs/ClinicLab/index.tsx(314,25): error TS2322: Type 'ChartDataPoint[]' is not assignable to type 'ChartData[]'.
+  Property 'value' is missing in type 'ChartDataPoint' but required in type 'ChartData'.
+../../../src/components/labs/DataLab/index.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/DataLab/index.tsx(6,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/components/HolterHeader.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/HourlyHistogram.tsx(12,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/HourlyHistogram.tsx(13,26): error TS2307: Cannot find module '../../lib/supabase' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/components/HourlyQualityHistogram.tsx(9,1): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/HourlyQualityHistogram.tsx(27,21): error TS6133: 'idx' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/MinuteSlider.tsx(7,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/QuickFilters.tsx(1,1): error TS6133: 'AlertTriangle' is declared but its value is never read.
+../../../src/components/labs/HolterLab/components/QuickFilters.tsx(2,36): error TS2307: Cannot find module '../hooks/useHolterFilters' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/components/StatusPill.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/HolterDetail.tsx(11,26): error TS2307: Cannot find module '../../../lib/supabase' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/HolterDetail.tsx(14,36): error TS2307: Cannot find module './components/HolterHistogram24h' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/HolterDetail.tsx(15,41): error TS2307: Cannot find module './components/CalendarSelectorPodDays' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/HolterDetail.tsx(167,31): error TS2339: Property 'loading' does not exist on type 'UseQueryResult<AggregateResponse, Error>'.
+../../../src/components/labs/HolterLab/index.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(2,1): error TS6133: 'Link' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(5,5): error TS6133: 'Filter' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(7,5): error TS6133: 'AlertTriangle' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(8,5): error TS6133: 'Save' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(9,5): error TS6133: 'Star' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(10,5): error TS6133: 'MoreHorizontal' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(12,34): error TS2307: Cannot find module './hooks/useHolterFilters' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/index.tsx(16,32): error TS2307: Cannot find module './components/AdvancedFilter' or its corresponding type declarations.
+../../../src/components/labs/HolterLab/index.tsx(31,7): error TS6133: 'TOKEN_SUGGESTIONS' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(41,9): error TS6133: 'page' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(43,9): error TS6133: 'sortConfig' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(44,9): error TS6133: 'filterConfig' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(45,9): error TS6133: 'onPageChange' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(47,9): error TS6133: 'onSortChange' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(48,9): error TS6133: 'onFilterChange' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(49,9): error TS6133: 'onFilterError' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(50,9): error TS6133: 'resetFilters' is declared but its value is never read.
+../../../src/components/labs/HolterLab/index.tsx(63,9): error TS2339: Property 'loading' does not exist on type '{ studies: HolterStudy[]; isLoading: boolean; error: Error | null; totalCount: number; }'.
+../../../src/components/labs/PodLab/index.tsx(3,40): error TS2307: Cannot find module '../../../lib/supabase/pod' or its corresponding type declarations.
+../../../src/components/RootLayout.tsx(4,8): error TS2613: Module '"/Users/yangsim/Nanoleq/sideProjects/ecg-lab-boltdiy_(fork)_4lmu4c/src/components/DiagnosticsPanel"' has no default export. Did you mean to use 'import { DiagnosticsPanel } from "/Users/yangsim/Nanoleq/sideProjects/ecg-lab-boltdiy_(fork)_4lmu4c/src/components/DiagnosticsPanel"' instead?
+../../../src/components/shared/AdvancedFilter/index.tsx(4,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(5,18): error TS6133: 'Save' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(5,24): error TS6133: 'Star' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(5,30): error TS6133: 'MoreHorizontal' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(23,10): error TS6133: 'showFields' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(23,22): error TS6133: 'setShowFields' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(24,10): error TS6133: 'showSaveDialog' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(24,26): error TS6133: 'setShowSaveDialog' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(25,10): error TS6133: 'presetName' is declared but its value is never read.
+../../../src/components/shared/AdvancedFilter/index.tsx(25,22): error TS6133: 'setPresetName' is declared but its value is never read.
+../../../src/components/shared/CalendarSelector.tsx(10,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/shared/CalendarSelector.tsx(11,37): error TS6133: 'Calendar' is declared but its value is never read.
+../../../src/components/shared/CalendarSelector/index.tsx(4,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(305,12): error TS6133: 'getOperatorLabel' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(329,12): error TS6133: 'FilterUI' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(338,22): error TS6133: 'setOperator' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(341,19): error TS6133: 'setValue' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(342,7): error TS2345: Argument of type 'string | number | boolean | (string | number)[]' is not assignable to parameter of type 'string | number | boolean | (() => string | number | boolean)'.
+  Type '(string | number)[]' is not assignable to type 'string | number | boolean | (() => string | number | boolean)'.
+../../../src/components/shared/DataGrid.tsx(344,20): error TS6133: 'setValue2' is declared but its value is never read.
+../../../src/components/shared/DataGrid.tsx(348,11): error TS6133: 'operators' is declared but its value is never read.
+../../../src/components/shared/ecg/AdvancedECGPlot.tsx(77,29): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent>' is not assignable to parameter of type 'MouseEvent<HTMLCanvasElement, MouseEvent>'.
+  Type 'Element' is missing the following properties from type 'HTMLCanvasElement': height, width, captureStream, getContext, and 134 more.
+../../../src/components/shared/ecg/AdvancedECGPlot.tsx(84,29): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent>' is not assignable to parameter of type 'MouseEvent<HTMLCanvasElement, MouseEvent>'.
+  Type 'Element' is missing the following properties from type 'HTMLCanvasElement': height, width, captureStream, getContext, and 134 more.
+../../../src/components/shared/ecg/AdvancedECGPlot.tsx(96,33): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent>' is not assignable to parameter of type 'MouseEvent<HTMLCanvasElement, MouseEvent>'.
+  Type 'Element' is missing the following properties from type 'HTMLCanvasElement': height, width, captureStream, getContext, and 134 more.
+../../../src/components/shared/ecg/AdvancedECGPlot.tsx(99,33): error TS2345: Argument of type 'MouseEvent<Element, MouseEvent>' is not assignable to parameter of type 'MouseEvent<HTMLCanvasElement, MouseEvent>'.
+  Type 'Element' is missing the following properties from type 'HTMLCanvasElement': height, width, captureStream, getContext, and 134 more.
+../../../src/components/shared/ecg/EcgAggregatorView.tsx(18,3): error TS6133: 'onTimeRangeSelect' is declared but its value is never read.
+../../../src/components/shared/ecg/EcgAggregatorView.tsx(23,5): error TS6133: 'currentDate' is declared but its value is never read.
+../../../src/components/shared/ecg/EcgAggregatorView.tsx(26,5): error TS6133: 'aggregates' is declared but its value is never read.
+../../../src/components/shared/ecg/EcgAggregatorView.tsx(27,5): error TS6133: 'count' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGTimelineBar.tsx(26,9): error TS6133: 'aggregatorValues' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewer.tsx(9,1): error TS6133: 'useECGAggregates' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewer.tsx(10,37): error TS2307: Cannot find module './HourlyECGAggregator' or its corresponding type declarations.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(11,8): error TS6133: 'React' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(11,27): error TS6133: 'useMemo' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(13,35): error TS6133: 'ChevronLeft' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(13,48): error TS6133: 'ChevronRight' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(19,1): error TS6133: 'Study' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(41,11): error TS6133: 'studyId' is declared but its value is never read.
+../../../src/components/shared/ecg/ECGViewerPage.tsx(51,11): error TS6133: 'podDays' is declared but its value is never read.
+../../../src/components/shared/ecg/LabView.tsx(1,28): error TS2307: Cannot find module '../../../hooks/api/useLabData' or its corresponding type declarations.
+../../../src/components/shared/ecg/LabView.tsx(5,50): error TS2307: Cannot find module '../../../lib/supabase/client' or its corresponding type declarations.
+../../../src/components/shared/ecg/LabView.tsx(84,47): error TS7006: Parameter 'idx' implicitly has an 'any' type.
+../../../src/components/shared/ecg/MainECGViewer.tsx(9,56): error TS6133: 'ECGSample' is declared but its value is never read.
+../../../src/components/shared/Histogram/index.tsx(4,1): error TS6133: 'React' is declared but its value is never read.
+../../../src/hooks/api/clinic/useClinicAnalytics.ts(4,25): error TS6196: 'Json' is declared but never used.
+../../../src/hooks/api/clinic/useClinicAnalytics.ts(7,6): error TS6196: 'RPCFunctionArgs' is declared but never used.
+../../../src/hooks/api/core/types.ts(1,1): error TS6133: 'Database' is declared but its value is never read.
+../../../src/hooks/api/core/types.ts(4,31): error TS2305: Module '"../../../types/utils"' has no exported member 'RPCCallInfo'.
+../../../src/hooks/api/core/useRPC.ts(2,26): error TS2307: Cannot find module '../../../lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/core/useRPC.ts(4,1): error TS6133: 'Database' is declared but its value is never read.
+../../../src/hooks/api/core/useRPC.ts(5,15): error TS2724: '"../../../types/utils"' has no exported member named 'RPCFunctionName'. Did you mean 'RPCFunctions'?
+../../../src/hooks/api/core/useRPC.ts(5,32): error TS2724: '"../../../types/utils"' has no exported member named 'RPCFunctionArgs'. Did you mean 'RPCFunctions'?
+../../../src/hooks/api/core/useRPC.ts(5,49): error TS2724: '"../../../types/utils"' has no exported member named 'RPCFunctionReturns'. Did you mean 'RPCFunctions'?
+../../../src/hooks/api/core/useRPC.ts(5,69): error TS2305: Module '"../../../types/utils"' has no exported member 'RPCCallInfo'.
+../../../src/hooks/api/core/useRPC.ts(5,82): error TS2305: Module '"../../../types/utils"' has no exported member 'DiagnosticOptions'.
+../../../src/hooks/api/core/useRPC.ts(89,9): error TS6133: 'lastError' is declared but its value is never read.
+../../../src/hooks/api/core/useTableQuery.ts(2,26): error TS2307: Cannot find module '../../../lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/core/useTableQuery.ts(13,13): error TS2339: Property 'start' does not exist on type 'QueryParams'.
+../../../src/hooks/api/core/useTableQuery.ts(13,20): error TS2339: Property 'end' does not exist on type 'QueryParams'.
+../../../src/hooks/api/core/useTableQuery.ts(61,9): error TS2741: Property 'cached' is missing in type '{ executionTime: number; }' but required in type 'QueryMetadata'.
+../../../src/hooks/api/core/utils.ts(1,26): error TS2307: Cannot find module '../../../lib/supabase/client' or its corresponding type declarations.
+../../../src/hooks/api/core/utils.ts(16,11): error TS2339: Property 'start' does not exist on type 'QueryParams'.
+../../../src/hooks/api/core/utils.ts(16,18): error TS2339: Property 'end' does not exist on type 'QueryParams'.
+../../../src/hooks/api/core/utils.ts(42,46): error TS2554: Expected 1 arguments, but got 3.
+../../../src/hooks/api/core/utils.ts(66,7): error TS2741: Property 'cached' is missing in type '{ executionTime: number; }' but required in type 'QueryMetadata'.
+../../../src/hooks/api/core/utils.ts(79,3): error TS6133: 'options' is declared but its value is never read.
+../../../src/hooks/api/core/utils.ts(87,44): error TS2554: Expected 1 arguments, but got 3.
+../../../src/hooks/api/ecg/useECGAggregatorView.ts(65,29): error TS2339: Property 'count' does not exist on type 'UseQueryResult<AggregateResponse, Error>'.
+../../../src/hooks/api/ecg/useECGAggregatorView.ts(65,36): error TS2339: Property 'loading' does not exist on type 'UseQueryResult<AggregateResponse, Error>'.
+../../../src/hooks/api/ecg/useECGAggregatorView.ts(71,5): error TS2353: Object literal may only specify known properties, and 'offset' does not exist in type 'UseECGAggregatesParams'.
+../../../src/hooks/api/ecg/useECGCanvas.ts(40,3): error TS6133: 'width' is declared but its value is never read.
+../../../src/hooks/api/ecg/useECGCanvas.ts(41,3): error TS6133: 'height' is declared but its value is never read.
+../../../src/hooks/api/ecg/useECGCanvas.ts(60,20): error TS6133: 'setTooltipX' is declared but its value is never read.
+../../../src/hooks/api/ecg/useECGCanvas.ts(61,20): error TS6133: 'setTooltipY' is declared but its value is never read.
+../../../src/hooks/api/ecg/useECGCanvas.ts(62,23): error TS6133: 'setTooltipText' is declared but its value is never read.
+../../../src/hooks/api/ecg/useECGTimeline.ts(37,3): error TS6133: 'selectedRange' is declared but its value is never read.
+../../../src/hooks/api/index.ts(2,34): error TS2307: Cannot find module './useDownsampleECG' or its corresponding type declarations.
+../../../src/hooks/api/index.ts(5,31): error TS2307: Cannot find module './useHolterData' or its corresponding type declarations.
+../../../src/hooks/api/index.ts(10,28): error TS2307: Cannot find module './useLabData' or its corresponding type declarations.
+../../../src/hooks/api/study/index.ts(5,15): error TS2724: '"./useSingleStudy"' has no exported member named 'UseSingleStudyResult'. Did you mean 'useSingleStudy'?
+../../../src/hooks/api/study/useSingleStudy.ts(4,1): error TS6133: 'Study' is declared but its value is never read.
+../../../src/hooks/api/study/useStudyList.ts(2,10): error TS6133: 'queryTable' is declared but its value is never read.
+../../../src/hooks/api/useChunkedECG.ts(9,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useClinicAnalytics.ts(11,1): error TS6133: 'Database' is declared but its value is never read.
+../../../src/hooks/api/useDataQueries.ts(4,1): error TS6133: 'useQuery' is declared but its value is never read.
+../../../src/hooks/api/useDataQueries.ts(5,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useDatasets.ts(2,26): error TS2307: Cannot find module '../../lib/supabase/client' or its corresponding type declarations.
+../../../src/hooks/api/useDiagnostics.ts(5,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useECGData.ts(2,1): error TS6133: 'useQuery' is declared but its value is never read.
+../../../src/hooks/api/useECGData.ts(3,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useECGData.ts(6,1): error TS6133: 'ECGSampleRow' is declared but its value is never read.
+../../../src/hooks/api/useECGData.ts(6,35): error TS2307: Cannot find module '../../lib/supabase/client' or its corresponding type declarations.
+../../../src/hooks/api/useHolterStudies.ts(2,26): error TS2307: Cannot find module '@/lib/supabase/client' or its corresponding type declarations.
+../../../src/hooks/api/useHolterStudies.ts(5,25): error TS6133: 'calculateHolterStatus' is declared but its value is never read.
+../../../src/hooks/api/useHolterStudies.ts(7,1): error TS6133: 'PostgrestError' is declared but its value is never read.
+../../../src/hooks/api/useHolterStudies.ts(9,11): error TS6196: 'UseHolterStudiesResult' is declared but never used.
+../../../src/hooks/api/useHolterStudies.ts(40,42): error TS7006: Parameter 'row' implicitly has an 'any' type.
+../../../src/hooks/api/usePodData.ts(2,26): error TS2307: Cannot find module '../../lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/usePodData.ts(3,15): error TS2724: '"../../types/utils"' has no exported member named 'SupabaseRow'. Did you mean 'SupabaseError'?
+../../../src/hooks/api/usePodDays.ts(6,4): error TS6133: 'useQuery' is declared but its value is never read.
+../../../src/hooks/api/usePodDays.ts(7,29): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/usePodEarliestLatest.ts(3,1): error TS6133: 'useQuery' is declared but its value is never read.
+../../../src/hooks/api/usePodEarliestLatest.ts(4,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/usePodEarliestLatest.ts(6,15): error TS2440: Import declaration conflicts with local declaration of 'PodEarliestLatest'.
+../../../src/hooks/api/useSingleStudy.ts(3,41): error TS2307: Cannot find module '../../lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useStudiesWithTimes.ts(2,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/hooks/api/useStudiesWithTimes.ts(3,1): error TS6133: 'logger' is declared but its value is never read.
+../../../src/hooks/api/useSupabase.ts(113,17): error TS2769: No overload matches this call.
+  Overload 1 of 2, '(values: { clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never, options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T]["Insert"]' is not assignable to parameter of type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never'.
+      Type '{ id: string; name?: string | null | undefined; } | { created_at?: string | undefined; created_by?: string | null | undefined; description?: string | null | undefined; file_count?: number | null | undefined; ... 5 more ...; updated_at?: string | undefined; } | ... 6 more ... | { ...; }' is not assignable to type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never'.
+        Type '{ id: string; name?: string | null | undefined; }' is not assignable to type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never'.
+  Overload 2 of 2, '(values: ({ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never)[], options?: { ...; } | undefined): PostgrestFilterBuilder<...>', gave the following error.
+    Argument of type '{ id: string; name?: string | null | undefined; } | { created_at?: string | undefined; created_by?: string | null | undefined; description?: string | null | undefined; file_count?: number | null | undefined; ... 5 more ...; updated_at?: string | undefined; } | ... 6 more ... | { ...; }' is not assignable to parameter of type '({ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never)[]'.
+      Type '{ id: string; name?: string | null | undefined; }' is missing the following properties from type '({ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Insert"] : never)[]': length, pop, push, concat, and 35 more.
+../../../src/hooks/api/useSupabase.ts(141,17): error TS2345: Argument of type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T]["Update"]' is not assignable to parameter of type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Update"] : never'.
+  Type '{ id?: string | undefined; name?: string | null | undefined; } | { created_at?: string | undefined; created_by?: string | null | undefined; description?: string | null | undefined; ... 6 more ...; updated_at?: string | undefined; } | ... 6 more ... | { ...; }' is not assignable to type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Update"] : never'.
+    Type '{ id?: string | undefined; name?: string | null | undefined; }' is not assignable to type '{ clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T] extends { ...; } ? { ...; }[T]["Update"] : never'.
+../../../src/hooks/api/useSupabase.ts(142,19): error TS2345: Argument of type 'string' is not assignable to parameter of type '("id" extends keyof { clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T]["Row"] ? { ...; }[T]["Row"][keyof { ...; ...'.
+../../../src/hooks/api/useSupabase.ts(171,19): error TS2345: Argument of type 'string' is not assignable to parameter of type '("id" extends keyof { clinics: { Row: { id: string; name: string | null; }; Insert: { id: string; name?: string | null | undefined; }; Update: { id?: string | undefined; name?: string | null | undefined; }; Relationships: []; }; ... 7 more ...; study_readings: { ...; }; }[T]["Row"] ? { ...; }[T]["Row"][keyof { ...; ...'.
+../../../src/hooks/store/useHolterFilter.ts(62,53): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'Record<string, unknown> | undefined'.
+../../../src/hooks/useAdvancedFilter.ts(8,7): error TS6133: 'STORAGE_KEY' is declared but its value is never read.
+../../../src/hooks/useAuth.ts(2,26): error TS2307: Cannot find module '../lib/supabase/client' or its corresponding type declarations.
+../../../src/hooks/useAuth.ts(11,52): error TS7031: Binding element 'session' implicitly has an 'any' type.
+../../../src/hooks/useAuth.ts(19,46): error TS7006: Parameter '_event' implicitly has an 'any' type.
+../../../src/hooks/useAuth.ts(19,54): error TS7006: Parameter 'session' implicitly has an 'any' type.
+../../../src/hooks/useDataGrid.ts(1,33): error TS6133: 'useRef' is declared but its value is never read.
+../../../src/lib/api/clinic.ts(8,1): error TS6133: 'isClinic' is declared but its value is never read.
+../../../src/lib/api/clinic.ts(47,11): error TS2322: Type 'Partial<{ id: string; name: string | null; }>' is not assignable to type '{ id: string; name?: string | null | undefined; }'.
+  Types of property 'id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+../../../src/lib/api/ecg.ts(5,10): error TS6133: 'useSupabaseQuery' is declared but its value is never read.
+../../../src/lib/api/ecg.ts(7,55): error TS6196: 'AggregatedLeadData' is declared but never used.
+../../../src/lib/api/study.ts(8,1): error TS6133: 'isStudy' is declared but its value is never read.
+../../../src/lib/api/study.ts(56,27): error TS2339: Property 'duration_days' does not exist on type 'Partial<Study>'.
+../../../src/lib/api/study.ts(56,49): error TS2339: Property 'duration_days' does not exist on type 'Partial<Study>'.
+../../../src/lib/api/study.ts(67,11): error TS2322: Type 'Partial<{ aggregated_quality_minutes: number | null; aggregated_total_minutes: number | null; clinic_id: string | null; created_at: string | null; created_by: string | null; duration: number | null; ... 7 more ...; user_id: string | null; }>' is not assignable to type '{ aggregated_quality_minutes?: number | null | undefined; aggregated_total_minutes?: number | null | undefined; clinic_id?: string | null | undefined; created_at?: string | null | undefined; ... 9 more ...; user_id?: string | ... 1 more ... | undefined; }'.
+  Types of property 'study_id' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+../../../src/lib/api/study.ts(92,26): error TS2339: Property 'duration_days' does not exist on type 'Partial<Study>'.
+../../../src/lib/api/study.ts(92,47): error TS2339: Property 'duration_days' does not exist on type 'Partial<Study>'.
+../../../src/tests/hooks/useAuth.test.tsx(6,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/tests/hooks/useAuth.test.tsx(110,68): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+../../../src/tests/hooks/useAuth.test.tsx(153,68): error TS7006: Parameter 'callback' implicitly has an 'any' type.
+../../../src/tests/hooks/useChunkedECG.test.tsx(7,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/tests/integration/ECGIntegration.test.tsx(2,27): error TS2307: Cannot find module '../components/shared/ecg/ECGViewerPage' or its corresponding type declarations.
+../../../src/tests/integration/MainECGViewer.test.tsx(8,26): error TS2307: Cannot find module '@/lib/supabase' or its corresponding type declarations.
+../../../src/tests/integration/MainECGViewer.test.tsx(146,11): error TS6133: 'container' is declared but its value is never read.
+../../../src/tests/unit/DataGrid.test.tsx(1,1): error TS6133: 'React' is declared but its value is never read.
+../../../src/tests/unit/DataGrid.test.tsx(3,39): error TS2307: Cannot find module '../DataGrid' or its corresponding type declarations.
+../../../src/tests/unit/DataGrid.test.tsx(113,42): error TS6133: 'row' is declared but its value is never read.
+../../../src/tests/unit/HolterLab.test.tsx(3,23): error TS2307: Cannot find module '../pages/HolterLab' or its corresponding type declarations.
+../../../src/tests/unit/StudyContextLoader.test.tsx(12,27): error TS2307: Cannot find module '../components/shared/ecg/ECGViewerPage' or its corresponding type declarations.
+../../../src/tests/unit/StudyContextLoader.test.tsx(13,35): error TS2307: Cannot find module 'msw/node' or its corresponding type declarations.
+../../../src/tests/unit/StudyContextLoader.test.tsx(14,52): error TS2307: Cannot find module 'msw' or its corresponding type declarations.
+../../../src/types/domain/holter.ts(6,1): error TS6133: 'Database' is declared but its value is never read.
+../../../src/types/domain/holter.ts(7,47): error TS6196: 'NonNullRequired' is declared but never used.
+../../../src/types/domain/holter.ts(22,18): error TS2430: Interface 'HolterStudy' incorrectly extends interface 'Omit<Study, "duration_days">'.
+  Types of property 'status' are incompatible.
+    Type 'HolterStatus' is not assignable to type '"error" | "active" | "completed" | "interrupted"'.
+      Type '"critical"' is not assignable to type '"error" | "active" | "completed" | "interrupted"'.
+../../../src/types/filter.ts(25,30): error TS6133: 'T' is declared but its value is never read.
+../../../src/types/supabase.ts(18,3): error TS6196: 'SupabaseError' is declared but never used.
+../../../src/types/supabase.ts(19,3): error TS6196: 'RPCError' is declared but never used.
+../../../src/types/utils.ts(7,1): error TS6133: 'SupabaseClient' is declared but its value is never read.

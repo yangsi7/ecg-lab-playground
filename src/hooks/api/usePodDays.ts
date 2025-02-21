@@ -4,7 +4,8 @@
    =========================================== */
    import { useState, useEffect } from 'react'
    import { useQuery } from '@tanstack/react-query'
-   import { supabase } from '@/lib/supabase'
+   import { supabase } from '@/hooks/api/supabase'
+   import { handleSupabaseError } from '@/hooks/api/useSupabase'
    import { logger } from '@/lib/logger'
    import type { PodDayResponse } from '@/types/domain/pod'
    

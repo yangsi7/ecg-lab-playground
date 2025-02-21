@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { PostgrestError, PostgrestSingleResponse } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
-import { supabase } from '@/lib/supabase'
+import { supabase } from './supabase'
 import { logger } from '@/lib/logger'
 
 type Tables = Database['public']['Tables']

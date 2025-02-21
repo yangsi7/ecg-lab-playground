@@ -2,16 +2,23 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { BarChart3, Users, Heart, Box } from 'lucide-react';
 
 const tabs = [
-  { id: '/clinic', name: 'Clinics', icon: Users },
+  { id: '/', name: 'Clinics', icon: Users },
   { id: '/holter', name: 'Holter Lab', icon: Heart },
   { id: '/pod', name: 'Pod Inventory', icon: Box },
-  { id: '/', name: 'Data Lab', icon: BarChart3 },
+  { id: '/datalab', name: 'Data Lab', icon: BarChart3 },
 ];
 
 function Navigation() {
   const location = useLocation();
   const navigate = useNavigate();
-  const activeTab = tabs.find(tab => location.pathname === tab.id)?.id ?? '/';
+  
+  // Consider both '/' and '/clinic' as the clinic tab
+  const currentPath = location.pathname;
+  const activeTab = tabs.find(tab => 
+    currentPath === tab.id || 
+    (tab.id === '/' && currentPath === '/clinic') ||
+    currentPath.startsWith(tab.id + '/')
+  )?.id ?? '/';
 
   return (
     <nav className="px-2 py-4">

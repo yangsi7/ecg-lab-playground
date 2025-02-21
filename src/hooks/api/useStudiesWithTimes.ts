@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/hooks/api/supabase';
 import { logger } from '@/lib/logger';
 import type { StudiesWithTimesRow } from '@/types/domain/study';
 

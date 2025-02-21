@@ -3,7 +3,7 @@
  * Provides time-bucketed lead data with quality metrics
  */
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '../supabase';
 import { logger } from '@/lib/logger';
 import type { AggregatedLeadData, ECGAggregateFilter } from '@/types/domain/ecg';
 import type { Database } from '@/types/database.types';

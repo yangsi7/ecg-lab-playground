@@ -3,7 +3,7 @@ import { Database, Download } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useDataGrid } from '@/hooks/useDataGrid';
 import { useStudiesWithTimes } from '@/hooks/api/useStudiesWithTimes';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/hooks/api/supabase';
 import type { StudiesWithTimesRow } from '@/types/domain/study';
 import { logger } from '@/lib/logger';
 

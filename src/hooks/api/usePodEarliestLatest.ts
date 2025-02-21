@@ -1,7 +1,7 @@
 // src/hooks/usePodEarliestLatest.ts
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';  // your supabase client
+import { supabase } from '@/hooks/api/supabase';
 import { logger } from '@/lib/logger';
 import type { PodEarliestLatest } from '@/types/domain/pod';
 

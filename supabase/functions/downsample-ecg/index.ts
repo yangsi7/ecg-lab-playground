@@ -10,12 +10,12 @@
  * - factor=3: ~107Hz
  * - factor=4: 80Hz (recommended for visualization)
  */
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 // Environment variables are pre-populated
 const supabase = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    Deno.env.get("VITE_SUPABASE_URL") ?? "",
+    Deno.env.get("VITE_SUPABASE_SERVICE_ROLE_KEY") ?? "",
     {
         auth: { persistSession: false },
     }

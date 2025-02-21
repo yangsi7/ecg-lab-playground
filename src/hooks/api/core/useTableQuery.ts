@@ -1,5 +1,8 @@
 import { useCallback } from 'react';
-import { supabase } from '../../../lib/supabase';
+import { supabase } from '@/hooks/api/supabase';
+import { useQuery } from '@tanstack/react-query';
+import type { PostgrestError } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 import { SupabaseError } from '../../../types/utils';
 import type { Database } from '../../../types/database.types';
 import type { QueryParams, QueryResponse, TableRow } from '../../../types/utils';

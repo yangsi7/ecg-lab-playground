@@ -2,7 +2,7 @@
  * Domain-specific wrappers for clinic operations
  * Includes runtime validation and type safety
  */
-import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/lib/supabase'
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/hooks/api/useSupabase'
 import { toClinic } from '@/types/domain/clinic'
 import type { Clinic, ClinicRow } from '@/types/domain/clinic'
 import { isClinic } from '@/types/domain/clinic'
