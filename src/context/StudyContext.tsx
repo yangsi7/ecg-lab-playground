@@ -4,10 +4,10 @@
  * Uses the RPC get_study_details_with_earliest_latest and get_pod_days.
  */
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { supabase } from '../lib/supabase'
-import { logger } from '../lib/logger'
+import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
-type StudyContextType = {
+interface StudyContextType {
     studyId: string | null
     podId: string | null
     earliestTime: string | null
@@ -15,6 +15,11 @@ type StudyContextType = {
     availableDays: Date[]
     loading: boolean
     error: string | null
+}
+
+interface StudyProviderProps {
+    studyId: string
+    children: ReactNode
 }
 
 const StudyContext = createContext<StudyContextType>({
@@ -28,11 +33,6 @@ const StudyContext = createContext<StudyContextType>({
 })
 
 export const useStudyContext = () => useContext(StudyContext)
-
-type StudyProviderProps = {
-    studyId: string
-    children: ReactNode
-}
 
 export function StudyProvider({ studyId, children }: StudyProviderProps) {
     const [podId, setPodId] = useState<string | null>(null)

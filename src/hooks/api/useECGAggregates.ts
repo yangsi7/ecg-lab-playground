@@ -1,12 +1,17 @@
-import { useEffect, useState, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { logger } from '../../lib/logger'
-import { callRPC } from '../../lib/supabase/client'
+import { supabase } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
+import type { Database } from '@/types/database.types'
 
-/**
- * AggregatedLeadData:
- *   Represents aggregator row from 'aggregate_leads' RPC.
- */
+// Types from the database schema
+type AggregateLeadsArgs = {
+    p_pod_id: string
+    p_time_start: string
+    p_time_end: string
+    p_bucket_seconds: number
+}
+
+// Domain types
 export interface AggregatedLeadData {
     time_bucket: string
     lead_on_p_1?: number
@@ -20,34 +25,13 @@ export interface AggregatedLeadData {
     quality_3_percent?: number
 }
 
-interface AggregateLeadsParams {
-    p_pod_id: string;
-    p_time_start: string;
-    p_time_end: string;
-    p_bucket_seconds: number;
-    p_offset: number;
-    p_limit: number;
-}
-
-interface RPCResponse<T> {
-    data: T;
-    error: null | { message: string };
-}
-
-interface AggregateLeadsResult {
-    data: AggregatedLeadData[];
-    count: number;
-}
-
-export type TimeInterval = 'hourly' | 'daily';
-
 export interface ECGAggregateFilter {
-    quality_threshold?: number;
-    lead_on_threshold?: number;
+    quality_threshold?: number
+    lead_on_threshold?: number
     time_range?: {
-        start: string;
-        end: string;
-    };
+        start: string
+        end: string
+    }
 }
 
 interface UseECGAggregatesProps {
@@ -57,21 +41,19 @@ interface UseECGAggregatesProps {
     bucketSize: number
     filter?: ECGAggregateFilter
     enabled?: boolean
-    offset?: number
-    limit?: number
 }
 
 interface AggregateResponse {
-    data: AggregatedLeadData[];
-    count: number;
+    data: AggregatedLeadData[]
+    count: number
 }
 
 /**
  * useECGAggregates
  * - Enhanced version that combines all ECG aggregation functionality
  * - Uses react-query for better caching and state management
- * - Supports filtering, quality thresholds, and pagination
- * - Returns both data and total count for pagination UI
+ * - Supports filtering and quality thresholds
+ * - Returns both data and total count
  */
 export function useECGAggregates({ 
     podId, 
@@ -79,89 +61,84 @@ export function useECGAggregates({
     endTime, 
     bucketSize,
     filter,
-    enabled = true,
-    offset = 0,
-    limit = 100
+    enabled = true
 }: UseECGAggregatesProps) {
-    const queryKey = ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter, offset, limit]
+    const queryKey = ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter]
 
-    const { data, isLoading: loading, error } = useQuery<AggregateResponse>({
+    return useQuery<AggregateResponse>({
         queryKey,
         queryFn: async () => {
             if (!podId) return { data: [], count: 0 }
 
-            const rpcOptions = {
-                component: 'useECGAggregates',
-                context: {
-                    podId,
-                    timeRange: [startTime, endTime],
-                    bucketSize,
-                    offset,
-                    limit
-                }
-            };
+            logger.debug('Fetching ECG aggregates', {
+                podId,
+                timeRange: [startTime, endTime],
+                bucketSize
+            })
 
-            const params: AggregateLeadsParams = {
+            const params: AggregateLeadsArgs = {
                 p_pod_id: podId,
                 p_time_start: startTime,
                 p_time_end: endTime,
-                p_bucket_seconds: bucketSize,
-                p_offset: offset,
-                p_limit: limit
-            };
-
-            const result = await callRPC('aggregate_leads', params, rpcOptions);
-            const data = (result as unknown) as { 
-                data: AggregateLeadsResult; 
-                error: null | { message: string } 
-            };
-            
-            if (data.error) throw new Error(data.error.message);
-            if (!Array.isArray(data.data?.data)) {
-                throw new Error('aggregate_leads did not return an array.');
+                p_bucket_seconds: bucketSize
             }
 
-            logger.info(`useECGAggregates: aggregator got ${data.data.data.length} slices`, {
-                bucketSize, range: [startTime, endTime], offset, limit
-            });
+            const { data, error } = await supabase.rpc('aggregate_leads', params)
+
+            if (error) {
+                logger.error('Failed to fetch ECG aggregates', { error })
+                throw new Error(error.message)
+            }
+
+            if (!Array.isArray(data)) {
+                throw new Error('aggregate_leads did not return an array')
+            }
+
+            let filteredData = data as AggregatedLeadData[]
 
             // Apply filters if provided
-            let filteredData = data.data.data;
-            
-            const qualityThreshold = filter?.quality_threshold;
-            if (typeof qualityThreshold === 'number') {
-                filteredData = filteredData.filter((d: AggregatedLeadData) => {
-                    const avgQuality = ((d.quality_1_percent || 0) + 
-                                      (d.quality_2_percent || 0) + 
-                                      (d.quality_3_percent || 0)) / 3;
-                    return avgQuality >= qualityThreshold;
-                });
-            }
+            if (filter) {
+                // Quality threshold filter
+                if (typeof filter.quality_threshold === 'number') {
+                    filteredData = filteredData.filter(d => {
+                        const avgQuality = (
+                            (d.quality_1_percent ?? 0) +
+                            (d.quality_2_percent ?? 0) +
+                            (d.quality_3_percent ?? 0)
+                        ) / 3
+                        return avgQuality >= filter.quality_threshold!
+                    })
+                }
 
-            const leadOnThreshold = filter?.lead_on_threshold;
-            if (typeof leadOnThreshold === 'number') {
-                filteredData = filteredData.filter((d: AggregatedLeadData) => {
-                    const avgLeadOn = ((d.lead_on_p_1 || 0) + 
-                                     (d.lead_on_p_2 || 0) + 
-                                     (d.lead_on_p_3 || 0)) / 3;
-                    return avgLeadOn >= leadOnThreshold;
-                });
+                // Lead-on threshold filter
+                if (typeof filter.lead_on_threshold === 'number') {
+                    filteredData = filteredData.filter(d => {
+                        const avgLeadOn = (
+                            (d.lead_on_p_1 ?? 0) +
+                            (d.lead_on_p_2 ?? 0) +
+                            (d.lead_on_p_3 ?? 0)
+                        ) / 3
+                        return avgLeadOn >= filter.lead_on_threshold!
+                    })
+                }
+
+                // Time range filter
+                if (filter.time_range?.start && filter.time_range?.end) {
+                    filteredData = filteredData.filter(d => {
+                        const time = new Date(d.time_bucket).getTime()
+                        return time >= new Date(filter.time_range!.start).getTime() && 
+                               time <= new Date(filter.time_range!.end).getTime()
+                    })
+                }
             }
 
             return {
                 data: filteredData,
-                count: data.data.count ?? filteredData.length
-            };
+                count: filteredData.length
+            }
         },
         enabled: enabled && !!podId && !!startTime && !!endTime,
         staleTime: 30000, // Consider data fresh for 30 seconds
         gcTime: 5 * 60 * 1000 // Keep in cache for 5 minutes
-    });
-
-    return { 
-        data: data?.data || [], 
-        count: data?.count || 0,
-        loading, 
-        error: error instanceof Error ? error.message : null 
-    };
+    })
 }

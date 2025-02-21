@@ -1,97 +1,67 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase/client';
-import type { HolterStudy } from '../../types/domain/holter';
-import { useHolterFilters } from '../../components/labs/HolterLab/hooks/useHolterFilters';
-import type { Database } from '../../types/database.types';
-import { logger } from '../../lib/logger';
-
-type StudyRow = Database['public']['Tables']['study']['Row'];
+import { supabase } from '@/lib/supabase/client';
+import { logger } from '@/lib/logger';
+import type { HolterStudy } from '@/types/domain/holter';
+import { toHolterStudy, calculateHolterStatus } from '@/types/domain/holter';
+import { useHolterFilter } from '@/hooks/store/useHolterFilter';
+import type { PostgrestError } from '@supabase/supabase-js';
 
 interface UseHolterStudiesResult {
     studies: HolterStudy[];
-    loading: boolean;
-    error: string | null;
+    isLoading: boolean;
+    error: Error | null;
     totalCount: number;
 }
 
-export function useHolterStudies(): UseHolterStudiesResult {
-    const {
-        quickFilter,
-        advancedFilter,
-        filterStudies
-    } = useHolterFilters();
+export function useHolterStudies() {
+    const { quickFilter, advancedFilter, applyFilters } = useHolterFilter();
 
-    const { data, isLoading, error } = useQuery({
-        queryKey: ['holter-studies', { quickFilter, advancedFilter }],
+    const query = useQuery<HolterStudy[], Error>({
+        queryKey: ['holter-studies', quickFilter, advancedFilter],
         queryFn: async () => {
             try {
-                logger.info('Fetching Holter studies...');
-                
-                let query = supabase
-                    .from('study')
-                    .select('*')
-                    .eq('study_type', 'holter');
+                const { data, error } = await supabase.rpc('get_studies_with_pod_times');
 
-                // Handle UUID filtering
-                if (quickFilter) {
-                    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(quickFilter);
-                    if (isUUID) {
-                        query = query.or(`study_id.eq.${quickFilter},pod_id.eq.${quickFilter}`);
-                    } else {
-                        // For non-UUID fields, use ilike
-                        query = query.or('clinic_name.ilike.%' + quickFilter + '%,status.ilike.%' + quickFilter + '%');
-                    }
-                }
-
-                const { data: studies, error: dbError } = await query;
-
-                if (dbError) {
-                    logger.error('Database error:', { 
-                        message: dbError.message, 
-                        code: dbError.code,
-                        details: dbError.details 
+                if (error) {
+                    logger.error('Supabase RPC error:', {
+                        message: error.message,
+                        code: error.code,
+                        details: error.details,
+                        hint: error.hint
                     });
-                    throw new Error(dbError.message);
+                    throw new Error(error.message);
                 }
 
-                if (!studies) {
-                    logger.warn('No studies found');
-                    return { studies: [], totalCount: 0 };
+                if (!data) {
+                    return [];
                 }
 
-                logger.info(`Found ${studies.length} Holter studies`);
+                // Transform raw data to HolterStudy type
+                const studies = data.map(row => toHolterStudy({
+                    ...row,
+                    clinic_name: row.clinic_name ?? ''
+                }));
 
-                // Convert to HolterStudy type and apply filters
-                const holterStudies = studies.map((study: StudyRow) => ({
-                    ...study,
-                    qualityFraction: (study.aggregated_quality_minutes ?? 0) / (study.aggregated_total_minutes ?? 1),
-                    totalHours: (study.aggregated_total_minutes ?? 0) / 60
-                })) as HolterStudy[];
+                return applyFilters(studies);
 
-                const filteredStudies = filterStudies(holterStudies);
-                logger.info(`Filtered to ${filteredStudies.length} studies`);
-
-                return {
-                    studies: filteredStudies,
-                    totalCount: studies.length
-                };
-            } catch (err) {
-                const errorObj = err instanceof Error ? {
+            } catch (error) {
+                const err = error instanceof Error ? error : new Error('Unknown error fetching holter studies');
+                logger.error('Error in useHolterStudies:', { 
                     message: err.message,
                     name: err.name,
                     stack: err.stack
-                } : { message: String(err) };
-                
-                logger.error('Error in useHolterStudies:', errorObj);
+                });
                 throw err;
             }
-        }
+        },
+        staleTime: 30 * 1000, // 30 seconds
+        gcTime: 5 * 60 * 1000, // 5 minutes
     });
 
     return {
-        studies: data?.studies || [],
-        loading: isLoading,
-        error: error instanceof Error ? error.message : null,
-        totalCount: data?.totalCount || 0
+        studies: query.data || [],
+        isLoading: query.isLoading,
+        error: query.error,
+        totalCount: query.data?.length || 0
     };
 } 

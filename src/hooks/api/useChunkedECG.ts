@@ -6,8 +6,8 @@
  * downsample_ecg_chunked function.
  */
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase/client';
-import { logger } from '../../lib/logger';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 
 export interface ECGSample {
   time: string;

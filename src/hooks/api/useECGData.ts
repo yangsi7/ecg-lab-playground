@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
-import { logger } from '../../lib/logger';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 import { ECGData, ECGQueryOptions, toECGData } from '../../types/domain/ecg';
 import type { ECGSampleRow } from '../../lib/supabase/client';
 

@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react';
 import { Database, Download } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '../../../hooks/useDataGrid';
-import { useStudiesWithTimes } from '../../../hooks/api/useStudiesWithTimes';
-import { supabase } from '../../../lib/supabase';
-import type { StudiesWithTimesRow } from '../../../types/domain/study';
-import { logger } from '../../../lib/logger';
+import { useDataGrid } from '@/hooks/useDataGrid';
+import { useStudiesWithTimes } from '@/hooks/api/useStudiesWithTimes';
+import { supabase } from '@/lib/supabase';
+import type { StudiesWithTimesRow } from '@/types/domain/study';
+import { logger } from '@/lib/logger';
 
 export default function DataLab() {
     const {

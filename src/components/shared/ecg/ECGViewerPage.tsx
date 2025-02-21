@@ -37,7 +37,7 @@ function formatTimeRange(date: Date, minutes: number): { start: string; end: str
     }
 }
 
-export function ECGViewerPage() {
+export default function ECGViewerPage() {
     const { studyId } = useParams<{ studyId: string }>()
     const { studyId: contextStudyId, podId, availableDays } = useStudyContext()
     const [selectedDay, setSelectedDay] = useState<Date>(new Date())

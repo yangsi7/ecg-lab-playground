@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase'; 
-import { logger } from '../../lib/logger';
+import { supabase } from '@/lib/supabase';
+import { logger } from '@/lib/logger';
 import { useDebounce } from '../ui/useDebounce';
 
 interface DataFilters {

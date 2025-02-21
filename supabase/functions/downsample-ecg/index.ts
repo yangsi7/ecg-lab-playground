@@ -10,7 +10,7 @@
  * - factor=3: ~107Hz
  * - factor=4: 80Hz (recommended for visualization)
  */
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 // Environment variables are pre-populated
 const supabase = createClient(

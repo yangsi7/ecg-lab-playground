@@ -14,6 +14,10 @@ type TableName = keyof Tables
 type RPCFunctions = Database['public']['Functions']
 type RPCName = keyof RPCFunctions
 
+// Helper type to get row type for a table
+type TableRow<T extends TableName> = Tables[T]['Row']
+type TableRowKey<T extends TableName> = Extract<keyof TableRow<T>, string>
+
 // Simplified query parameters
 interface QueryParams {
   page?: number
@@ -179,11 +183,13 @@ export function useSupabaseUpdate<T extends TableName>() {
     }) => {
       logger.debug('Updating row', { table, id, data })
 
+      const idKey: TableRowKey<T> = 'id' as TableRowKey<T>
+      
       // Runtime validation could be added here
       const { data: result, error } = await supabase
         .from(table)
         .update(data as any)
-        .eq('id', id)
+        .eq(idKey, id.toString())
         .select()
         .single()
 
@@ -209,10 +215,13 @@ export function useSupabaseDelete<T extends TableName>() {
   return useMutation({
     mutationFn: async ({ table, id }: { table: T; id: string | number }) => {
       logger.debug('Deleting row', { table, id })
+
+      const idKey: TableRowKey<T> = 'id' as TableRowKey<T>
+
       const { error } = await supabase
         .from(table)
         .delete()
-        .eq('id', id)
+        .eq(idKey, id.toString())
 
       if (error) {
         logger.error('Delete failed', { table, error })

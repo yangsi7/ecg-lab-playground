@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { logger } from '../../../lib/logger';
+import { logger } from '@/lib/logger';
 import { useRPC } from '../core/useRPC';
 import type { Database, Json } from '../../../types/database.types';
 

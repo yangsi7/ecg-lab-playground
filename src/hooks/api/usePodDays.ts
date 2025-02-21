@@ -4,12 +4,9 @@
    =========================================== */
    import { useState, useEffect } from 'react'
    import { useQuery } from '@tanstack/react-query'
-   import { supabase, type PodRow } from '../../lib/supabase'
-   import { logger } from '../../lib/logger'
-   
-   interface PodDayResponse {
-       day_value: string
-   }
+   import { supabase } from '@/lib/supabase'
+   import { logger } from '@/lib/logger'
+   import type { PodDayResponse } from '@/types/domain/pod'
    
    interface PodDaysResult {
        days: Date[]

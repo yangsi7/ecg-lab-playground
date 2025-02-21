@@ -29,7 +29,7 @@ export function useStudies(params: StudyQueryParams = {}) {
 
   return useSupabaseQuery('study', {
     ...queryParams,
-    filters,
+    filters
   })
 }
 
@@ -99,7 +99,7 @@ export function useStudyUpdate() {
 
         const result = await update.mutateAsync({
           table: 'study',
-          id,
+          id: id.toString(),
           data: dbStudy,
         })
 
@@ -125,7 +125,7 @@ export function useStudyDelete() {
       try {
         await deleteStudy.mutateAsync({
           table: 'study',
-          id,
+          id: id.toString(),
         })
       } catch (error) {
         logger.error('Failed to delete study', { error, id })
