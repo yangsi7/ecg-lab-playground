@@ -78,22 +78,7 @@ export const toStudy: Transform<StudyRow, Study> = (row) => {
     };
 };
 
-// Additional types for study list views
-export interface StudiesWithTimesRow {
-    study_id: string;
-    pod_id: string;
-    start_timestamp: string;
-    end_timestamp: string;
-    earliest_time: string;
-    latest_time: string;
-    total_count: number;
-}
-
-export interface StudyListRow {
-    study_id: string;
-    pod_id: string;
-    start_time: string;
-    end_time: string;
-    clinic_name: string;
-    patient_id: string;
-} 
+// Types from RPC functions
+export type StudiesWithTimesRow = Database['public']['Functions']['get_studies_with_pod_times']['Returns'][0];
+export type StudyDetailsWithTimes = Database['public']['Functions']['get_study_details_with_earliest_latest']['Returns'][0];
+export type StudyListRow = Database['public']['Functions']['get_study_list_with_earliest_latest']['Returns'][0]; 

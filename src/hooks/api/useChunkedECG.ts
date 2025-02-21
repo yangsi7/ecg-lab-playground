@@ -10,6 +10,11 @@ import { supabase } from '@/hooks/api/supabase';
 import { logger } from '@/lib/logger';
 import type { ECGData } from '@/types/domain/ecg';
 import { toECGData } from '@/types/domain/ecg';
+import type { Database } from '@/types/database.types';
+
+type DownsampleECGChunkedFn = Database['public']['Functions']['downsample_ecg_chunked'];
+type DownsampleECGChunkedArgs = DownsampleECGChunkedFn['Args'];
+type DownsampleECGChunkedReturns = DownsampleECGChunkedFn['Returns'];
 
 export interface ECGSample {
   time: string;
@@ -80,35 +85,38 @@ export function useChunkedECG({
     isFetchingNextPage,
     status,
     error
-  } = useInfiniteQuery<ECGChunk[], Error>({
+  } = useInfiniteQuery({
     queryKey,
     initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam = 0 }) => {
       logger.info("[useChunkedECG] fetching chunk", {
         pod_id, time_start, time_end, factor, chunk_minutes, offset: pageParam
       });
 
-      // @ts-ignore - RPC function exists but types are not up to date
-      const { data: chunks, error: rpcError } = await supabase.rpc(
-        'downsample_ecg_chunked',
-        {
-          p_pod_id: pod_id,
-          p_time_start: time_start,
-          p_time_end: time_end,
-          p_factor: factor,
-          p_chunk_minutes: chunk_minutes,
-          p_offset: pageParam,
-          p_limit: 5 // Get 5 chunks at a time (25 minutes of data)
-        }
-      );
+      const { data: chunks, error: rpcError } = await supabase.rpc('downsample_ecg_chunked', {
+        p_pod_id: pod_id,
+        p_time_start: time_start,
+        p_time_end: time_end,
+        p_factor: factor,
+        p_chunk_minutes: chunk_minutes,
+        p_offset: Number(pageParam),
+        p_limit: 5 // Get 5 chunks at a time (25 minutes of data)
+      });
 
       if (rpcError) throw new Error(rpcError.message);
-      return chunks as ECGChunk[];
+      if (!chunks || !Array.isArray(chunks)) throw new Error('Invalid response from downsample_ecg_chunked');
+      
+      // Transform the raw DB response into our domain type
+      return chunks.map(chunk => ({
+        chunk_start: chunk.chunk_start as string,
+        chunk_end: chunk.chunk_end as string,
+        samples: (chunk.samples as unknown as ECGSample[]) || []
+      }));
     },
-    getNextPageParam: (lastPage, allPages) => {
+    getNextPageParam: (lastPage: ECGChunk[]) => {
       // If we got a full page, there might be more
       if (lastPage.length === 5) {
-        return allPages.length * 5; // Next offset
+        return lastPage.length; // Next offset
       }
       return undefined; // No more pages
     },

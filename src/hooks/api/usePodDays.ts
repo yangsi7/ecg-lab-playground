@@ -2,62 +2,24 @@
    src/hooks/usePodDays.ts
    (Ensures we have a function returning all valid days)
    =========================================== */
-   import { useState, useEffect } from 'react'
    import { useQuery } from '@tanstack/react-query'
    import { supabase } from '@/hooks/api/supabase'
-   import { handleSupabaseError } from '@/hooks/api/useSupabase'
-   import { logger } from '@/lib/logger'
-   import type { PodDayResponse } from '@/types/domain/pod'
+   import type { Database } from '../../types/database.types'
    
-   interface PodDaysResult {
-       days: Date[]
-       loading: boolean
-       error: string | null
-   }
+   type PodDay = Database['public']['Functions']['get_pod_days']['Returns'][0]
    
-   export function usePodDays(podId: string): PodDaysResult {
-       const [days, setDays] = useState<Date[]>([])
-       const [loading, setLoading] = useState(true)
-       const [error, setError] = useState<string | null>(null)
+   export function usePodDays(podId: string) {
+       return useQuery({
+           queryKey: ['pod-days', podId],
+           queryFn: async () => {
+               const { data, error } = await supabase
+                   .rpc('get_pod_days', {
+                       p_pod_id: podId
+                   })
    
-       useEffect(() => {
-           if (!podId) {
-               setDays([])
-               setLoading(false)
-               return
-           }
-           let canceled = false
-           ;(async () => {
-               setLoading(true)
-               setError(null)
-               try {
-                   const { data, error: rpcError } = await supabase
-                       .rpc('get_pod_days', { p_pod_id: podId })
-                   if (rpcError) throw rpcError
-                   if (!data) {
-                       setDays([])
-                       return
-                   }
-                   if (!canceled) {
-                       const parsedDays = (data as PodDayResponse[])
-                           .map((d: PodDayResponse) => new Date(d.day_value))
-                           .sort((a: Date, b: Date) => a.getTime() - b.getTime())
-                       setDays(parsedDays)
-                   }
-               } catch (err: any) {
-                   if (!canceled) {
-                       logger.error('Failed to fetch pod days', { error: err.message })
-                       setError(err.message)
-                       setDays([])
-                   }
-               } finally {
-                   if (!canceled) setLoading(false)
-               }
-           })()
-           return () => {
-               canceled = true
-           }
-       }, [podId])
-   
-       return { days, loading, error }
+               if (error) throw error
+               return data as PodDay[]
+           },
+           enabled: !!podId
+       })
    }
