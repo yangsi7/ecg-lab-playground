@@ -1,7 +1,8 @@
-import { supabase } from '../../../lib/supabase/client';
+import { supabase } from '@/hooks/api/supabase';
+import { logger } from '@/lib/logger';
 import type { QueryParams, QueryResponse } from './types';
 import { QueryError, SupabaseError } from './errors';
-import type { Database } from '../../../types/database.types';
+import type { Database } from '@/types/database.types';
 
 type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
 

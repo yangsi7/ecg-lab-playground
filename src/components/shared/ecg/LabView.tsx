@@ -2,7 +2,11 @@ import { useLabData } from '../../../hooks/api/useLabData'
 import { useTableStore } from '../../../hooks/store/tableStore'
 import { LoadingSpinner } from '../LoadingSpinner'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { ClinicRow, PodRow, StudyRow } from '../../../lib/supabase/client'
+import type { Database } from '@/types/database.types'
+
+type ClinicRow = Database['public']['Tables']['clinics']['Row']
+type PodRow = Database['public']['Tables']['pod']['Row']
+type StudyRow = Database['public']['Tables']['study']['Row']
 
 interface PaginationProps {
   onPageChange: (page: number) => void

@@ -11,18 +11,34 @@ import { logger } from '@/lib/logger';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl) {
-  throw new SupabaseError('Missing VITE_SUPABASE_URL environment variable');
-}
+// Log environment status
+logger.info('Supabase initialization', {
+  hasUrl: !!supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  nodeEnv: import.meta.env.MODE
+});
 
-if (!supabaseAnonKey) {
-  throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable');
+if (!supabaseUrl || !supabaseAnonKey) {
+  logger.error('Missing Supabase environment variables', {
+    url: supabaseUrl ? '[SET]' : '[MISSING]',
+    anonKey: supabaseAnonKey ? '[SET]' : '[MISSING]'
+  });
+  
+  // In development, throw an error with helpful message
+  if (import.meta.env.DEV) {
+    throw new SupabaseError(
+      'Missing Supabase environment variables. Please check:\n' +
+      '1. .env file exists in project root\n' +
+      '2. Variables are properly formatted (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY)\n' +
+      '3. Environment variables are loaded (try restarting the dev server)\n'
+    );
+  }
 }
 
 // Create client with proper types and interceptors
 export const supabase = createClient<Database>(
-  supabaseUrl,
-  supabaseAnonKey,
+  supabaseUrl ?? '',  // Fallback to empty string in production
+  supabaseAnonKey ?? '',  // Fallback to empty string in production
   {
     auth: {
       persistSession: true,

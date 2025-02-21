@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import type { ECGData } from '../../../types/domain/ecg';
+import type { WheelEventHandler, MouseEventHandler } from 'react';
 
 export interface UseECGCanvasParams {
   data: ECGData[];
@@ -23,11 +24,11 @@ export interface UseECGCanvasResult {
   tooltipY: number;
   tooltipText: string;
   waveColor: string;
-  handleWheel: (e: React.WheelEvent<HTMLCanvasElement>) => void;
-  handleMouseDown: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  handleMouseMove: (e: React.MouseEvent<HTMLCanvasElement>) => void;
-  handleMouseUp: () => void;
-  handleMouseLeave: () => void;
+  handleWheel: WheelEventHandler<HTMLCanvasElement>;
+  handleMouseDown: MouseEventHandler<HTMLCanvasElement>;
+  handleMouseMove: MouseEventHandler<HTMLCanvasElement>;
+  handleMouseUp: MouseEventHandler<HTMLCanvasElement>;
+  handleMouseLeave: MouseEventHandler<HTMLCanvasElement>;
   zoomInRange: () => void;
   zoomOutRange: () => void;
   fitYRange: () => void;
@@ -68,7 +69,7 @@ export function useECGCanvas({
   const waveColor = isColorBlindMode ? waveColorBlind : waveColorNormal;
 
   // MouseWheel => horizontal zoom
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLCanvasElement>) => {
+  const handleWheel: WheelEventHandler<HTMLCanvasElement> = useCallback((e) => {
     e.preventDefault();
     const direction = e.deltaY < 0 ? 1.1 : 0.9;
     setScaleX((prev) => {
@@ -80,23 +81,23 @@ export function useECGCanvas({
   }, []);
 
   // Mouse handlers for panning
-  const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseDown: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
     setPanning(true);
     setPanStartX(e.clientX);
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+  const handleMouseMove: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
     if (!panning) return;
     const dx = e.clientX - panStartX;
     setTranslateX((prev) => prev + dx);
     setPanStartX(e.clientX);
   }, [panning, panStartX]);
 
-  const handleMouseUp = useCallback(() => {
+  const handleMouseUp: MouseEventHandler<HTMLCanvasElement> = useCallback(() => {
     setPanning(false);
   }, []);
 
-  const handleMouseLeave = useCallback(() => {
+  const handleMouseLeave: MouseEventHandler<HTMLCanvasElement> = useCallback(() => {
     setPanning(false);
     setShowTooltip(false);
   }, []);

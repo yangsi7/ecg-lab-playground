@@ -9,7 +9,7 @@ import { supabase } from '@/hooks/api/supabase'
 import type { ReactNode } from 'react'
 
 // Mock supabase
-vi.mock('@/lib/supabase', () => ({
+vi.mock('@/hooks/api/supabase', () => ({
   supabase: {
     rpc: vi.fn()
   }

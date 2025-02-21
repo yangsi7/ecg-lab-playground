@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase/client';
+import { supabase } from '@/hooks/api/supabase';
+import { logger } from '@/lib/logger';
 import type { DataSet } from '../../types/domain/dataset';
 import type { SortConfig, FilterConfig } from '../../components/shared/DataGrid';
 

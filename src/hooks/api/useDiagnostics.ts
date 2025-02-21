@@ -16,6 +16,22 @@ interface DiagnosticsResult {
   error: Error | null;
 }
 
+function extractTableName(query: string | null): string {
+  if (!query) return 'unknown';
+  try {
+    // Try to extract table name from SQL query
+    const words = query.split(' ');
+    const fromIndex = words.findIndex(word => word.toLowerCase() === 'from');
+    if (fromIndex >= 0 && words[fromIndex + 1]) {
+      return words[fromIndex + 1].replace(/[";]/g, '');
+    }
+    return 'unknown';
+  } catch (err) {
+    logger.warn('Failed to extract table name from query', { query });
+    return 'unknown';
+  }
+}
+
 export function useDiagnostics(): DiagnosticsResult {
   const queryClient = useQueryClient();
 
@@ -95,12 +111,12 @@ export function useDiagnostics(): DiagnosticsResult {
 
       // Transform into our expected format
       return data.map(row => ({
-        table_name: row.query.split(' ')[2] || 'unknown', // Extract table name from query
-        row_count: row.avg_rows,
+        table_name: extractTableName(row.query),
+        row_count: row.avg_rows || 0,
         last_vacuum: new Date().toISOString(), // Not available in stats
         size_bytes: 0, // Not available in stats
         index_size_bytes: 0, // Not available in stats
-        cache_hit_ratio: row.hit_rate
+        cache_hit_ratio: row.hit_rate || 0
       }));
     },
     staleTime: 60000, // Consider data fresh for 1 minute

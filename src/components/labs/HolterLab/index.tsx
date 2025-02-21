@@ -10,13 +10,13 @@ import {
     MoreHorizontal,
 } from 'lucide-react'
 import { useHolterFilters } from './hooks/useHolterFilters';
-import { useHolterStudies } from "../../../hooks/api/useHolterStudies";
-import { DataGrid, type Column } from '../../../components/shared/DataGrid';
+import { useHolterStudies } from '@/hooks/api/useHolterStudies';
+import { DataGrid, type Column } from '@/components/shared/DataGrid';
 import { QuickFilters, type QuickFilter } from './components/QuickFilters';
 import { AdvancedFilter } from './components/AdvancedFilter';
-import { useDataGrid } from '../../../hooks/useDataGrid';
-import type { HolterStudy } from '../../../types/domain/holter';
-import { logger } from '../../../lib/logger';
+import { useDataGrid } from '@/hooks/useDataGrid';
+import type { HolterStudy } from '@/types/domain/holter';
+import { logger } from '@/lib/logger';
 
 const QUICK_FILTERS: QuickFilter[] = [
     { id: 'all', label: 'All', description: 'Show all studies' },
@@ -60,7 +60,7 @@ export default function HolterLab() {
 
     const {
         studies,
-        loading,
+        isLoading,
         error: fetchError,
         totalCount
     } = useHolterStudies();
@@ -93,23 +93,47 @@ export default function HolterLab() {
         {
             key: 'study_id',
             header: 'Study ID',
-            sortable: true
+            sortable: true,
+            render: (value) => (
+                <Link 
+                    to={`/holter/${value}`}
+                    className="text-blue-400 hover:text-blue-300"
+                >
+                    {value}
+                </Link>
+            )
         },
         {
             key: 'qualityFraction',
             header: 'Quality',
             sortable: true,
-            render: (value: string | number) => `${(Number(value) * 100).toFixed(1)}%`
+            render: (value) => `${(Number(value) * 100).toFixed(1)}%`
         },
         {
             key: 'totalHours',
             header: 'Total Hours',
             sortable: true,
-            render: (value: string | number) => Number(value).toFixed(1)
+            render: (value) => Number(value).toFixed(1)
+        },
+        {
+            key: 'status',
+            header: 'Status',
+            sortable: true,
+            render: (value) => (
+                <span className={`
+                    px-2 py-1 rounded-full text-xs font-medium
+                    ${value === 'critical' ? 'bg-red-500/20 text-red-300' :
+                      value === 'warning' ? 'bg-yellow-500/20 text-yellow-300' :
+                      value === 'good' ? 'bg-green-500/20 text-green-300' :
+                      'bg-blue-500/20 text-blue-300'}
+                `}>
+                    {value}
+                </span>
+            )
         }
     ];
 
-    if (loading) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="animate-spin h-8 w-8 text-blue-400">
@@ -179,9 +203,19 @@ export default function HolterLab() {
             <DataGrid
                 data={filteredStudies}
                 columns={columns}
-                loading={loading}
+                loading={isLoading}
                 error={errorMessage}
+                page={page}
+                pageSize={pageSize}
                 totalCount={totalCount}
+                hasMore={(totalCount ?? 0) > page * pageSize}
+                onPageChange={onPageChange}
+                onSort={onSortChange}
+                onFilterChange={onFilterChange}
+                onFilterError={onFilterError}
+                filterExpression={filterConfig.expression}
+                quickFilter={filterConfig.quickFilter}
+                defaultSortKey={sortConfig.key === null ? undefined : sortConfig.key}
             />
         </div>
     )

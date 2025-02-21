@@ -1,77 +1,78 @@
 import { useMemo } from 'react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { queryPods, type PodRow } from '../../../lib/supabase/pod';
 import { useQuery } from '@tanstack/react-query';
 import { useDataGrid } from '../../../hooks/useDataGrid';
+import { supabase } from '@/hooks/api/supabase';
+import type { Database } from '@/types/database.types';
+import { logger } from '@/lib/logger';
+
+type PodRow = Database['public']['Tables']['pod']['Row'];
 
 export default function PodLab() {
-    const {
-        page,
-        pageSize,
-        sortConfig,
-        filterConfig,
-        onPageChange,
-        onPageSizeChange,
-        onSortChange,
-        onFilterChange,
-        onFilterError
-    } = useDataGrid<PodRow>();
+    const { page, pageSize, sortConfig, filterConfig } = useDataGrid<PodRow>();
 
-    // Query with all parameters
-    const { data, isLoading, error } = useQuery({
+    const { data, isLoading, error } = useQuery<{ data: PodRow[], count: number }>({
         queryKey: ['pods', { page, pageSize, sortConfig, filterConfig }],
-        queryFn: () => queryPods({ 
-            page, 
-            pageSize, 
-            sortBy: sortConfig.key as keyof PodRow | undefined, 
-            sortDirection: sortConfig.direction,
-            filter: filterConfig.quickFilter
-        })
+        queryFn: async () => {
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize - 1;
+
+            let query = supabase
+                .from('pod')
+                .select('*', { count: 'exact' })
+                .range(start, end);
+
+            if (sortConfig.key) {
+                query = query.order(sortConfig.key as string, {
+                    ascending: sortConfig.direction === 'asc'
+                });
+            }
+
+            if (filterConfig.quickFilter) {
+                query = query.or(`id.ilike.%${filterConfig.quickFilter}%,study_id.ilike.%${filterConfig.quickFilter}%`);
+            }
+
+            const { data, error, count } = await query;
+
+            if (error) {
+                logger.error('Failed to fetch pods', { error });
+                throw error;
+            }
+
+            return { data: data as PodRow[], count: count ?? 0 };
+        }
     });
 
     const columns = useMemo<Column<PodRow>[]>(() => [
-        { 
-            key: 'id', 
-            header: 'Pod ID', 
+        {
+            key: 'id',
+            header: 'Pod ID',
             sortable: true,
             filterable: true
         },
-        { 
-            key: 'assigned_study_id', 
-            header: 'Study ID', 
+        {
+            key: 'study_id',
+            header: 'Study ID',
             sortable: true,
             filterable: true
         },
-        { 
-            key: 'status', 
-            header: 'Status', 
+        {
+            key: 'status',
+            header: 'Status',
             sortable: true,
             filterable: true
         },
-        { 
-            key: 'time_since_first_use', 
-            header: 'Time Since First Use', 
+        {
+            key: 'created_at',
+            header: 'Created',
             sortable: true,
-            render: (value) => typeof value === 'number' ? `${value} days` : '-'
+            render: (value) => value ? new Date(value as string).toLocaleString() : '-'
         }
     ], []);
 
     return (
         <div className="space-y-6">
-            <h1 className="text-2xl font-semibold text-white">Pod Management</h1>
-            
-            <div className="flex items-center gap-4">
-                <select
-                    value={pageSize}
-                    onChange={(e) => onPageSizeChange(Number(e.target.value))}
-                    className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
-                >
-                    <option value="10">10 per page</option>
-                    <option value="25">25 per page</option>
-                    <option value="50">50 per page</option>
-                </select>
-            </div>
-
+            <h1 className="text-2xl font-semibold text-white">Pod Inventory</h1>
             <DataGrid
                 data={data?.data ?? []}
                 columns={columns}
@@ -79,23 +80,18 @@ export default function PodLab() {
                 error={error?.message}
                 page={page}
                 pageSize={pageSize}
-                onPageChange={onPageChange}
+                totalCount={data?.count ?? 0}
                 hasMore={(data?.count ?? 0) > page * pageSize}
-                totalCount={data?.count}
                 
-                // Use server-side operations
+                // Server-side operations
                 paginationMode="server"
                 filterMode="server"
                 sortMode="server"
                 
-                // Callbacks
-                onSort={onSortChange}
-                onFilterChange={onFilterChange}
-                onFilterError={onFilterError}
-                
                 // Current state
                 quickFilter={filterConfig.quickFilter}
                 filterExpression={filterConfig.expression}
+                sortConfig={sortConfig}
             />
         </div>
     );

@@ -9,7 +9,7 @@ import type { ReactNode } from 'react'
 import type { User, Session, AuthChangeEvent, Subscription } from '@supabase/supabase-js'
 
 // Mock supabase
-vi.mock('@/lib/supabase', () => ({
+vi.mock('@/hooks/api/supabase', () => ({
   supabase: {
     auth: {
       getSession: vi.fn(),

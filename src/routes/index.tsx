@@ -1,89 +1,91 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
-import { LoadingSpinner } from '../components/shared/LoadingSpinner';
-import { GenericErrorBoundary } from '../components/shared/GenericErrorBoundary';
-import { AuthGuard } from '../components/shared/AuthGuard';
-import RootLayout from '../components/RootLayout';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { GenericErrorBoundary } from '@/components/shared/GenericErrorBoundary';
+import { AuthGuard } from '@/components/shared/AuthGuard';
+import RootLayout from '@/components/RootLayout';
 
 // Lazy load components
-const DataLab = lazy(() => import('../components/labs/DataLab'));
-const ClinicLab = lazy(() => import('../components/labs/ClinicLab'));
-const ClinicDetail = lazy(() => import('../components/labs/ClinicLab/ClinicDetail'));
-const HolterLab = lazy(() => import('../components/labs/HolterLab'));
-const HolterDetail = lazy(() => import('../components/labs/HolterLab/HolterDetail'));
-const PodLab = lazy(() => import('../components/labs/PodLab'));
-const ECGViewerPage = lazy(() => import('../components/shared/ecg/ECGViewerPage'));
-const LoginPage = lazy(() => import('../components/auth/LoginPage'));
+const DataLab = lazy(() => import('@/components/labs/DataLab'));
+const ClinicLab = lazy(() => import('@/components/labs/ClinicLab'));
+const ClinicDetail = lazy(() => import('@/components/labs/ClinicLab/ClinicDetail'));
+const HolterLab = lazy(() => import('@/components/labs/HolterLab'));
+const HolterDetail = lazy(() => import('@/components/labs/HolterLab/HolterDetail'));
+const PodLab = lazy(() => import('@/components/labs/PodLab'));
+const ECGViewerPage = lazy(() => import('@/components/shared/ecg/ECGViewerPage'));
+const LoginPage = lazy(() => import('@/components/auth/LoginPage'));
 
-export interface AppRoute extends Omit<RouteObject, 'path'> {
-  path: string;
+// Custom route type that extends RouteObject
+type AppRoute = RouteObject & {
   label?: string;
   requiresAuth?: boolean;
-}
+};
 
-const routes: AppRoute[] = [
+// Define route groups for better organization
+const authRoutes: AppRoute[] = [
   {
     path: '/login',
-    element: <GenericErrorBoundary><LoginPage /></GenericErrorBoundary>,
-  },
+    element: <Suspense fallback={<LoadingSpinner />}><LoginPage /></Suspense>,
+  }
+];
+
+const labRoutes: AppRoute[] = [
   {
     path: '/',
-    element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicLab /></AuthGuard></Suspense>,
     label: 'Clinic',
     requiresAuth: true,
   },
   {
     path: '/clinic',
-    element: <GenericErrorBoundary><AuthGuard><ClinicLab /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicLab /></AuthGuard></Suspense>,
     label: 'Clinic',
     requiresAuth: true,
   },
   {
     path: '/clinic/:clinicId',
-    element: <GenericErrorBoundary><AuthGuard><ClinicDetail /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicDetail /></AuthGuard></Suspense>,
     requiresAuth: true,
   },
   {
     path: '/datalab',
-    element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><DataLab /></AuthGuard></Suspense>,
     label: 'Data',
     requiresAuth: true,
   },
   {
     path: '/holter',
-    element: <GenericErrorBoundary><AuthGuard><HolterLab /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><HolterLab /></AuthGuard></Suspense>,
     label: 'Holter',
     requiresAuth: true,
   },
   {
     path: '/holter/:studyId',
-    element: <GenericErrorBoundary><AuthGuard><HolterDetail /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><HolterDetail /></AuthGuard></Suspense>,
     requiresAuth: true,
   },
   {
     path: '/pod',
-    element: <GenericErrorBoundary><AuthGuard><PodLab /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><PodLab /></AuthGuard></Suspense>,
     label: 'Pod',
     requiresAuth: true,
   },
   {
     path: '/ecg/:studyId',
-    element: <GenericErrorBoundary><AuthGuard><ECGViewerPage /></AuthGuard></GenericErrorBoundary>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ECGViewerPage /></AuthGuard></Suspense>,
     requiresAuth: true,
-  },
+  }
 ];
 
-// Wrap all routes with Suspense for lazy loading
-const wrappedRoutes = routes.map(route => ({
-  ...route,
-  element: <Suspense fallback={<LoadingSpinner />}>{route.element}</Suspense>,
-  index: undefined,
-} as RouteObject));
-
+// Create router with root layout
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <RootLayout />,
-    children: wrappedRoutes,
+    element: <Suspense fallback={<LoadingSpinner />}><RootLayout /></Suspense>,
+    errorElement: <GenericErrorBoundary><div>Something went wrong</div></GenericErrorBoundary>,
+    children: [
+      ...authRoutes,
+      ...labRoutes
+    ],
   },
 ]); 

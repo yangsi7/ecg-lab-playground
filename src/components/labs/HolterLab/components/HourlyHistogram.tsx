@@ -10,7 +10,10 @@
  *   />
  */
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/hooks/api/supabase';
+import { logger } from '@/lib/logger';
+import type { HolterStudy } from '@/types/domain/holter';
 
 interface HourlyHistogramProps {
     date: Date;

@@ -5,9 +5,10 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/hooks/api/supabase';
 import { useAuth } from '@/hooks/useAuth';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
+import { AlertTriangle } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, error } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const from = (location.state as any)?.from?.pathname || '/';
@@ -20,6 +21,28 @@ const LoginPage: React.FC = () => {
 
     if (isLoading) {
         return <LoadingSpinner />;
+    }
+
+    if (error) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-900 px-4">
+                <div className="max-w-md w-full space-y-8">
+                    <div className="flex flex-col items-center justify-center p-6 bg-red-500/10 border border-red-500/20 rounded-xl">
+                        <AlertTriangle className="h-12 w-12 text-red-400 mb-4" />
+                        <h2 className="text-lg font-semibold text-red-400 mb-2">Authentication Error</h2>
+                        <p className="text-sm text-red-300 text-center max-w-md">
+                            {error.message}
+                        </p>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="mt-4 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg text-sm transition"
+                        >
+                            Retry
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     return (

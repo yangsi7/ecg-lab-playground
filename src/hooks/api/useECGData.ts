@@ -2,8 +2,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/supabase';
 import { logger } from '@/lib/logger';
-import { ECGData, ECGQueryOptions, toECGData } from '../../types/domain/ecg';
-import type { ECGSampleRow } from '../../lib/supabase/client';
+import type { Database } from '@/types/database.types';
+import { ECGData, ECGQueryOptions, toECGData } from '@/types/domain/ecg';
+
+type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
 
 /**
  * useECGData

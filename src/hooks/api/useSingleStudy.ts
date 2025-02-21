@@ -1,6 +1,8 @@
 // src/hooks/useSingleStudy.ts
 import { useQuery } from '@tanstack/react-query';
-import { supabase, type StudyRow } from '../../lib/supabase';
+import { supabase } from '@/hooks/api/supabase';
+import { logger } from '@/lib/logger';
+import type { Study } from '@/types/domain/study';
 
 interface StudyResult {
     study: StudyRow | null;

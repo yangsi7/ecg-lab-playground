@@ -13,10 +13,10 @@
  *   <AdvancedECGPlot data={downsampleData} channel={1} />
  */
 
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 import { ZoomIn, ZoomOut, Crop, EyeOff, Move } from 'lucide-react'
-import type { ECGData } from '../../../types/domain/ecg'
-import { useECGCanvas } from '../../../hooks/api/ecg'
+import type { ECGData } from '@/types/domain/ecg'
+import { useECGCanvas } from '@/hooks/api/ecg/useECGCanvas'
 
 interface AdvancedECGPlotProps {
     data: ECGData[]
@@ -70,18 +70,32 @@ export function AdvancedECGPlot({
         colorBlindMode
     })
 
-    // Touch event handlers
-    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Touch event handlers with proper types
+    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         if (e.touches.length === 1) {
-            // Single touch = pan
-            handleMouseDown({ clientX: e.touches[0].clientX } as React.MouseEvent)
+            const touch = e.touches[0]
+            const canvas = e.currentTarget
+            const rect = canvas.getBoundingClientRect()
+            const x = touch.clientX - rect.left
+            handleMouseDown({ 
+                clientX: x,
+                currentTarget: canvas,
+                preventDefault: () => e.preventDefault()
+            } as React.MouseEvent<HTMLCanvasElement>)
         }
     }, [handleMouseDown])
 
-    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
         if (e.touches.length === 1) {
-            // Single touch = pan
-            handleMouseMove({ clientX: e.touches[0].clientX } as React.MouseEvent)
+            const touch = e.touches[0]
+            const canvas = e.currentTarget
+            const rect = canvas.getBoundingClientRect()
+            const x = touch.clientX - rect.left
+            handleMouseMove({
+                clientX: x,
+                currentTarget: canvas,
+                preventDefault: () => e.preventDefault()
+            } as React.MouseEvent<HTMLCanvasElement>)
         }
     }, [handleMouseMove])
 
@@ -89,14 +103,23 @@ export function AdvancedECGPlot({
         handleMouseUp()
     }, [handleMouseUp])
 
-    // Keyboard navigation
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Keyboard navigation with proper types
+    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLCanvasElement>) => {
+        const canvas = e.currentTarget
         switch (e.key) {
             case 'ArrowLeft':
-                handleMouseMove({ clientX: -10 } as React.MouseEvent)
+                handleMouseMove({
+                    clientX: -10,
+                    currentTarget: canvas,
+                    preventDefault: () => e.preventDefault()
+                } as React.MouseEvent<HTMLCanvasElement>)
                 break
             case 'ArrowRight':
-                handleMouseMove({ clientX: 10 } as React.MouseEvent)
+                handleMouseMove({
+                    clientX: 10,
+                    currentTarget: canvas,
+                    preventDefault: () => e.preventDefault()
+                } as React.MouseEvent<HTMLCanvasElement>)
                 break
             case '+':
             case '=':
@@ -114,17 +137,20 @@ export function AdvancedECGPlot({
         }
     }, [handleMouseMove, zoomInRange, zoomOutRange, fitYRange, toggleColorBlindMode])
 
-    // Drawing
+    // Drawing with proper canvas context handling
     useEffect(() => {
-        if (!canvasRef.current) return
-        const ctx = canvasRef.current.getContext('2d')
+        const canvas = canvasRef.current
+        if (!canvas) return
+
+        const ctx = canvas.getContext('2d')
         if (!ctx) return
 
+        // Clear and set background
         ctx.clearRect(0, 0, width, height)
-        // background
         ctx.fillStyle = '#111111'
         ctx.fillRect(0, 0, width, height)
-        // subtle grid
+
+        // Draw grid
         ctx.strokeStyle = 'rgba(255,255,255,0.05)'
         for (let yy = 0; yy < height; yy += 25) {
             ctx.beginPath()
@@ -144,13 +170,16 @@ export function AdvancedECGPlot({
             ctx.fillText('No data', 10, height / 2)
             return
         }
-        const t0 = data.length ? new Date(data[0].sample_time).getTime() : 0
-        const t1 = data.length ? new Date(data[data.length - 1].sample_time).getTime() : 0
+
+        // Calculate time range
+        const t0 = data[0]?.sample_time ? new Date(data[0].sample_time).getTime() : 0
+        const t1 = data[data.length - 1]?.sample_time ? new Date(data[data.length - 1].sample_time).getTime() : 0
         const totalMs = Math.max(1, t1 - t0)
         const yRange = yMax - yMin
         const msInView = totalMs / scaleX
         const panMsOffset = (-translateX / width) * msInView
 
+        // Draw waveform
         ctx.beginPath()
         ctx.lineWidth = 1.4
         ctx.strokeStyle = waveColor
@@ -160,15 +189,20 @@ export function AdvancedECGPlot({
             const pt = data[i]
             let waveVal = 0
             let leadOn = false
-            if (channel === 1) {
-                waveVal = pt.downsampled_channel_1
-                leadOn = pt.lead_on_p_1 && pt.lead_on_n_1
-            } else if (channel === 2) {
-                waveVal = pt.downsampled_channel_2
-                leadOn = pt.lead_on_p_2 && pt.lead_on_n_2
-            } else {
-                waveVal = pt.downsampled_channel_3
-                leadOn = pt.lead_on_p_3 && pt.lead_on_n_3
+
+            switch (channel) {
+                case 1:
+                    waveVal = pt.downsampled_channel_1
+                    leadOn = pt.lead_on_p_1 && pt.lead_on_n_1
+                    break
+                case 2:
+                    waveVal = pt.downsampled_channel_2
+                    leadOn = pt.lead_on_p_2 && pt.lead_on_n_2
+                    break
+                case 3:
+                    waveVal = pt.downsampled_channel_3
+                    leadOn = pt.lead_on_p_3 && pt.lead_on_n_3
+                    break
             }
 
             const ptMs = new Date(pt.sample_time).getTime()
@@ -176,17 +210,17 @@ export function AdvancedECGPlot({
             const shiftedMs = localMs - panMsOffset
             const xRatio = shiftedMs / msInView
             const x = xRatio * width
-            if (x < 0 || x > width) {
-                // skip if off screen
-                continue
-            }
+
+            if (x < 0 || x > width) continue
+
             if (!leadOn) {
-                // skip if lead off
                 ctx.moveTo(x, height / 2)
                 continue
             }
+
             const yVal = (waveVal - yMin) / yRange
             const scrY = height - (yVal * height)
+
             if (firstValid) {
                 ctx.moveTo(x, scrY)
                 firstValid = false
@@ -196,11 +230,11 @@ export function AdvancedECGPlot({
         }
         ctx.stroke()
 
-        // label
+        // Draw label
         ctx.fillStyle = 'white'
         ctx.font = '12px sans-serif'
         ctx.fillText(`${label} (zoom x${scaleX.toFixed(1)})`, 8, 14)
-    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label])
+    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label, canvasRef])
 
     return (
         <div 
@@ -209,7 +243,7 @@ export function AdvancedECGPlot({
             role="region"
             aria-label={`ECG plot for ${label}`}
         >
-            {/* Top row controls */}
+            {/* Controls */}
             <div className="flex items-center gap-2 pb-2" role="toolbar" aria-label="Plot controls">
                 <button 
                     onClick={zoomOutRange}
@@ -252,6 +286,7 @@ export function AdvancedECGPlot({
                 </div>
             </div>
 
+            {/* Canvas container */}
             <div 
                 style={{ width: `${width}px`, height: `${height}px` }} 
                 className="relative"

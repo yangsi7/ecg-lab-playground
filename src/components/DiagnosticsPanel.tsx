@@ -14,7 +14,7 @@ interface DiagnosticsPanelProps {
   className?: string;
 }
 
-export function DiagnosticsPanel({ className = '' }: DiagnosticsPanelProps) {
+export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelProps) {
   const { edgeFunctionStats, databaseStats, rpcMetrics, systemMetrics, isLoading, error } = useDiagnostics();
 
   if (isLoading) {
