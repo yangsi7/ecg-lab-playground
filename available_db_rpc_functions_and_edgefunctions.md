@@ -4,6 +4,16 @@ This document provides a consolidated reference for all public, user-defined dat
 
 ---
 
+
+RETRIEVE FUNCTION INFO USING `SELECT * FROM get_rpc_function_info('FUNCTION_NAME`);
+RETURNS TABLE(
+    function_name text,
+    return_type text,
+    arguments text,
+    definition text,
+    function_type text
+)
+
 ## 1. Database RPC Functions
 
 Below is the updated comprehensive list of functions. Each entry includes the function signature, purpose, return schema (if applicable), and any additional notes.
@@ -760,6 +770,7 @@ END;
 
 Function Type:
 f
+
 
 2. Edge Functions
 

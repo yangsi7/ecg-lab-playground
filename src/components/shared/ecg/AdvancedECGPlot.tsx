@@ -2,17 +2,19 @@
  * AdvancedECGPlot.tsx
  *
  * Phase 3 advanced interactive ECG:
- *  - Horizontal pan & pinch-zoom (via mouse wheel).
+ *  - Horizontal pan & pinch-zoom (via mouse wheel or touch).
  *  - Color-blind mode toggles wave color for better accessibility.
  *  - Minimal tooltip to show time & amplitude on hover.
  *  - Y-range adjustable: zoom in/out or fit data automatically.
+ *  - Keyboard navigation support.
+ *  - ARIA labels and roles for accessibility.
  *
  * Usage:
  *   <AdvancedECGPlot data={downsampleData} channel={1} />
  */
 
-import React, { useEffect } from 'react'
-import { ZoomIn, ZoomOut, Crop, EyeOff } from 'lucide-react'
+import React, { useEffect, useCallback } from 'react'
+import { ZoomIn, ZoomOut, Crop, EyeOff, Move } from 'lucide-react'
 import type { ECGData } from '../../../types/domain/ecg'
 import { useECGCanvas } from '../../../hooks/api/ecg'
 
@@ -68,10 +70,49 @@ export function AdvancedECGPlot({
         colorBlindMode
     })
 
-    // Compute time domain
-    const t0 = data.length ? new Date(data[0].sample_time).getTime() : 0
-    const t1 = data.length ? new Date(data[data.length - 1].sample_time).getTime() : 0
-    const totalMs = Math.max(1, t1 - t0)
+    // Touch event handlers
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        if (e.touches.length === 1) {
+            // Single touch = pan
+            handleMouseDown({ clientX: e.touches[0].clientX } as React.MouseEvent)
+        }
+    }, [handleMouseDown])
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (e.touches.length === 1) {
+            // Single touch = pan
+            handleMouseMove({ clientX: e.touches[0].clientX } as React.MouseEvent)
+        }
+    }, [handleMouseMove])
+
+    const handleTouchEnd = useCallback(() => {
+        handleMouseUp()
+    }, [handleMouseUp])
+
+    // Keyboard navigation
+    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+        switch (e.key) {
+            case 'ArrowLeft':
+                handleMouseMove({ clientX: -10 } as React.MouseEvent)
+                break
+            case 'ArrowRight':
+                handleMouseMove({ clientX: 10 } as React.MouseEvent)
+                break
+            case '+':
+            case '=':
+                zoomInRange()
+                break
+            case '-':
+                zoomOutRange()
+                break
+            case 'f':
+                fitYRange()
+                break
+            case 'c':
+                toggleColorBlindMode()
+                break
+        }
+    }, [handleMouseMove, zoomInRange, zoomOutRange, fitYRange, toggleColorBlindMode])
 
     // Drawing
     useEffect(() => {
@@ -103,6 +144,9 @@ export function AdvancedECGPlot({
             ctx.fillText('No data', 10, height / 2)
             return
         }
+        const t0 = data.length ? new Date(data[0].sample_time).getTime() : 0
+        const t1 = data.length ? new Date(data[data.length - 1].sample_time).getTime() : 0
+        const totalMs = Math.max(1, t1 - t0)
         const yRange = yMax - yMin
         const msInView = totalMs / scaleX
         const panMsOffset = (-translateX / width) * msInView
@@ -156,19 +200,22 @@ export function AdvancedECGPlot({
         ctx.fillStyle = 'white'
         ctx.font = '12px sans-serif'
         ctx.fillText(`${label} (zoom x${scaleX.toFixed(1)})`, 8, 14)
-    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label, t0, totalMs])
+    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label])
 
     return (
         <div 
             className="relative bg-white/5 border border-white/10 rounded-md shadow-sm w-full p-2 select-none"
             onMouseLeave={handleMouseLeave}
+            role="region"
+            aria-label={`ECG plot for ${label}`}
         >
             {/* Top row controls */}
-            <div className="flex items-center gap-2 pb-2">
+            <div className="flex items-center gap-2 pb-2" role="toolbar" aria-label="Plot controls">
                 <button 
                     onClick={zoomOutRange}
                     className="p-1 bg-white/10 hover:bg-white/20 rounded text-sm text-gray-300"
                     title="Expand Y-range"
+                    aria-label="Expand Y-range"
                 >
                     <ZoomOut className="h-4 w-4"/>
                 </button>
@@ -176,6 +223,7 @@ export function AdvancedECGPlot({
                     onClick={zoomInRange}
                     className="p-1 bg-white/10 hover:bg-white/20 rounded text-sm text-gray-300"
                     title="Compress Y-range"
+                    aria-label="Compress Y-range"
                 >
                     <ZoomIn className="h-4 w-4"/>
                 </button>
@@ -183,6 +231,7 @@ export function AdvancedECGPlot({
                     onClick={fitYRange}
                     className="p-1 bg-white/10 hover:bg-white/20 rounded text-sm text-gray-300"
                     title="Fit Y-range to data"
+                    aria-label="Fit Y-range to data"
                 >
                     <Crop className="h-4 w-4"/>
                 </button>
@@ -192,12 +241,23 @@ export function AdvancedECGPlot({
                         isColorBlindMode ? 'bg-orange-500/20 text-orange-300' : 'bg-white/10 text-gray-300 hover:bg-white/20'
                     }`}
                     title="Toggle color-blind-friendly palette"
+                    aria-label="Toggle color-blind-friendly palette"
+                    aria-pressed={isColorBlindMode}
                 >
                     <EyeOff className="h-4 w-4" />
                 </button>
+                <div className="ml-2 flex items-center gap-1 text-xs text-gray-400">
+                    <Move className="h-3 w-3" />
+                    <span>Pan: drag | Zoom: scroll | Keys: ←→+-fc</span>
+                </div>
             </div>
 
-            <div style={{ width: `${width}px`, height: `${height}px` }} className="relative">
+            <div 
+                style={{ width: `${width}px`, height: `${height}px` }} 
+                className="relative"
+                role="img"
+                aria-label={`ECG waveform for ${label}`}
+            >
                 <canvas
                     ref={canvasRef}
                     width={width}
@@ -206,13 +266,19 @@ export function AdvancedECGPlot({
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
                     onMouseUp={handleMouseUp}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    onKeyDown={handleKeyDown}
                     className="w-full h-auto touch-none"
+                    tabIndex={0}
                     aria-label={isColorBlindMode ? "ECG wave (color-blind mode)" : "ECG wave chart"}
                 />
                 {showTooltip && tooltipText && (
                     <div 
                         className="absolute px-2 py-1 bg-black/80 text-white text-xs rounded pointer-events-none"
                         style={{ left: tooltipX + 8, top: tooltipY + 8 }}
+                        role="tooltip"
                     >
                         {tooltipText}
                     </div>

@@ -10,12 +10,13 @@
  * @module
  */
 
-import type { TableRow, TypeGuard, Transform } from '../utils';
+import type { Database } from '../database.types';
+import type { TypeGuard, Transform } from '../utils';
 import { TransformError } from '../utils';
 
-// Raw database types
-type StudyRow = TableRow<'study'>;
-type StudyReadingRow = TableRow<'study_readings'>;
+// Raw database types from generated types
+export type StudyRow = Database['public']['Tables']['study']['Row'];
+export type StudyReadingRow = Database['public']['Tables']['study_readings']['Row'];
 
 /**
  * Domain-specific Study type with computed fields and transformations

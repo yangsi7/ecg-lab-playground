@@ -995,9 +995,9 @@ export type Database = {
       }
       get_edge_function_stats: {
         Args: {
-          p_function_name: string
-          p_time_start: string
-          p_time_end: string
+          p_function_name?: string
+          p_time_start?: string
+          p_time_end?: string
         }
         Returns: {
           function_name: string
@@ -1052,16 +1052,29 @@ export type Database = {
         }
         Returns: number
       }
-      get_rpc_function_info: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          function_name: string
-          return_type: string
-          arguments: string
-          definition: string
-          function_type: string
-        }[]
-      }
+      get_rpc_function_info:
+        | {
+            Args: Record<PropertyKey, never>
+            Returns: {
+              function_name: string
+              return_type: string
+              arguments: string
+              definition: string
+              function_type: string
+            }[]
+          }
+        | {
+            Args: {
+              p_function_name: string
+            }
+            Returns: {
+              function_name: string
+              return_type: string
+              arguments: string
+              definition: string
+              function_type: string
+            }[]
+          }
       get_studies_with_aggregates: {
         Args: Record<PropertyKey, never>
         Returns: {

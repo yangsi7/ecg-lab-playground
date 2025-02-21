@@ -4,10 +4,10 @@
  */
 
 import type { Database } from '../database.types';
-import type { TableRow, TypeGuard, Transform } from '../utils';
+import type { TypeGuard, Transform } from '../utils';
 
-// Raw database type
-type ECGSampleRow = TableRow<'ecg_sample'>;
+// Raw database type from generated types
+export type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
 
 /**
  * ECG data types for visualization and analysis.

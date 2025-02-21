@@ -6,9 +6,9 @@
  */
 
 import { useState, useEffect } from 'react'
-import { logger } from '../../lib/logger'
-import { callRPC } from './core/utils'
-import type { Database } from '../../types/database.types'
+import { logger } from '@/lib/logger'
+import { callRPC } from '@/hooks/api/core/utils'
+import type { Database } from '@/types/database.types'
 import type {
   ClinicAnalyticsResult,
   ClinicOverview,
@@ -18,139 +18,109 @@ import type {
   WeeklyMonthlyStudies,
   WeeklyHistogramPoint,
   ClinicStatsRow
-} from '../../types/domain/clinic'
-
-// Database function return types
-type ClinicOverviewRow = Database['public']['Functions']['get_clinic_overview']['Returns'][0]
-type ClinicStatusRow = Database['public']['Functions']['get_clinic_status_breakdown']['Returns'][0]
-type ClinicQualityRow = Database['public']['Functions']['get_clinic_quality_breakdown']['Returns'][0]
-type WeeklyQualityRow = Database['public']['Functions']['get_clinic_weekly_quality']['Returns'][0]
-type MonthlyQualityRow = Database['public']['Functions']['get_clinic_monthly_quality']['Returns'][0]
-type WeeklyStudiesRow = Database['public']['Functions']['get_clinic_weekly_studies']['Returns'][0]
-type MonthlyStudiesRow = Database['public']['Functions']['get_clinic_monthly_studies']['Returns'][0]
-type WeeklyActiveStudiesRow = Database['public']['Functions']['get_weekly_active_studies']['Returns'][0]
-
-type ClinicBreakdownRow = Database['public']['Functions']['get_per_clinic_breakdown']['Returns'][0]
-type GrowthDataRow = Database['public']['Functions']['get_new_studies_and_growth']['Returns'][0]
+} from '@/types/domain/clinic'
 
 // Hook: useClinicAnalytics
 // Allows an optional clinicId argument. If omitted => fetch data for all clinics.
-export function useClinicAnalytics(clinicId?: string): ClinicAnalyticsResult {
-  const [result, setResult] = useState<ClinicAnalyticsResult>({
-    loading: true,
-    error: null,
-    overview: null,
-    statusBreakdown: null,
-    qualityBreakdown: null,
-    weeklyQuality: [],
-    monthlyQuality: [],
-    weeklyStudies: [],
-    monthlyStudies: [],
-    weeklyActiveStudies: [],
-    weeklyAvgQuality: [],
-    clinicBreakdown: [],
-    newStudiesLast3mo: 0,
-    growthPercent: 0
-  })
+export function useClinicAnalytics(clinicId: string | null): ClinicAnalyticsResult {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [overview, setOverview] = useState<ClinicOverview | null>(null)
+  const [statusBreakdown, setStatusBreakdown] = useState<ClinicStatusBreakdown[] | null>(null)
+  const [qualityBreakdown, setQualityBreakdown] = useState<ClinicQualityBreakdown[] | null>(null)
+  const [weeklyQuality, setWeeklyQuality] = useState<WeeklyMonthlyQuality[]>([])
+  const [monthlyQuality, setMonthlyQuality] = useState<WeeklyMonthlyQuality[]>([])
+  const [weeklyStudies, setWeeklyStudies] = useState<WeeklyMonthlyStudies[]>([])
+  const [monthlyStudies, setMonthlyStudies] = useState<WeeklyMonthlyStudies[]>([])
+  const [weeklyActiveStudies, setWeeklyActiveStudies] = useState<WeeklyHistogramPoint[]>([])
+  const [weeklyAvgQuality, setWeeklyAvgQuality] = useState<WeeklyHistogramPoint[]>([])
+  const [clinicBreakdown, setClinicBreakdown] = useState<ClinicStatsRow[]>([])
+  const [newStudiesLast3mo, setNewStudiesLast3mo] = useState(0)
+  const [growthPercent, setGrowthPercent] = useState(0)
 
   useEffect(() => {
-    let mounted = true
+    let canceled = false
 
-    async function fetchAllClinicData() {
+    async function fetchAnalytics() {
+      if (!clinicId) {
+        setOverview(null)
+        setStatusBreakdown(null)
+        setQualityBreakdown(null)
+        setWeeklyQuality([])
+        setMonthlyQuality([])
+        setWeeklyStudies([])
+        setMonthlyStudies([])
+        setWeeklyActiveStudies([])
+        setWeeklyAvgQuality([])
+        setClinicBreakdown([])
+        setNewStudiesLast3mo(0)
+        setGrowthPercent(0)
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      setError(null)
+
       try {
-        const [
-          overviewData,
-          statusData,
-          qualityData,
-          weeklyQualityData,
-          monthlyQualityData,
-          weeklyStudiesData,
-          monthlyStudiesData,
-          weeklyActiveData,
-          weeklyQualityData2,
-          clinicBreakdownData,
-          growthData
-        ] = await Promise.all([
-          // If clinicId is provided, fetch specific clinic data, otherwise fetch all clinics
-          callRPC('get_clinic_overview', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_status_breakdown', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_quality_breakdown', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_weekly_quality', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_monthly_quality', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_weekly_studies', { _clinic_id: clinicId || null }),
-          callRPC('get_clinic_monthly_studies', { _clinic_id: clinicId || null }),
-          callRPC('get_weekly_active_studies', {}),
-          callRPC('get_weekly_avg_quality', {}),
-          callRPC('get_per_clinic_breakdown', {}),
-          callRPC('get_new_studies_and_growth', {})
-        ])
-
-        if (!mounted) return
-
-        const overview = overviewData?.[0] ? {
-          active_studies: overviewData[0].active_studies,
-          total_studies: overviewData[0].total_studies,
-          average_quality_hours: overviewData[0].average_quality_hours,
-          recent_alerts: overviewData[0].recent_alerts ? 
-            JSON.parse(overviewData[0].recent_alerts as string) : null
-        } as ClinicOverview : null;
-
-        setResult({
-          loading: false,
-          error: null,
-          overview,
-          statusBreakdown: statusData || null,
-          qualityBreakdown: qualityData || null,
-          weeklyQuality: weeklyQualityData || [],
-          monthlyQuality: monthlyQualityData || [],
-          weeklyStudies: weeklyStudiesData || [],
-          monthlyStudies: monthlyStudiesData || [],
-          weeklyActiveStudies: weeklyActiveData
-            ? weeklyActiveData.map(row => ({
-              weekStart: row.week_start || '',
-              activeStudyCount: row.active_study_count || 0,
-              averageQuality: 0
-            }))
-            : [],
-          weeklyAvgQuality: weeklyQualityData2
-            ? weeklyQualityData2.map(row => ({
-              weekStart: row.week_start || '',
-              activeStudyCount: 0,
-              averageQuality: row.average_quality || 0
-            }))
-            : [],
-          clinicBreakdown: clinicBreakdownData
-            ? clinicBreakdownData.map(row => ({
-              clinic_id: row.clinic_id || '',
-              clinic_name: row.clinic_name || 'N/A',
-              totalActiveStudies: row.total_active_studies || 0,
-              interveneCount: row.intervene_count || 0,
-              monitorCount: row.monitor_count || 0,
-              onTargetCount: row.on_target_count || 0,
-              averageQuality: row.average_quality || 0
-            }))
-            : [],
-          newStudiesLast3mo: growthData?.[0]?.new_studies || 0,
-          growthPercent: growthData?.[0]?.growth_percent || 0
-        })
-      } catch (error) {
-        if (!mounted) return
-        logger.error('Error in useClinicAnalytics:', error)
-        setResult(prev => ({
-          ...prev,
-          loading: false,
-          error: error instanceof Error ? error.message : 'Failed to fetch clinic data'
-        }))
+        logger.debug('Fetching clinic analytics', { clinicId })
+        const result = await callRPC('get_clinic_analytics', { clinic_id: clinicId })
+        
+        if (!canceled && result) {
+          // Transform the result into the expected shape
+          const analytics = result[0] as { totalpatients: number; activepatients: number; totalstudies: number; activestudies: number }
+          setOverview({
+            active_studies: analytics.activestudies,
+            total_studies: analytics.totalstudies,
+            average_quality_hours: 0, // Not available in the current response
+            recent_alerts: null // Not available in the current response
+          })
+          // Other fields are not available in the current response
+          setStatusBreakdown(null)
+          setQualityBreakdown(null)
+          setWeeklyQuality([])
+          setMonthlyQuality([])
+          setWeeklyStudies([])
+          setMonthlyStudies([])
+          setWeeklyActiveStudies([])
+          setWeeklyAvgQuality([])
+          setClinicBreakdown([])
+          setNewStudiesLast3mo(0)
+          setGrowthPercent(0)
+        }
+      } catch (err: any) {
+        if (!canceled) {
+          logger.error('Failed to fetch clinic analytics', { error: err.message })
+          setError(err.message)
+        }
+      } finally {
+        if (!canceled) {
+          setLoading(false)
+        }
       }
     }
 
-    setResult(prev => ({ ...prev, loading: true }))
-    fetchAllClinicData()
+    fetchAnalytics()
 
     return () => {
-      mounted = false
+      canceled = true
     }
   }, [clinicId])
 
-  return result
+  return {
+    loading,
+    error,
+    overview,
+    statusBreakdown,
+    qualityBreakdown,
+    weeklyQuality,
+    monthlyQuality,
+    weeklyStudies,
+    monthlyStudies,
+    weeklyActiveStudies,
+    weeklyAvgQuality,
+    clinicBreakdown,
+    newStudiesLast3mo,
+    growthPercent
+  }
 }

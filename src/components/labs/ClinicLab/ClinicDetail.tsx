@@ -11,11 +11,10 @@
 import { useParams } from 'react-router-dom'
 import { useClinicAnalytics } from '../../../hooks/api/useClinicAnalytics'
 import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
-import { SimpleBarChart } from '../../shared/charts/SimpleBarChart'
+import { SimpleBarChart, type ChartData } from '../../shared/charts/SimpleBarChart'
 
 export default function ClinicDetail() {
     const { clinicId } = useParams<{ clinicId: string }>()
-
     const {
         loading,
         error,
@@ -26,7 +25,32 @@ export default function ClinicDetail() {
         monthlyQuality,
         weeklyStudies,
         monthlyStudies
-    } = useClinicAnalytics(clinicId)
+    } = useClinicAnalytics(clinicId ?? null)
+
+    // Transform data for charts
+    const weeklyQualityData: ChartData[] = weeklyQuality.map(wq => ({
+        week_start: wq.week_start,
+        average_quality: wq.average_quality,
+        value: wq.average_quality // Required by ChartData
+    }))
+
+    const monthlyQualityData: ChartData[] = monthlyQuality.map(mq => ({
+        month_start: mq.month_start,
+        average_quality: mq.average_quality,
+        value: mq.average_quality // Required by ChartData
+    }))
+
+    const weeklyStudiesData: ChartData[] = weeklyStudies.map(ws => ({
+        week_start: ws.week_start,
+        open_studies: ws.open_studies,
+        value: ws.open_studies // Required by ChartData
+    }))
+
+    const monthlyStudiesData: ChartData[] = monthlyStudies.map(ms => ({
+        month_start: ms.month_start,
+        open_studies: ms.open_studies,
+        value: ms.open_studies // Required by ChartData
+    }))
 
     if (loading) {
         return (
@@ -98,20 +122,20 @@ export default function ClinicDetail() {
 
             {/* Quality Trends */}
             <div className="flex flex-wrap gap-4">
-                {weeklyQuality?.length > 0 && (
+                {weeklyQualityData.length > 0 && (
                     <SimpleBarChart
-                        data={weeklyQuality}
+                        data={weeklyQualityData}
                         xKey="week_start"
-                        yKey="average_quality"
+                        yKey="value"
                         label="Weekly Average Quality"
                         color="#f59e0b"
                     />
                 )}
-                {monthlyQuality?.length > 0 && (
+                {monthlyQualityData.length > 0 && (
                     <SimpleBarChart
-                        data={monthlyQuality}
+                        data={monthlyQualityData}
                         xKey="month_start"
-                        yKey="average_quality"
+                        yKey="value"
                         label="Monthly Average Quality"
                         color="#84cc16"
                     />
@@ -120,20 +144,20 @@ export default function ClinicDetail() {
 
             {/* Study Trends */}
             <div className="flex flex-wrap gap-4">
-                {weeklyStudies?.length > 0 && (
+                {weeklyStudiesData.length > 0 && (
                     <SimpleBarChart
-                        data={weeklyStudies}
+                        data={weeklyStudiesData}
                         xKey="week_start"
-                        yKey="open_studies"
+                        yKey="value"
                         label="Weekly Open Studies"
                         color="#3b82f6"
                     />
                 )}
-                {monthlyStudies?.length > 0 && (
+                {monthlyStudiesData.length > 0 && (
                     <SimpleBarChart
-                        data={monthlyStudies}
+                        data={monthlyStudiesData}
                         xKey="month_start"
-                        yKey="open_studies"
+                        yKey="value"
                         label="Monthly Open Studies"
                         color="#22d3ee"
                     />

@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { Database, Filter, Download, Undo, Redo } from 'lucide-react';
+import { Database, Download } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useDataGrid } from '../../../hooks/useDataGrid';
 import { useStudiesWithTimes } from '../../../hooks/api/useStudiesWithTimes';
-import { supabase } from '../../../lib/supabase/client';
+import { supabase } from '../../../lib/supabase';
 import type { StudiesWithTimesRow } from '../../../types/domain/study';
+import { logger } from '../../../lib/logger';
 
 export default function DataLab() {
     const {
@@ -16,12 +17,7 @@ export default function DataLab() {
         onPageSizeChange,
         onSortChange,
         onFilterChange,
-        onFilterError,
-        canUndo,
-        canRedo,
-        undo,
-        redo,
-        resetFilters
+        onFilterError
     } = useDataGrid<StudiesWithTimesRow>();
 
     // Fetch data using the hook
@@ -29,7 +25,7 @@ export default function DataLab() {
         search: filterConfig.quickFilter,
         page,
         pageSize,
-        sortBy: sortConfig.key as string,
+        sortBy: 'study_id',
         sortDirection: sortConfig.direction
     });
 
@@ -44,7 +40,10 @@ export default function DataLab() {
                     p_limit: 1000
                 });
 
-            if (rpcErr) throw rpcErr;
+            if (rpcErr) {
+                logger.error('Export failed', { error: rpcErr });
+                return;
+            }
             if (!exportData) return;
 
             // Convert data to CSV
@@ -52,10 +51,7 @@ export default function DataLab() {
             const rows = exportData.map((row: StudiesWithTimesRow) => 
                 columns.map(col => {
                     const value = row[col.key as keyof StudiesWithTimesRow];
-                    if (value instanceof Date) {
-                        return value.toISOString();
-                    }
-                    return String(value).replace(/,/g, '');
+                    return value ? String(value).replace(/,/g, '') : '';
                 }).join(',')
             ).join('\n');
 
@@ -72,8 +68,7 @@ export default function DataLab() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
         } catch (err) {
-            console.error('Export failed:', err);
-            // TODO: Show error toast
+            logger.error('Export failed', { error: err });
         }
     };
 
@@ -103,17 +98,6 @@ export default function DataLab() {
             header: 'Latest Data',
             sortable: true,
             render: (value) => value ? new Date(value as string).toLocaleString() : 'N/A'
-        },
-        {
-            key: 'study_type',
-            header: 'Type',
-            sortable: true,
-            filterable: true,
-            filterType: 'select',
-            filterOptions: [
-                { label: 'Holter', value: 'holter' },
-                { label: 'Event', value: 'event' }
-            ]
         }
     ], []);
 
@@ -126,28 +110,6 @@ export default function DataLab() {
                     <h1 className="text-2xl font-semibold text-white">Studies</h1>
                 </div>
                 <div className="flex items-center gap-4">
-                    {/* Filter History Controls */}
-                    <div className="flex items-center gap-2">
-                        <button
-                            onClick={undo}
-                            disabled={!canUndo}
-                            className={`p-2 rounded-lg ${
-                                canUndo ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white/5 text-white/40'
-                            }`}
-                        >
-                            <Undo className="h-4 w-4" />
-                        </button>
-                        <button
-                            onClick={redo}
-                            disabled={!canRedo}
-                            className={`p-2 rounded-lg ${
-                                canRedo ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-white/5 text-white/40'
-                            }`}
-                        >
-                            <Redo className="h-4 w-4" />
-                        </button>
-                    </div>
-
                     {/* Page Size Selector */}
                     <select
                         value={pageSize}

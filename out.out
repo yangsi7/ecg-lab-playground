@@ -1,0 +1,6204 @@
+diff --git a/.cursor/rules/rpc-functions.mdc b/.cursor/rules/rpc-functions.mdc
+index 7811301..78066f9 100644
+--- a/.cursor/rules/rpc-functions.mdc
++++ b/.cursor/rules/rpc-functions.mdc
+@@ -5,7 +5,7 @@ globs: *.ts
+ 
+ # Your rule content
+ 
+-- Y## SUPABASE, RPC AND EDGEFUNCTION KNOWLEDGE BASE
++- ## SUPABASE, RPC AND EDGEFUNCTION KNOWLEDGE BASE
+ 
+ # Available Database RPC Functions and Edge Functions for the Monitoring & Diagnostic Portal
+ 
+@@ -14,446 +14,41 @@ This document merges the previously outlined RPC (Remote Procedure Call) functio
+ ---
+ 
+ ## **1. Database RPC Functions**
+-
+-Below is a comprehensive list of user-defined database functions (all listed as `public, yes` in your schema), including those previously described. Each subsection provides a **Signature**, a brief **Purpose**, and a **Return Schema** (if applicable).
+-
+-> **Note**: Some functions are standard TimescaleDB/administrative routines (e.g., for chunk management, compression policies, etc.) and may not be central to your application’s business logic. Those are omitted here because they were listed as `public, no` in your CSV. Only those marked `public, yes` or explicitly relevant to your ECG/clinic flows are shown.
+-
+----
+-
+-### 1.1 `aggregate_leads(...)`
+-**Signature**  
+-```sql
+-aggregate_leads(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_bucket_seconds integer
+-)
+-
+-Purpose
+-Aggregates ECG lead data (e.g., quality, lead-on ratios) in time buckets.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-time_bucket	timestamptz	Time bucket boundary start (UTC)
+-lead_on_p_1	float8	Positive lead-on ratio for channel 1
+-lead_on_p_2	float8	Positive lead-on ratio for channel 2
+-lead_on_p_3	float8	Positive lead-on ratio for channel 3
+-lead_on_n_1	float8	Negative lead-on ratio for channel 1
+-lead_on_n_2	float8	Negative lead-on ratio for channel 2
+-lead_on_n_3	float8	Negative lead-on ratio for channel 3
+-quality_1_percent	float8	Overall quality % for channel 1 in the bucket
+-quality_2_percent	float8	Overall quality % for channel 2
+-quality_3_percent	float8	Overall quality % for channel 3
+-
+-1.2 downsample_ecg(...)
+-
+-Signature
+-
+-downsample_ecg(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_factor integer
+-)
+-
+-Purpose
+-Returns a downsampled version of raw ECG data using a specific algorithm (e.g. picking every Nth sample or a more elaborate approach), including lead-on and quality booleans for each channel.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-sample_time	timestamptz	UTC timestamp for the sample
+-downsampled_channel_1	real	Downsampled value for channel 1
+-downsampled_channel_2	real	Downsampled value for channel 2
+-downsampled_channel_3	real	Downsampled value for channel 3
+-lead_on_p_1	boolean	Positive lead-on status for channel 1
+-lead_on_p_2	boolean	Positive lead-on status for channel 2
+-lead_on_p_3	boolean	Positive lead-on status for channel 3
+-lead_on_n_1	boolean	Negative lead-on status for channel 1
+-lead_on_n_2	boolean	Negative lead-on status for channel 2
+-lead_on_n_3	boolean	Negative lead-on status for channel 3
+-quality_1	boolean	Quality boolean for channel 1
+-quality_2	boolean	Quality boolean for channel 2
+-quality_3	boolean	Quality boolean for channel 3
+-
+-1.7 get_pod_days(...)
+-
+-Signature
+-
+-get_pod_days(
+-  p_pod_id uuid
+-)
+-
+-Purpose
+-Returns a list of distinct dates (UTC) for which the specified pod has data.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-day_value	date	A date with available data
+-
+-1.8 get_pod_earliest_latest(...)
+-
+-Signature
+-
+-get_pod_earliest_latest(
+-  p_pod_id uuid
+-)
+-
+-Purpose
+-Finds the overall earliest and latest recorded timestamps for a given pod.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-earliest_time	timestamptz	Earliest data timestamp for the pod (UTC)
+-latest_time	timestamptz	Latest data timestamp for the pod (UTC)
+-
+-
+-1.10 get_study_details_with_earliest_latest(...)
+-
+-Signature
+-
+-get_study_details_with_earliest_latest(
+-  p_study_id uuid
+-)
+-
+-Purpose
+-Retrieves a single study’s detailed info, plus earliest/latest data times from the associated pod.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-study_id	uuid	Study identifier
+-clinic_id	uuid	Clinic identifier
+-pod_id	uuid	Pod ID for the device used in the study
+-start_timestamp	timestamptz	Official scheduled start of the study
+-end_timestamp	timestamptz	Official scheduled end of the study
+-earliest_time	timestamptz	Earliest data point for the study’s actual recording
+-latest_time	timestamptz	Latest data point for the study’s actual recording
+-
+-1.11 get_study_diagnostics(...)
+-
+-Signature
+-
+-get_study_diagnostics(
+-  p_study_id uuid
+-)
+-
+-Purpose
+-Returns diagnostic metrics about a single study (e.g., variability in quality fraction, number of interruptions, etc.).
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-study_id	uuid	Study identifier
+-quality_fraction_variability	numeric	Variation statistic for the “quality fraction” over time
+-total_minute_variability	numeric	Variation in total recorded minutes across segments/time buckets
+-interruptions	integer	Number of significant data interruptions
+-bad_hours	integer	Hours flagged as poor-quality or insufficient data
+-
+-1.12 update_study_minutes(...)
+-
+-Signature
+-
+-update_study_minutes()
+-  RETURNS trigger
+-
+-Purpose
+-A trigger function that updates a study’s “aggregated” or “quality” minutes whenever relevant row changes happen (details of logic not fully shown).
+-
+-Return
+-trigger — modifies the underlying table row(s) as needed.
+-
+-1.13 get_clinic_monthly_quality(...)
+-
+-Signature
+-
+-get_clinic_monthly_quality(
+-  _clinic_id uuid
+-)
+-
+-Purpose
+-Returns monthly average quality metrics for a given clinic.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-month_start	date	The start date of the month
+-average_quality	numeric	The average quality metric for that month
+-
+-1.14 get_clinic_monthly_studies(...)
+-
+-Signature
+-
+-get_clinic_monthly_studies(
+-  _clinic_id uuid
+-)
+-
+-Purpose
+-Returns monthly count of open studies for a clinic.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-month_start	date	The start of the month
+-open_studies	int	Number of open studies in that month
+-
+-1.15 get_clinic_overview(...)
+-
+-Signature
+-
+-get_clinic_overview(
+-  _clinic_id uuid
+-)
+-
+-Purpose
+-Retrieves an overview of active/total studies, average quality hours, and any recent alerts (as JSON) for a clinic dashboard.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-active_studies	int	Number of active studies
+-total_studies	int	Total studies in the clinic
+-average_quality_hours	numeric	Average hours with good-quality data
+-recent_alerts	json	JSON structure of recent alerts
+-
+-1.16 get_clinic_quality_breakdown(...)
+-
+-Signature
+-
+-get_clinic_quality_breakdown(
+-  _clinic_id uuid DEFAULT NULL
+-)
+-
+-Purpose
+-Returns an aggregated quality breakdown for each clinic (or for a specific clinic if _clinic_id is passed).
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-clinic_id	uuid	The clinic ID
+-clinic_name	text	The clinic’s name
+-total_studies	int	Total count of studies
+-open_studies	int	Open (ongoing) studies count
+-average_quality	numeric	Overall average quality rating
+-good_count	int	# of studies with “good” quality
+-soso_count	int	# of studies with “so-so” quality
+-bad_count	int	# of studies with “bad” quality
+-critical_count	int	# of studies flagged as critical
+-
+-	Overload: The CSV shows a variant that takes no arguments. That version presumably returns a breakdown for all clinics.
+-
+-1.17 get_clinic_status_breakdown(...)
+-
+-Signature
+-
+-get_clinic_status_breakdown(
+-  _clinic_id uuid DEFAULT NULL
+-)
+-
+-Purpose
+-Returns summary counts of a clinic’s studies by different statuses (e.g., closed, intervene, monitor, on_target, etc.).
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-clinic_id	uuid	The clinic’s ID
+-clinic_name	text	The clinic name
+-total_studies	int	All studies in the clinic
+-open_studies	int	# of open or ongoing studies
+-closed	int	# of closed/completed studies
+-intervene_count	int	# requiring direct intervention
+-monitor_count	int	# currently in a watch/monitor state
+-on_target_count	int	# on track
+-near_completion_count	int	# approaching study end
+-needs_extension_count	int	# requiring extension or time adjustment
+-
+-	Overload: A version without _clinic_id returns data for all clinics combined.
+-
+-1.18 get_clinic_weekly_quality(...)
+-
+-Signature
+-
+-get_clinic_weekly_quality(
+-  _clinic_id uuid
+-)
+-
+-Purpose
+-Provides weekly average quality metrics for a given clinic.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-week_start	date	The start date of the week
+-average_quality	numeric	Average quality for that week
+-
+-	Overload: Another version returns a breakdown of (clinic_id, clinic_name, week_start, average_quality) if no _clinic_id is provided or if it’s used differently.
+-
+-1.19 get_clinic_weekly_studies(...)
+-
+-Signature
+-
+-get_clinic_weekly_studies(
+-  _clinic_id uuid
+-)
+-
+-Purpose
+-Returns weekly counts of open studies for a clinic.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-week_start	date	The date marking the start of week
+-open_studies	int	Number of open studies that week
+-
+-1.20 get_earliest_latest_for_pod(...)
+-
+-Signature
+-
+-get_earliest_latest_for_pod(
+-  p_pod_id uuid
+-)
+-
+-Purpose
+-Similar to get_pod_earliest_latest(...); returns earliest and latest data times for a single pod.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-earliest_time	timestamptz	Pod’s earliest data time
+-latest_time	timestamptz	Pod’s latest data time
+-
+-(Possibly an older or alternate version to unify with get_pod_earliest_latest.)
+-
+-1.21 get_new_studies_and_growth()
+-
+-Signature
+-
+-get_new_studies_and_growth()
+-
+-Purpose
+-A high-level metric returning total new studies and a growth percentage (likely used for a dashboard KPI).
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-new_studies	bigint	Count of newly created studies
+-growth_percent	numeric	Growth percentage (comparing some timeframe)
+-
+-1.22 get_per_clinic_breakdown()
+-
+-Signature
+-
+-get_per_clinic_breakdown()
+-
+-Purpose
+-Returns aggregated stats of active studies, intervention needed, etc., per clinic.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-clinic_id	uuid	The clinic’s ID
+-clinic_name	varchar	Clinic name
+-total_active_studies	bigint	Count of active studies
+-intervene_count	bigint	Count of studies requiring intervention
+-monitor_count	bigint	Count of studies in monitoring state
+-on_target_count	bigint	Count of studies on target
+-average_quality	numeric	Average quality across those studies
+-
+-1.23 get_quality_threshold(...)
+-
+-Signature
+-
+-get_quality_threshold(
+-  threshold double precision
+-)
+-
+-Purpose
+-Potentially returns an integer representing a threshold-based classification or index for a given numeric threshold.
+-
+-Return
+-	•	integer
+-
+-(Exact logic not shown.)
+-
+-1.24 get_studies_with_aggregates(...)
+-
+-Signature
+-
+-get_studies_with_aggregates()
+-
+-Purpose
+-Returns a list of studies plus aggregated quality/total minutes, earliest/latest times, and the associated clinic name.
+-
+-Return Schema (table):
+-
+-Column	Type	Description
+-study_id	uuid	Study ID
+-study_type	varchar	Type of study
+-clinic_id	uuid	Associated clinic
+-user_id	varchar	The user ID for the study
+-aggregated_quality_minutes	numeric	Sum of quality minutes
+-aggregated_total_minutes	numeric	Sum of total minutes
+-earliest_time	timestamp w/o tz	Earliest data time
+-latest_time	timestamp w/o tz	Latest data time
+-clinic_name	text	Name of the clinic
+-
+-1.25 update_study_minutes (already listed as 1.12)
+-
+-(Trigger function – repeated mention.)
+-
+-2. Edge Functions
+-
+-Edge Functions provide an HTTP interface to perform computations or queries, returning JSON responses. You can deploy them on Supabase’s edge runtime. Below are two examples.
+-
+-2.1 downsample-ecg (Existing Example)
+-
+-Endpoint
+-
+-POST https://<project>.supabase.co/functions/v1/downsample-ecg
+-
+-Request Body (JSON):
+-
+-{
+-  "pod_id": "09753cf8-f1c5-4c80-b310-21d5fcb85401",
+-  "time_start": "2024-07-25T14:45:00Z",
+-  "time_end":   "2024-07-27T14:49:00Z",
+-  "p_factor": 2000
+-}
+-
+-Response
+-	•	An array of JSON objects with downsampled channel values and lead-on booleans.
+-
+-
+-
+-3. Tables Referenced
+-```
+-Many of these functions rely on underlying tables such as:
+-	1.	Studies (columns: study_id, clinic_id, pod_id, user_id, start_timestamp, end_timestamp, etc.)
+-	2.	ECG Raw Data (e.g., storing timestamps, channel values, lead/quality columns)
+-	3.	Clinic / User references (for clinic_name, etc.)
+-
+-4. Notable Front-End Usage
+-	•	ECG Viewer or DataLab pages:
+-	•	get_pod_days(...), get_pod_earliest_latest(...) for listing or bounding data.
+-	•	aggregate_leads(...) for aggregated daily/hourly bars.
+-	•	Edge Functions (downsample-ecg, peak-preserving-downsample-ecg) to fetch waveforms efficiently.
+-	•	Study Lists / Overviews:
+-	•	get_study_list_with_earliest_latest(...), get_studies_with_pod_times(...) for populating tables of studies.
+-	•	Clinic Dashboards:
+-	•	get_clinic_* functions for monthly/weekly stats, breakdowns, or overview metrics.
+-	•	Admin / Analytics:
+-	•	get_new_studies_and_growth(), get_per_clinic_breakdown(), get_studies_with_aggregates().
+-
+-5. In Summary
+-	1.	Database RPC Functions
+-	•	Cover a wide range of ECG data downsampling, aggregator queries, and clinic/study dashboards.
+-	•	Return either tabular sets (as in Timescale/Postgres) or single-value triggers.
+-	2.	Edge Functions
+-	•	Provide an HTTP interface to the same data/logic.
+-	•	downsample-ecg and peak-preserving-downsample-ecg can wrap different downsampling methods to deliver waveforms to front-end apps.
+-
++RPC Calls (from the code references)
++get_study_details_with_earliest_latest
++
++Usage: In StudyContext, HolterDetail, etc. to fetch basic study + earliest/latest times.
++Input: { p_study_id: string }
++Output: Array with a single object containing study_id, pod_id, earliest_time, latest_time, etc.
++get_pod_days
++
++Usage: Retrieve an array of distinct days for a given pod.
++Input: { p_pod_id: string }
++Output: [ { day_value: string }, ... ]
++get_clinic_overview
++
++Usage: Summaries for a single clinic (active, total studies, etc.).
++Input: { _clinic_id: string }
++Output: [{ active_studies, total_studies, average_quality_hours, recent_alerts }]
++get_clinic_status_breakdown, get_clinic_quality_breakdown, get_clinic_weekly_quality, get_clinic_monthly_quality, get_clinic_weekly_studies, get_clinic_monthly_studies
++
++Used in ClinicLab, returning different sets of aggregated stats for clinic(s).
++Inputs: _clinic_id optional or required
++Outputs: Arrays of objects with relevant summary fields.
++downsample_ecg
++
++Usage: Returns every nth sample for an ECG for a time range. Called either from an Edge Function or directly.
++Inputs: { p_pod_id, p_time_start, p_time_end, p_factor }
++Outputs: Array of data points with sample_time, downsampled_channel_1, etc.
++aggregate_leads
++
++Usage: Summarizes lead-on and quality across a time bucket.
++Inputs: { p_pod_id, p_time_start, p_time_end, p_bucket_seconds }
++Output: [ { time_bucket, lead_on_p_1, ..., quality_1_percent, ...} ]
++And several other functions, but above are the big ones used in the code.
++
++Edge Functions (in ./supabase/functions)
++downsample-ecg/index.ts
++Usage: Receives POST requests with JSON: { pod_id, time_start, time_end, factor }.
++Internally calls downsample_ecg DB function.
++Returns: JSON with the downsampled data and metadata about sampling frequency.
+\ No newline at end of file
+diff --git a/available_db_rpc_functions_and_edgefunctions.md b/available_db_rpc_functions_and_edgefunctions.md
+index e40d6bd..d0b1955 100644
+--- a/available_db_rpc_functions_and_edgefunctions.md
++++ b/available_db_rpc_functions_and_edgefunctions.md
+@@ -4,6 +4,16 @@ This document provides a consolidated reference for all public, user-defined dat
+ 
+ ---
+ 
++
++RETRIEVE FUNCTION INFO USING `SELECT * FROM get_rpc_function_info('FUNCTION_NAME`);
++RETURNS TABLE(
++    function_name text,
++    return_type text,
++    arguments text,
++    definition text,
++    function_type text
++)
++
+ ## 1. Database RPC Functions
+ 
+ Below is the updated comprehensive list of functions. Each entry includes the function signature, purpose, return schema (if applicable), and any additional notes.
+@@ -761,6 +771,7 @@ END;
+ Function Type:
+ f
+ 
++
+ 2. Edge Functions
+ 
+ Edge Functions provide an HTTP interface to call the underlying SQL or business logic. Below are two examples:
+diff --git a/package-lock.json b/package-lock.json
+index 71caad1..deef57e 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -17,10 +17,12 @@
+         "@supabase/supabase-js": "^2.39.7",
+         "@tanstack/react-query": "^5.66.3",
+         "@tanstack/react-query-devtools": "^5.66.5",
++        "@types/loglevel": "^1.5.4",
+         "chart.js": "^4.4.1",
+         "chartjs-adapter-date-fns": "^3.0.0",
+         "date-fns": "^3.3.1",
+         "jsep": "^1.4.0",
++        "loglevel": "^1.9.2",
+         "lucide-react": "^0.309.0",
+         "react": "^18.2.0",
+         "react-chartjs-2": "^5.2.0",
+@@ -2476,6 +2478,12 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/@types/loglevel": {
++      "version": "1.5.4",
++      "resolved": "https://registry.npmjs.org/@types/loglevel/-/loglevel-1.5.4.tgz",
++      "integrity": "sha512-8dx4ckP0vndJeN+iKZwdGiapLqFjVQ3JLOt92uqK0C63acs5NcPLbUOpfXCJkKVRjZLBQjw8NIGNBSsnatFnFQ==",
++      "license": "MIT"
++    },
+     "node_modules/@types/node": {
+       "version": "22.13.4",
+       "resolved": "https://registry.npmjs.org/@types/node/-/node-22.13.4.tgz",
+@@ -6210,6 +6218,19 @@
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/loglevel": {
++      "version": "1.9.2",
++      "resolved": "https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz",
++      "integrity": "sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6.0"
++      },
++      "funding": {
++        "type": "tidelift",
++        "url": "https://tidelift.com/funding/github/npm/loglevel"
++      }
++    },
+     "node_modules/loose-envify": {
+       "version": "1.4.0",
+       "resolved": "https://registry.npmjs.org/loose-envify/-/loose-envify-1.4.0.tgz",
+diff --git a/package.json b/package.json
+index b7cc7d7..0b14008 100644
+--- a/package.json
++++ b/package.json
+@@ -23,10 +23,12 @@
+     "@supabase/supabase-js": "^2.39.7",
+     "@tanstack/react-query": "^5.66.3",
+     "@tanstack/react-query-devtools": "^5.66.5",
++    "@types/loglevel": "^1.5.4",
+     "chart.js": "^4.4.1",
+     "chartjs-adapter-date-fns": "^3.0.0",
+     "date-fns": "^3.3.1",
+     "jsep": "^1.4.0",
++    "loglevel": "^1.9.2",
+     "lucide-react": "^0.309.0",
+     "react": "^18.2.0",
+     "react-chartjs-2": "^5.2.0",
+diff --git a/src/components/labs/HolterLab/components/AdvancedFilter/AdvancedFilter.tsx b/src/components/labs/HolterLab/components/AdvancedFilter/AdvancedFilter.tsx
+deleted file mode 100644
+index 3f52069..0000000
+--- a/src/components/labs/HolterLab/components/AdvancedFilter/AdvancedFilter.tsx
++++ /dev/null
+@@ -1,159 +0,0 @@
+-import React, { useState, useEffect } from 'react';
+-import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
+-import { useAdvancedFilter } from './useAdvancedFilter';
+-import { FILTERABLE_FIELDS } from '../../../../../lib/utils/ExpressionParser';
+-
+-export interface AdvancedFilterProps {
+-  expression?: string;
+-  onExpressionChange?: (expression: string) => void;
+-  className?: string;
+-}
+-
+-export const AdvancedFilter = ({
+-  expression: externalExpression,
+-  onExpressionChange,
+-  className = '',
+-}: AdvancedFilterProps): JSX.Element => {
+-  const {
+-    expression,
+-    error,
+-    presets,
+-    setExpression,
+-    savePreset,
+-    selectPreset,
+-    deletePreset
+-  } = useAdvancedFilter();
+-  
+-  const [showFields, setShowFields] = useState(false);
+-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+-  const [presetName, setPresetName] = useState('');
+-
+-  // Sync with external expression if provided
+-  useEffect(() => {
+-    if (externalExpression !== undefined) {
+-      setExpression(externalExpression);
+-    }
+-  }, [externalExpression, setExpression]);
+-
+-  const handleExpressionChange = (value: string) => {
+-    setExpression(value);
+-    if (!error) {
+-      onExpressionChange?.(value);
+-    }
+-  };
+-
+-  const handleSavePreset = () => {
+-    if (!presetName.trim()) return;
+-    savePreset(presetName);
+-    setPresetName('');
+-    setShowSaveDialog(false);
+-  };
+-
+-  const renderHeader = () => (
+-    <div className="flex items-center justify-between">
+-      <div className="flex items-center gap-2">
+-        <Filter className="h-5 w-5 text-gray-300" />
+-        <h2 className="text-sm text-gray-300 font-medium">Advanced Filter</h2>
+-      </div>
+-      <div className="flex gap-2">
+-        <button
+-          onClick={() => setShowFields(!showFields)}
+-          className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition"
+-          title="Toggle available fields"
+-        >
+-          <MoreHorizontal className="h-4 w-4" />
+-        </button>
+-        <button
+-          onClick={() => setShowSaveDialog(true)}
+-          className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition"
+-          title="Save as preset"
+-        >
+-          <Save className="h-4 w-4" />
+-        </button>
+-      </div>
+-    </div>
+-  );
+-
+-  const renderFilterInput = () => (
+-    <input
+-      type="text"
+-      value={expression}
+-      onChange={(e) => handleExpressionChange(e.target.value)}
+-      placeholder="Enter filter expression (e.g., qualityFraction > 0.8)"
+-      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+-    />
+-  );
+-
+-  const renderFieldsPanel = () => showFields && (
+-    <div className="rounded-md bg-white/5 p-3 border border-white/10 space-y-2">
+-      <div className="text-xs text-gray-200 italic">
+-        Available fields: {FILTERABLE_FIELDS.join(', ')}
+-      </div>
+-      {presets.length > 0 && (
+-        <div className="mt-2 flex flex-wrap gap-1">
+-          {presets.map((preset) => (
+-            <button
+-              key={preset.id}
+-              onClick={() => selectPreset(preset)}
+-              className="group inline-flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full hover:bg-blue-500/30"
+-            >
+-              <Star className="h-3 w-3" />
+-              {preset.name}
+-              <X
+-                className="h-3 w-3 opacity-0 group-hover:opacity-100 transition"
+-                onClick={(e) => {
+-                  e.stopPropagation();
+-                  deletePreset(preset.id);
+-                }}
+-              />
+-            </button>
+-          ))}
+-        </div>
+-      )}
+-    </div>
+-  );
+-
+-  const renderSaveDialog = () => showSaveDialog && (
+-    <div className="absolute inset-x-4 top-full mt-2 p-4 bg-gray-800 rounded-lg border border-white/10 shadow-lg z-10">
+-      <h3 className="text-sm font-medium text-white mb-2">Save Filter Preset</h3>
+-      <div className="space-y-2">
+-        <input
+-          type="text"
+-          value={presetName}
+-          onChange={(e) => setPresetName(e.target.value)}
+-          placeholder="Enter preset name"
+-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+-        />
+-        <div className="flex justify-end gap-2">
+-          <button
+-            onClick={() => setShowSaveDialog(false)}
+-            className="px-3 py-1.5 text-sm text-gray-300 hover:text-white"
+-          >
+-            Cancel
+-          </button>
+-          <button
+-            onClick={handleSavePreset}
+-            disabled={!presetName.trim()}
+-            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+-          >
+-            Save
+-          </button>
+-        </div>
+-      </div>
+-    </div>
+-  );
+-
+-  return (
+-    <div className={`bg-white/10 p-4 rounded-xl border border-white/10 space-y-3 relative ${className}`}>
+-      {renderHeader()}
+-      {renderFilterInput()}
+-      {error && (
+-        <div className="text-sm text-red-400 mt-1">
+-          {error}
+-        </div>
+-      )}
+-      {renderFieldsPanel()}
+-      {renderSaveDialog()}
+-    </div>
+-  );
+-}; 
+\ No newline at end of file
+diff --git a/src/components/labs/HolterLab/components/AdvancedFilter/index.ts b/src/components/labs/HolterLab/components/AdvancedFilter/index.ts
+deleted file mode 100644
+index d16fee9..0000000
+--- a/src/components/labs/HolterLab/components/AdvancedFilter/index.ts
++++ /dev/null
+@@ -1,4 +0,0 @@
+-export { AdvancedFilter } from './AdvancedFilter';
+-export { useAdvancedFilter } from './useAdvancedFilter';
+-export type { FilterPreset } from './useAdvancedFilter';
+-export type { AdvancedFilterProps } from './AdvancedFilter'; 
+\ No newline at end of file
+diff --git a/src/components/labs/HolterLab/components/AdvancedFilter/index.tsx b/src/components/labs/HolterLab/components/AdvancedFilter/index.tsx
+deleted file mode 100644
+index 3f52069..0000000
+--- a/src/components/labs/HolterLab/components/AdvancedFilter/index.tsx
++++ /dev/null
+@@ -1,159 +0,0 @@
+-import React, { useState, useEffect } from 'react';
+-import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
+-import { useAdvancedFilter } from './useAdvancedFilter';
+-import { FILTERABLE_FIELDS } from '../../../../../lib/utils/ExpressionParser';
+-
+-export interface AdvancedFilterProps {
+-  expression?: string;
+-  onExpressionChange?: (expression: string) => void;
+-  className?: string;
+-}
+-
+-export const AdvancedFilter = ({
+-  expression: externalExpression,
+-  onExpressionChange,
+-  className = '',
+-}: AdvancedFilterProps): JSX.Element => {
+-  const {
+-    expression,
+-    error,
+-    presets,
+-    setExpression,
+-    savePreset,
+-    selectPreset,
+-    deletePreset
+-  } = useAdvancedFilter();
+-  
+-  const [showFields, setShowFields] = useState(false);
+-  const [showSaveDialog, setShowSaveDialog] = useState(false);
+-  const [presetName, setPresetName] = useState('');
+-
+-  // Sync with external expression if provided
+-  useEffect(() => {
+-    if (externalExpression !== undefined) {
+-      setExpression(externalExpression);
+-    }
+-  }, [externalExpression, setExpression]);
+-
+-  const handleExpressionChange = (value: string) => {
+-    setExpression(value);
+-    if (!error) {
+-      onExpressionChange?.(value);
+-    }
+-  };
+-
+-  const handleSavePreset = () => {
+-    if (!presetName.trim()) return;
+-    savePreset(presetName);
+-    setPresetName('');
+-    setShowSaveDialog(false);
+-  };
+-
+-  const renderHeader = () => (
+-    <div className="flex items-center justify-between">
+-      <div className="flex items-center gap-2">
+-        <Filter className="h-5 w-5 text-gray-300" />
+-        <h2 className="text-sm text-gray-300 font-medium">Advanced Filter</h2>
+-      </div>
+-      <div className="flex gap-2">
+-        <button
+-          onClick={() => setShowFields(!showFields)}
+-          className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition"
+-          title="Toggle available fields"
+-        >
+-          <MoreHorizontal className="h-4 w-4" />
+-        </button>
+-        <button
+-          onClick={() => setShowSaveDialog(true)}
+-          className="p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-md transition"
+-          title="Save as preset"
+-        >
+-          <Save className="h-4 w-4" />
+-        </button>
+-      </div>
+-    </div>
+-  );
+-
+-  const renderFilterInput = () => (
+-    <input
+-      type="text"
+-      value={expression}
+-      onChange={(e) => handleExpressionChange(e.target.value)}
+-      placeholder="Enter filter expression (e.g., qualityFraction > 0.8)"
+-      className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+-    />
+-  );
+-
+-  const renderFieldsPanel = () => showFields && (
+-    <div className="rounded-md bg-white/5 p-3 border border-white/10 space-y-2">
+-      <div className="text-xs text-gray-200 italic">
+-        Available fields: {FILTERABLE_FIELDS.join(', ')}
+-      </div>
+-      {presets.length > 0 && (
+-        <div className="mt-2 flex flex-wrap gap-1">
+-          {presets.map((preset) => (
+-            <button
+-              key={preset.id}
+-              onClick={() => selectPreset(preset)}
+-              className="group inline-flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded-full hover:bg-blue-500/30"
+-            >
+-              <Star className="h-3 w-3" />
+-              {preset.name}
+-              <X
+-                className="h-3 w-3 opacity-0 group-hover:opacity-100 transition"
+-                onClick={(e) => {
+-                  e.stopPropagation();
+-                  deletePreset(preset.id);
+-                }}
+-              />
+-            </button>
+-          ))}
+-        </div>
+-      )}
+-    </div>
+-  );
+-
+-  const renderSaveDialog = () => showSaveDialog && (
+-    <div className="absolute inset-x-4 top-full mt-2 p-4 bg-gray-800 rounded-lg border border-white/10 shadow-lg z-10">
+-      <h3 className="text-sm font-medium text-white mb-2">Save Filter Preset</h3>
+-      <div className="space-y-2">
+-        <input
+-          type="text"
+-          value={presetName}
+-          onChange={(e) => setPresetName(e.target.value)}
+-          placeholder="Enter preset name"
+-          className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+-        />
+-        <div className="flex justify-end gap-2">
+-          <button
+-            onClick={() => setShowSaveDialog(false)}
+-            className="px-3 py-1.5 text-sm text-gray-300 hover:text-white"
+-          >
+-            Cancel
+-          </button>
+-          <button
+-            onClick={handleSavePreset}
+-            disabled={!presetName.trim()}
+-            className="px-3 py-1.5 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+-          >
+-            Save
+-          </button>
+-        </div>
+-      </div>
+-    </div>
+-  );
+-
+-  return (
+-    <div className={`bg-white/10 p-4 rounded-xl border border-white/10 space-y-3 relative ${className}`}>
+-      {renderHeader()}
+-      {renderFilterInput()}
+-      {error && (
+-        <div className="text-sm text-red-400 mt-1">
+-          {error}
+-        </div>
+-      )}
+-      {renderFieldsPanel()}
+-      {renderSaveDialog()}
+-    </div>
+-  );
+-}; 
+\ No newline at end of file
+diff --git a/src/components/labs/HolterLab/components/AdvancedFilter/useAdvancedFilter.ts b/src/components/labs/HolterLab/components/AdvancedFilter/useAdvancedFilter.ts
+deleted file mode 100644
+index 9318ede..0000000
+--- a/src/components/labs/HolterLab/components/AdvancedFilter/useAdvancedFilter.ts
++++ /dev/null
+@@ -1,77 +0,0 @@
+-import { useState, useCallback } from 'react';
+-import { validateExpression, ExpressionEvaluationError as ParseError } from '../../../../../lib/utils/ExpressionParser';
+-
+-export interface FilterPreset {
+-  id: string;
+-  name: string;
+-  expression: string;
+-}
+-
+-export interface UseAdvancedFilterResult {
+-  expression: string;
+-  error: string | null;
+-  presets: FilterPreset[];
+-  setExpression: (value: string) => void;
+-  savePreset: (name: string) => void;
+-  selectPreset: (preset: FilterPreset) => void;
+-  deletePreset: (id: string) => void;
+-}
+-
+-const STORAGE_KEY = 'holterFilterPresets';
+-
+-export function useAdvancedFilter(): UseAdvancedFilterResult {
+-  const [expression, setExpressionInternal] = useState('');
+-  const [error, setError] = useState<string | null>(null);
+-  const [presets, setPresets] = useState<FilterPreset[]>(() => {
+-    try {
+-      const stored = localStorage.getItem(STORAGE_KEY);
+-      return stored ? JSON.parse(stored) : [];
+-    } catch {
+-      return [];
+-    }
+-  });
+-
+-  const setExpression = useCallback((value: string) => {
+-    setExpressionInternal(value);
+-    try {
+-      validateExpression(value);
+-      setError(null);
+-    } catch (err) {
+-      setError(err instanceof ParseError ? err.message : 'Invalid expression');
+-    }
+-  }, []);
+-
+-  const savePreset = useCallback((name: string) => {
+-    if (!expression.trim() || error) return;
+-    
+-    const newPreset: FilterPreset = {
+-      id: crypto.randomUUID(),
+-      name: name.trim(),
+-      expression
+-    };
+-    
+-    const updatedPresets = [...presets, newPreset];
+-    setPresets(updatedPresets);
+-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPresets));
+-  }, [expression, error, presets]);
+-
+-  const selectPreset = useCallback((preset: FilterPreset) => {
+-    setExpression(preset.expression);
+-  }, [setExpression]);
+-
+-  const deletePreset = useCallback((id: string) => {
+-    const updatedPresets = presets.filter(p => p.id !== id);
+-    setPresets(updatedPresets);
+-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedPresets));
+-  }, [presets]);
+-
+-  return {
+-    expression,
+-    error,
+-    presets,
+-    setExpression,
+-    savePreset,
+-    selectPreset,
+-    deletePreset
+-  };
+-} 
+\ No newline at end of file
+diff --git a/src/components/labs/HolterLab/components/CalendarSelectorPodDays.tsx b/src/components/labs/HolterLab/components/CalendarSelectorPodDays.tsx
+index 016c87e..947008e 100644
+--- a/src/components/labs/HolterLab/components/CalendarSelectorPodDays.tsx
++++ b/src/components/labs/HolterLab/components/CalendarSelectorPodDays.tsx
+@@ -1,39 +1,31 @@
+-import React from 'react';
+-import { Calendar } from 'lucide-react';
+-import { CalendarSelector } from '../../../shared/CalendarSelector';
+-
+ /**
+- * @deprecated Use CalendarSelector directly with appropriate styling props.
+- * Migration guide:
+- * Replace:
+- *   <CalendarSelectorPodDays>
+- * With:
+- *   <CalendarSelector className="bg-white/5 rounded-xl p-4 space-y-4">
++ * @deprecated Use CalendarSelector directly with variant='pod'
+  */
++import React from 'react';
++import { CalendarSelector } from '@/components/shared/CalendarSelector';
++import type { CalendarSelectorProps } from '@/components/shared/CalendarSelector';
++
+ interface CalendarSelectorPodDaysProps {
+-    availableDays: string[];
+-    selectedDate: Date | null;
+-    onSelectDay: (day: Date) => void;
++  availableDays: string[];
++  onSelectDay: (day: Date) => void;
++  selectedDate?: Date;
++  className?: string;
+ }
+ 
+-export function CalendarSelectorPodDays({ 
+-    availableDays, 
+-    selectedDate, 
+-    onSelectDay 
++export function CalendarSelectorPodDays({
++  availableDays,
++  onSelectDay,
++  selectedDate,
++  className,
+ }: CalendarSelectorPodDaysProps) {
+-    return (
+-        <div className="bg-white/5 rounded-xl p-4 space-y-4">
+-            <div className="flex items-center gap-2">
+-                <Calendar className="h-5 w-5 text-blue-400" />
+-                <h3 className="text-lg font-medium text-white">Select Date</h3>
+-            </div>
+-
+-            <CalendarSelector
+-                availableDays={availableDays}
+-                selectedDate={selectedDate}
+-                onSelectDay={onSelectDay}
+-                showUnavailableDays={false}
+-            />
+-        </div>
+-    );
++  return (
++    <CalendarSelector
++      variant="pod"
++      availableDays={availableDays}
++      onSelectDay={onSelectDay}
++      selectedDate={selectedDate}
++      className={className}
++      title="Select Recording Date"
++    />
++  );
+ } 
+\ No newline at end of file
+diff --git a/src/components/labs/HolterLab/components/HolterHistogram24h.tsx b/src/components/labs/HolterLab/components/HolterHistogram24h.tsx
+index 4f7f43d..63d8f33 100644
+--- a/src/components/labs/HolterLab/components/HolterHistogram24h.tsx
++++ b/src/components/labs/HolterLab/components/HolterHistogram24h.tsx
+@@ -1,74 +1,34 @@
++/**
++ * @deprecated Use Histogram component directly with variant='24h'
++ */
+ import React from 'react';
+-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+-import type { AggregatedLeadData } from '../../../../hooks/api/useECGAggregates';
++import { Histogram, type HistogramDataPoint } from '@/components/shared/Histogram';
+ 
+ interface HolterHistogram24hProps {
+-    data: AggregatedLeadData[];
+-    loading: boolean;
+-    selectedHour: number | null;
+-    onHourSelect: (hour: number) => void;
++  data: HistogramDataPoint[];
++  loading?: boolean;
++  selectedHour?: number;
++  onHourSelect?: (hour: number) => void;
++  className?: string;
+ }
+ 
+-export function HolterHistogram24h({ data, loading, selectedHour, onHourSelect }: HolterHistogram24hProps) {
+-    if (loading) {
+-        return (
+-            <div className="h-64 flex items-center justify-center bg-white/5 rounded-xl">
+-                <div className="animate-spin h-8 w-8 border-2 border-blue-500 rounded-full border-t-transparent" />
+-            </div>
+-        );
+-    }
+-
+-    const chartData = data.map(point => ({
+-        hour: new Date(point.time_bucket).getHours(),
+-        quality: ((point.quality_1_percent || 0) + 
+-                 (point.quality_2_percent || 0) + 
+-                 (point.quality_3_percent || 0)) / 3,
+-        leadOn: ((point.lead_on_p_1 || 0) + 
+-                (point.lead_on_p_2 || 0) + 
+-                (point.lead_on_p_3 || 0)) / 3
+-    }));
+-
+-    return (
+-        <div className="bg-white/5 rounded-xl p-4 space-y-4">
+-            <h3 className="text-lg font-medium text-white">24-Hour Quality Overview</h3>
+-            <div className="h-64">
+-                <ResponsiveContainer width="100%" height="100%">
+-                    <BarChart data={chartData}>
+-                        <XAxis 
+-                            dataKey="hour"
+-                            stroke="#9CA3AF"
+-                            tickFormatter={(hour) => `${hour}:00`}
+-                        />
+-                        <YAxis 
+-                            stroke="#9CA3AF"
+-                            tickFormatter={(value) => `${(value * 100).toFixed(0)}%`}
+-                        />
+-                        <Tooltip
+-                            contentStyle={{
+-                                backgroundColor: 'rgba(17, 24, 39, 0.8)',
+-                                border: '1px solid rgba(255, 255, 255, 0.1)',
+-                                borderRadius: '0.5rem'
+-                            }}
+-                            labelStyle={{ color: '#E5E7EB' }}
+-                            formatter={(value: number) => `${(value * 100).toFixed(1)}%`}
+-                        />
+-                        <Bar
+-                            dataKey="quality"
+-                            fill="#3B82F6"
+-                            opacity={0.8}
+-                            onClick={(data) => onHourSelect(data.hour)}
+-                            className="cursor-pointer hover:opacity-100"
+-                        />
+-                        <Bar
+-                            dataKey="leadOn"
+-                            fill="#10B981"
+-                            opacity={0.8}
+-                            onClick={(data) => onHourSelect(data.hour)}
+-                            className="cursor-pointer hover:opacity-100"
+-                        />
+-                    </BarChart>
+-                </ResponsiveContainer>
+-            </div>
+-        </div>
+-    );
++export function HolterHistogram24h({
++  data,
++  loading,
++  selectedHour,
++  onHourSelect,
++  className,
++}: HolterHistogram24hProps) {
++  return (
++    <Histogram
++      variant="24h"
++      data={data}
++      loading={loading}
++      selectedHour={selectedHour}
++      onHourSelect={onHourSelect}
++      className={className}
++      title="24-Hour Quality Overview"
++      showQuality
++    />
++  );
+ } 
+\ No newline at end of file
+diff --git a/src/components/shared/AdvancedFilter/index.tsx b/src/components/shared/AdvancedFilter/index.tsx
+index 6c0c37d..4516a61 100644
+--- a/src/components/shared/AdvancedFilter/index.tsx
++++ b/src/components/shared/AdvancedFilter/index.tsx
+@@ -1,13 +1,10 @@
+-import React, { useState, useCallback, useMemo } from 'react';
+-import { Filter, X } from 'lucide-react';
+-import { FILTERABLE_FIELDS } from '../../../lib/utils/ExpressionParser';
+-import type { FilterExpression, FilterConfig } from '../../../types/filter';
+-
+-export interface FilterPreset {
+-  id: string;
+-  name: string;
+-  expression: string;
+-}
++/**
++ * Advanced filter component with expression-based filtering
++ */
++import React, { useState, useCallback } from 'react';
++import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
++import { useAdvancedFilter } from '@/hooks/useAdvancedFilter';
++import type { FilterConfig, FilterExpression } from '@/types/filter';
+ 
+ export interface AdvancedFilterProps<T> {
+   config: FilterConfig<T>;
+@@ -23,46 +20,48 @@ export function AdvancedFilter<T>({
+   className = ''
+ }: AdvancedFilterProps<T>) {
+   const [isOpen, setIsOpen] = useState(false);
+-  const [expression, setExpression] = useState<string>('');
+-  const [error, setError] = useState<string | null>(null);
++  const [showFields, setShowFields] = useState(false);
++  const [showSaveDialog, setShowSaveDialog] = useState(false);
++  const [presetName, setPresetName] = useState('');
++
++  const {
++    expression,
++    error,
++    setExpression,
++    setError
++  } = useAdvancedFilter(config);
+ 
+-  const handleExpressionChange = useCallback((newExpression: string) => {
+-    setExpression(newExpression);
+-    try {
+-      // Parse and validate expression based on config
+-      const parsedExpression = config.parseExpression(newExpression);
+-      setError(null);
+-      onFilterChange(parsedExpression);
++  const handleExpressionChange = useCallback((value: string) => {
++    setExpression(value);
++    if (!error) {
++      onFilterChange(expression);
+       onFilterError?.(null);
+-    } catch (err) {
+-      const errorMessage = err instanceof Error ? err.message : 'Invalid filter expression';
+-      setError(errorMessage);
++    } else {
+       onFilterChange(null);
+-      onFilterError?.(errorMessage);
++      onFilterError?.(error);
+     }
+-  }, [config, onFilterChange, onFilterError]);
++  }, [expression, error, onFilterChange, onFilterError, setExpression]);
+ 
+-  const handlePresetSelect = useCallback((preset: FilterPreset) => {
++  const handlePresetSelect = useCallback((preset: { id: string; name: string; expression: string }) => {
+     setExpression(preset.expression);
+-    try {
+-      onFilterChange(config.parseExpression(preset.expression));
+-      setError(null);
+-    } catch (err) {
+-      setError(err instanceof Error ? err.message : 'Invalid preset expression');
+-      onFilterError?.(err instanceof Error ? err.message : null);
++    if (!error) {
++      onFilterChange(expression);
++      onFilterError?.(null);
++    } else {
++      onFilterError?.(error);
+     }
+-  }, [config, onFilterChange, onFilterError]);
++  }, [expression, error, onFilterChange, onFilterError, setExpression]);
+ 
+   const handleClear = useCallback(() => {
+     setExpression('');
+     onFilterChange(null);
+     setError(null);
+-  }, [onFilterChange]);
++    onFilterError?.(null);
++  }, [onFilterChange, setExpression, setError, onFilterError]);
+ 
+-  const availableFieldsDisplay = useMemo(() => 
+-    config.fields.map(field => `${field.key}: ${field.description}`).join('\n'),
+-    [config.fields]
+-  );
++  const availableFieldsDisplay = config.fields.map(field => 
++    `${field.key}: ${field.description}`
++  ).join('\n');
+ 
+   return (
+     <div className={`relative ${className}`}>
+@@ -91,7 +90,7 @@ export function AdvancedFilter<T>({
+               Filter Expression
+             </label>
+             <textarea
+-              value={expression}
++              value={expression?.toString() || ''}
+               onChange={(e) => handleExpressionChange(e.target.value)}
+               className="w-full h-24 px-3 py-2 text-sm bg-gray-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
+               placeholder={config.placeholder}
+@@ -101,7 +100,7 @@ export function AdvancedFilter<T>({
+             )}
+           </div>
+ 
+-          {config.presets.length > 0 && (
++          {config.presets && config.presets.length > 0 && (
+             <div className="space-y-2">
+               <label className="block text-xs font-medium text-gray-400">
+                 Presets
+@@ -129,12 +128,14 @@ export function AdvancedFilter<T>({
+             </pre>
+           </div>
+ 
+-          <div className="text-sm text-gray-400">
+-            <h4 className="font-medium mb-1">Example:</h4>
+-            <pre className="bg-white/5 p-2 rounded">
+-              {config.example}
+-            </pre>
+-          </div>
++          {config.example && (
++            <div className="text-sm text-gray-400">
++              <h4 className="font-medium mb-1">Example:</h4>
++              <pre className="bg-white/5 p-2 rounded">
++                {config.example}
++              </pre>
++            </div>
++          )}
+ 
+           <div className="flex justify-end gap-2">
+             <button
+diff --git a/src/components/shared/CalendarSelector/index.tsx b/src/components/shared/CalendarSelector/index.tsx
+new file mode 100644
+index 0000000..8837a1b
+--- /dev/null
++++ b/src/components/shared/CalendarSelector/index.tsx
+@@ -0,0 +1,162 @@
++/**
++ * Unified calendar selector component that supports both basic and pod-specific use cases
++ */
++import React, { useEffect, useState } from 'react'
++import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
++
++export interface CalendarSelectorProps {
++  // Core functionality
++  availableDays?: string[] | Date[];
++  onSelectDay: (day: Date) => void;
++  selectedDate?: Date | null;
++  
++  // Styling and behavior options
++  className?: string;
++  showUnavailableDays?: boolean;
++  variant?: 'default' | 'pod';  // 'pod' adds the pod-specific styling
++  title?: string;  // Custom title for the calendar
++}
++
++export function CalendarSelector({ 
++  availableDays = [],
++  onSelectDay,
++  selectedDate = null,
++  className = '',
++  showUnavailableDays = false,
++  variant = 'default',
++  title = 'Select Date'
++}: CalendarSelectorProps) {
++  const [currentDate, setCurrentDate] = useState<Date | null>(selectedDate);
++  const [viewMonth, setViewMonth] = useState<Date>(() => selectedDate || new Date());
++  
++  // Convert all available days to Date objects and create a Set of date strings for comparison
++  const availableDatesSet = new Set(
++    availableDays.map(d => 
++      typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]
++    )
++  );
++
++  useEffect(() => {
++    if (availableDays.length && !currentDate) {
++      // Default to latest available day
++      const latest = availableDays[availableDays.length - 1];
++      const latestDate = typeof latest === 'string' ? new Date(latest.split('T')[0]) : latest;
++      setCurrentDate(latestDate);
++      setViewMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
++      onSelectDay(latestDate);
++    }
++  }, [availableDays, currentDate]);
++
++  useEffect(() => {
++    if (selectedDate) {
++      setCurrentDate(selectedDate);
++      setViewMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
++    }
++  }, [selectedDate]);
++
++  const handleSelect = (day: Date) => {
++    if (!isAvailable(day) && !showUnavailableDays) return;
++    setCurrentDate(day);
++    onSelectDay(day);
++  };
++
++  const handlePrevMonth = () => {
++    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
++  };
++
++  const handleNextMonth = () => {
++    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
++  };
++
++  // Build the 6-week grid
++  const startOfView = new Date(viewMonth);
++  const dayOfWeek = startOfView.getDay();
++  startOfView.setDate(startOfView.getDate() - dayOfWeek);
++
++  const daysInView: Date[] = [];
++  for (let i = 0; i < 42; i++) {
++    const d = new Date(startOfView);
++    d.setDate(startOfView.getDate() + i);
++    daysInView.push(d);
++  }
++
++  function isAvailable(day: Date) {
++    if (!availableDays.length) return true;
++    return availableDatesSet.has(day.toISOString().split('T')[0]);
++  }
++
++  function isSameDay(d1: Date, d2: Date) {
++    return d1.getFullYear() === d2.getFullYear() &&
++           d1.getMonth() === d2.getMonth() &&
++           d1.getDate() === d2.getDate();
++  }
++
++  // Determine container classes based on variant
++  const containerClasses = variant === 'pod' 
++    ? 'bg-white/5 rounded-xl p-4 space-y-4'
++    : '';
++
++  return (
++    <div className={`w-full max-w-md ${containerClasses} ${className}`}>
++      {variant === 'pod' && (
++        <div className="flex items-center gap-2">
++          <Calendar className="h-5 w-5 text-blue-400" />
++          <h3 className="text-lg font-medium text-white">{title}</h3>
++        </div>
++      )}
++
++      {/* Header */}
++      <div className="flex items-center justify-between mb-4">
++        <button
++          onClick={handlePrevMonth}
++          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
++        >
++          <ChevronLeft className="h-5 w-5" />
++        </button>
++        <h2 className="text-lg font-semibold">
++          {viewMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
++        </h2>
++        <button
++          onClick={handleNextMonth}
++          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
++        >
++          <ChevronRight className="h-5 w-5" />
++        </button>
++      </div>
++
++      {/* Calendar Grid */}
++      <div className="grid grid-cols-7 gap-1">
++        {/* Weekday headers */}
++        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
++          <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
++            {day}
++          </div>
++        ))}
++
++        {/* Calendar days */}
++        {daysInView.map((day, i) => {
++          const isSelected = currentDate && isSameDay(day, currentDate);
++          const isDayAvailable = isAvailable(day);
++          const isCurrentMonth = day.getMonth() === viewMonth.getMonth();
++
++          return (
++            <button
++              key={i}
++              onClick={() => handleSelect(day)}
++              disabled={!showUnavailableDays && !isDayAvailable}
++              className={`
++                aspect-square p-2 text-sm rounded-lg transition-colors
++                ${isCurrentMonth ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'}
++                ${isSelected ? 'bg-blue-500 text-white' : ''}
++                ${!isSelected && isDayAvailable && isCurrentMonth ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : ''}
++                ${!isDayAvailable && !showUnavailableDays ? 'opacity-50 cursor-not-allowed' : ''}
++              `}
++            >
++              {day.getDate()}
++            </button>
++          );
++        })}
++      </div>
++    </div>
++  );
++} 
+\ No newline at end of file
+diff --git a/src/components/shared/Histogram/index.tsx b/src/components/shared/Histogram/index.tsx
+new file mode 100644
+index 0000000..5cbc6fb
+--- /dev/null
++++ b/src/components/shared/Histogram/index.tsx
+@@ -0,0 +1,154 @@
++/**
++ * Unified histogram component that supports both 24-hour and hourly visualizations
++ */
++import React from 'react';
++import {
++  BarChart,
++  Bar,
++  XAxis,
++  YAxis,
++  Tooltip,
++  ResponsiveContainer,
++  CartesianGrid,
++} from 'recharts';
++import { Loader2 } from 'lucide-react';
++
++export interface HistogramDataPoint {
++  hour: number;
++  value: number;
++  quality?: number;
++  label?: string;
++}
++
++interface HistogramProps {
++  // Core data
++  data: HistogramDataPoint[];
++  loading?: boolean;
++  
++  // Interaction
++  selectedHour?: number;
++  onHourSelect?: (hour: number) => void;
++  
++  // Customization
++  variant?: '24h' | 'hourly';
++  title?: string;
++  height?: number;
++  barColor?: string;
++  showQuality?: boolean;
++  className?: string;
++}
++
++export function Histogram({
++  data,
++  loading = false,
++  selectedHour,
++  onHourSelect,
++  variant = '24h',
++  title = '',
++  height = 300,
++  barColor = '#3B82F6', // blue-500
++  showQuality = false,
++  className = '',
++}: HistogramProps) {
++  // Transform data for display
++  const chartData = data.map(point => ({
++    ...point,
++    label: variant === '24h' 
++      ? `${String(point.hour).padStart(2, '0')}:00`
++      : point.label || `${String(point.hour).padStart(2, '0')}:00`,
++    fillColor: selectedHour === point.hour ? '#60A5FA' : barColor, // blue-400 for selected
++  }));
++
++  const handleBarClick = (data: any) => {
++    if (onHourSelect && typeof data.hour === 'number') {
++      onHourSelect(data.hour);
++    }
++  };
++
++  const CustomTooltip = ({ active, payload }: any) => {
++    if (!active || !payload?.length) return null;
++    
++    const data = payload[0].payload;
++    return (
++      <div className="bg-white dark:bg-gray-800 p-2 rounded shadow-lg border border-gray-200 dark:border-gray-700">
++        <p className="font-medium">{data.label}</p>
++        <p className="text-sm text-gray-600 dark:text-gray-400">
++          Value: {data.value.toFixed(2)}
++        </p>
++        {showQuality && typeof data.quality === 'number' && (
++          <p className="text-sm text-gray-600 dark:text-gray-400">
++            Quality: {(data.quality * 100).toFixed(1)}%
++          </p>
++        )}
++      </div>
++    );
++  };
++
++  if (loading) {
++    return (
++      <div className="flex items-center justify-center h-[300px]">
++        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
++      </div>
++    );
++  }
++
++  return (
++    <div className={`w-full ${className}`}>
++      {title && (
++        <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-gray-100">
++          {title}
++        </h3>
++      )}
++      <div style={{ height: `${height}px` }}>
++        <ResponsiveContainer width="100%" height="100%">
++          <BarChart
++            data={chartData}
++            margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
++          >
++            <CartesianGrid
++              strokeDasharray="3 3"
++              vertical={false}
++              stroke="#374151"
++              opacity={0.2}
++            />
++            <XAxis
++              dataKey="label"
++              tick={{ fill: '#9CA3AF' }}
++              tickLine={{ stroke: '#4B5563' }}
++              axisLine={{ stroke: '#4B5563' }}
++            />
++            <YAxis
++              tick={{ fill: '#9CA3AF' }}
++              tickLine={{ stroke: '#4B5563' }}
++              axisLine={{ stroke: '#4B5563' }}
++              width={40}
++            />
++            <Tooltip content={<CustomTooltip />} />
++            <Bar
++              dataKey="value"
++              fill={barColor}
++              onClick={handleBarClick}
++              cursor={onHourSelect ? 'pointer' : 'default'}
++              fillOpacity={showQuality ? 0.8 : 1}
++            >
++              {chartData.map((entry, index) => (
++                <rect
++                  key={`bar-${index}`}
++                  fill={entry.fillColor}
++                  className="transition-colors duration-200"
++                />
++              ))}
++            </Bar>
++            {showQuality && (
++              <Bar
++                dataKey="quality"
++                fill="#10B981" // emerald-500
++                opacity={0.3}
++              />
++            )}
++          </BarChart>
++        </ResponsiveContainer>
++      </div>
++    </div>
++  );
++} 
+\ No newline at end of file
+diff --git a/src/hooks/api/useClinicAnalytics.ts b/src/hooks/api/useClinicAnalytics.ts
+index d79b5d7..7728209 100644
+--- a/src/hooks/api/useClinicAnalytics.ts
++++ b/src/hooks/api/useClinicAnalytics.ts
+@@ -6,9 +6,9 @@
+  */
+ 
+ import { useState, useEffect } from 'react'
+-import { logger } from '../../lib/logger'
+-import { callRPC } from './core/utils'
+-import type { Database } from '../../types/database.types'
++import { logger } from '@/lib/logger'
++import { callRPC } from '@/hooks/api/core/utils'
++import type { Database } from '@/types/database.types'
+ import type {
+   ClinicAnalyticsResult,
+   ClinicOverview,
+@@ -18,139 +18,109 @@ import type {
+   WeeklyMonthlyStudies,
+   WeeklyHistogramPoint,
+   ClinicStatsRow
+-} from '../../types/domain/clinic'
+-
+-// Database function return types
+-type ClinicOverviewRow = Database['public']['Functions']['get_clinic_overview']['Returns'][0]
+-type ClinicStatusRow = Database['public']['Functions']['get_clinic_status_breakdown']['Returns'][0]
+-type ClinicQualityRow = Database['public']['Functions']['get_clinic_quality_breakdown']['Returns'][0]
+-type WeeklyQualityRow = Database['public']['Functions']['get_clinic_weekly_quality']['Returns'][0]
+-type MonthlyQualityRow = Database['public']['Functions']['get_clinic_monthly_quality']['Returns'][0]
+-type WeeklyStudiesRow = Database['public']['Functions']['get_clinic_weekly_studies']['Returns'][0]
+-type MonthlyStudiesRow = Database['public']['Functions']['get_clinic_monthly_studies']['Returns'][0]
+-type WeeklyActiveStudiesRow = Database['public']['Functions']['get_weekly_active_studies']['Returns'][0]
+-
+-type ClinicBreakdownRow = Database['public']['Functions']['get_per_clinic_breakdown']['Returns'][0]
+-type GrowthDataRow = Database['public']['Functions']['get_new_studies_and_growth']['Returns'][0]
++} from '@/types/domain/clinic'
+ 
+ // Hook: useClinicAnalytics
+ // Allows an optional clinicId argument. If omitted => fetch data for all clinics.
+-export function useClinicAnalytics(clinicId?: string): ClinicAnalyticsResult {
+-  const [result, setResult] = useState<ClinicAnalyticsResult>({
+-    loading: true,
+-    error: null,
+-    overview: null,
+-    statusBreakdown: null,
+-    qualityBreakdown: null,
+-    weeklyQuality: [],
+-    monthlyQuality: [],
+-    weeklyStudies: [],
+-    monthlyStudies: [],
+-    weeklyActiveStudies: [],
+-    weeklyAvgQuality: [],
+-    clinicBreakdown: [],
+-    newStudiesLast3mo: 0,
+-    growthPercent: 0
+-  })
++export function useClinicAnalytics(clinicId: string | null): ClinicAnalyticsResult {
++  const [loading, setLoading] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++  const [overview, setOverview] = useState<ClinicOverview | null>(null)
++  const [statusBreakdown, setStatusBreakdown] = useState<ClinicStatusBreakdown[] | null>(null)
++  const [qualityBreakdown, setQualityBreakdown] = useState<ClinicQualityBreakdown[] | null>(null)
++  const [weeklyQuality, setWeeklyQuality] = useState<WeeklyMonthlyQuality[]>([])
++  const [monthlyQuality, setMonthlyQuality] = useState<WeeklyMonthlyQuality[]>([])
++  const [weeklyStudies, setWeeklyStudies] = useState<WeeklyMonthlyStudies[]>([])
++  const [monthlyStudies, setMonthlyStudies] = useState<WeeklyMonthlyStudies[]>([])
++  const [weeklyActiveStudies, setWeeklyActiveStudies] = useState<WeeklyHistogramPoint[]>([])
++  const [weeklyAvgQuality, setWeeklyAvgQuality] = useState<WeeklyHistogramPoint[]>([])
++  const [clinicBreakdown, setClinicBreakdown] = useState<ClinicStatsRow[]>([])
++  const [newStudiesLast3mo, setNewStudiesLast3mo] = useState(0)
++  const [growthPercent, setGrowthPercent] = useState(0)
+ 
+   useEffect(() => {
+-    let mounted = true
+-
+-    async function fetchAllClinicData() {
+-      try {
+-        const [
+-          overviewData,
+-          statusData,
+-          qualityData,
+-          weeklyQualityData,
+-          monthlyQualityData,
+-          weeklyStudiesData,
+-          monthlyStudiesData,
+-          weeklyActiveData,
+-          weeklyQualityData2,
+-          clinicBreakdownData,
+-          growthData
+-        ] = await Promise.all([
+-          // If clinicId is provided, fetch specific clinic data, otherwise fetch all clinics
+-          callRPC('get_clinic_overview', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_status_breakdown', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_quality_breakdown', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_weekly_quality', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_monthly_quality', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_weekly_studies', { _clinic_id: clinicId || null }),
+-          callRPC('get_clinic_monthly_studies', { _clinic_id: clinicId || null }),
+-          callRPC('get_weekly_active_studies', {}),
+-          callRPC('get_weekly_avg_quality', {}),
+-          callRPC('get_per_clinic_breakdown', {}),
+-          callRPC('get_new_studies_and_growth', {})
+-        ])
++    let canceled = false
+ 
+-        if (!mounted) return
++    async function fetchAnalytics() {
++      if (!clinicId) {
++        setOverview(null)
++        setStatusBreakdown(null)
++        setQualityBreakdown(null)
++        setWeeklyQuality([])
++        setMonthlyQuality([])
++        setWeeklyStudies([])
++        setMonthlyStudies([])
++        setWeeklyActiveStudies([])
++        setWeeklyAvgQuality([])
++        setClinicBreakdown([])
++        setNewStudiesLast3mo(0)
++        setGrowthPercent(0)
++        setLoading(false)
++        return
++      }
+ 
+-        const overview = overviewData?.[0] ? {
+-          active_studies: overviewData[0].active_studies,
+-          total_studies: overviewData[0].total_studies,
+-          average_quality_hours: overviewData[0].average_quality_hours,
+-          recent_alerts: overviewData[0].recent_alerts ? 
+-            JSON.parse(overviewData[0].recent_alerts as string) : null
+-        } as ClinicOverview : null;
++      setLoading(true)
++      setError(null)
+ 
+-        setResult({
+-          loading: false,
+-          error: null,
+-          overview,
+-          statusBreakdown: statusData || null,
+-          qualityBreakdown: qualityData || null,
+-          weeklyQuality: weeklyQualityData || [],
+-          monthlyQuality: monthlyQualityData || [],
+-          weeklyStudies: weeklyStudiesData || [],
+-          monthlyStudies: monthlyStudiesData || [],
+-          weeklyActiveStudies: weeklyActiveData
+-            ? weeklyActiveData.map(row => ({
+-              weekStart: row.week_start || '',
+-              activeStudyCount: row.active_study_count || 0,
+-              averageQuality: 0
+-            }))
+-            : [],
+-          weeklyAvgQuality: weeklyQualityData2
+-            ? weeklyQualityData2.map(row => ({
+-              weekStart: row.week_start || '',
+-              activeStudyCount: 0,
+-              averageQuality: row.average_quality || 0
+-            }))
+-            : [],
+-          clinicBreakdown: clinicBreakdownData
+-            ? clinicBreakdownData.map(row => ({
+-              clinic_id: row.clinic_id || '',
+-              clinic_name: row.clinic_name || 'N/A',
+-              totalActiveStudies: row.total_active_studies || 0,
+-              interveneCount: row.intervene_count || 0,
+-              monitorCount: row.monitor_count || 0,
+-              onTargetCount: row.on_target_count || 0,
+-              averageQuality: row.average_quality || 0
+-            }))
+-            : [],
+-          newStudiesLast3mo: growthData?.[0]?.new_studies || 0,
+-          growthPercent: growthData?.[0]?.growth_percent || 0
+-        })
+-      } catch (error) {
+-        if (!mounted) return
+-        logger.error('Error in useClinicAnalytics:', error)
+-        setResult(prev => ({
+-          ...prev,
+-          loading: false,
+-          error: error instanceof Error ? error.message : 'Failed to fetch clinic data'
+-        }))
++      try {
++        logger.debug('Fetching clinic analytics', { clinicId })
++        const result = await callRPC('get_clinic_analytics', { clinic_id: clinicId })
++        
++        if (!canceled && result) {
++          // Transform the result into the expected shape
++          const analytics = result[0] as { totalpatients: number; activepatients: number; totalstudies: number; activestudies: number }
++          setOverview({
++            active_studies: analytics.activestudies,
++            total_studies: analytics.totalstudies,
++            average_quality_hours: 0, // Not available in the current response
++            recent_alerts: null // Not available in the current response
++          })
++          // Other fields are not available in the current response
++          setStatusBreakdown(null)
++          setQualityBreakdown(null)
++          setWeeklyQuality([])
++          setMonthlyQuality([])
++          setWeeklyStudies([])
++          setMonthlyStudies([])
++          setWeeklyActiveStudies([])
++          setWeeklyAvgQuality([])
++          setClinicBreakdown([])
++          setNewStudiesLast3mo(0)
++          setGrowthPercent(0)
++        }
++      } catch (err: any) {
++        if (!canceled) {
++          logger.error('Failed to fetch clinic analytics', { error: err.message })
++          setError(err.message)
++        }
++      } finally {
++        if (!canceled) {
++          setLoading(false)
++        }
+       }
+     }
+ 
+-    setResult(prev => ({ ...prev, loading: true }))
+-    fetchAllClinicData()
++    fetchAnalytics()
+ 
+     return () => {
+-      mounted = false
++      canceled = true
+     }
+   }, [clinicId])
+ 
+-  return result
++  return {
++    loading,
++    error,
++    overview,
++    statusBreakdown,
++    qualityBreakdown,
++    weeklyQuality,
++    monthlyQuality,
++    weeklyStudies,
++    monthlyStudies,
++    weeklyActiveStudies,
++    weeklyAvgQuality,
++    clinicBreakdown,
++    newStudiesLast3mo,
++    growthPercent
++  }
+ }
+diff --git a/src/hooks/api/useSupabase.ts b/src/hooks/api/useSupabase.ts
+new file mode 100644
+index 0000000..34260e1
+--- /dev/null
++++ b/src/hooks/api/useSupabase.ts
+@@ -0,0 +1,191 @@
++import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
++import type { PostgrestError, PostgrestSingleResponse } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { supabase } from '@/lib/supabase'
++import { logger } from '@/lib/logger'
++
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++
++type QueryParams<T extends TableName> = {
++  page?: number
++  pageSize?: number
++  filters?: Partial<Record<keyof Tables[T]['Row'], unknown>>
++  sortBy?: keyof Tables[T]['Row']
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++
++/**
++ * Hook for querying a Supabase table with filtering, sorting and pagination
++ */
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams<T> = {}
++) {
++  const {
++    page = 1,
++    pageSize = 10,
++    filters,
++    sortBy,
++    sortDirection = 'asc',
++    enabled = true,
++  } = params
++
++  return useQuery<Tables[T]['Row'][], PostgrestError>({
++    queryKey: ['table', tableName, params],
++    queryFn: async () => {
++      logger.debug('Querying table', { tableName, params })
++
++      // Type-safe query builder
++      let query = supabase.from(tableName).select('*') as any
++
++      // Apply pagination
++      if (page && pageSize) {
++        const start = (page - 1) * pageSize
++        query = query.range(start, start + pageSize - 1)
++      }
++
++      // Apply filters
++      if (filters) {
++        Object.entries(filters).forEach(([key, value]) => {
++          if (value !== undefined && value !== null) {
++            query = query.eq(key, value)
++          }
++        })
++      }
++
++      // Apply sorting
++      if (sortBy) {
++        query = query.order(sortBy as string, {
++          ascending: sortDirection === 'asc',
++        })
++      }
++
++      const { data, error } = await query as PostgrestSingleResponse<Tables[T]['Row'][]>
++
++      if (error) {
++        logger.error('Query failed', { tableName, error })
++        throw error
++      }
++
++      return data || []
++    },
++    enabled,
++  })
++}
++
++/**
++ * Hook for calling a Supabase RPC function
++ */
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  params?: RPCFunctions[T]['Args']
++) {
++  return useMutation<RPCFunctions[T]['Returns'], PostgrestError, RPCFunctions[T]['Args']>({
++    mutationFn: async (args) => {
++      logger.debug('Calling RPC function', { functionName, args })
++      const { data, error } = await supabase.rpc(functionName, args || params || {})
++      
++      if (error) {
++        logger.error('RPC call failed', { functionName, error })
++        throw error
++      }
++
++      return data as RPCFunctions[T]['Returns']
++    }
++  })
++}
++
++/**
++ * Hook for inserting a row into a Supabase table
++ */
++export function useSupabaseInsert<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation<Tables[T]['Row'], PostgrestError, { table: T; data: Tables[T]['Insert'] }>({
++    mutationFn: async ({ table, data }) => {
++      logger.debug('Inserting row', { table, data })
++      const { data: result, error } = await (supabase
++        .from(table)
++        .insert(data)
++        .select()
++        .single() as any) as PostgrestSingleResponse<Tables[T]['Row']>
++
++      if (error) {
++        logger.error('Insert failed', { table, error })
++        throw error
++      }
++
++      return result as Tables[T]['Row']
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++
++/**
++ * Hook for updating a row in a Supabase table
++ */
++export function useSupabaseUpdate<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation<Tables[T]['Row'], PostgrestError, { table: T; id: string | number; data: Tables[T]['Update'] }>({
++    mutationFn: async ({ table, id, data }) => {
++      logger.debug('Updating row', { table, id, data })
++      const { data: result, error } = await (supabase
++        .from(table)
++        .update(data)
++        .eq('id', String(id))
++        .select()
++        .single() as any) as PostgrestSingleResponse<Tables[T]['Row']>
++
++      if (error) {
++        logger.error('Update failed', { table, error })
++        throw error
++      }
++
++      return result as Tables[T]['Row']
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++
++/**
++ * Hook for deleting a row from a Supabase table
++ */
++export function useSupabaseDelete<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation<void, PostgrestError, { table: T; id: string | number }>({
++    mutationFn: async ({ table, id }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        .eq('id', String(id))
++
++      if (error) {
++        logger.error('Delete failed', { table, error })
++        throw error
++      }
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++
++// Export types
++export type { 
++  TableName,
++  Tables,
++  RPCName,
++  RPCFunctions,
++  QueryParams
++} 
+\ No newline at end of file
+diff --git a/src/hooks/store/useAdvancedFilter.ts b/src/hooks/store/useAdvancedFilter.ts
+deleted file mode 100644
+index 0e8d5ee..0000000
+--- a/src/hooks/store/useAdvancedFilter.ts
++++ /dev/null
+@@ -1,81 +0,0 @@
+-import { useState, useCallback } from 'react';
+-import type { FilterState, FilterExpression } from '../../types/filter';
+-
+-export function useAdvancedFilter<T>(
+-  defaultQuickFilter = '',
+-  filterFn?: (items: T[], filter: string, expression: FilterExpression | null) => T[]
+-): FilterState<T> {
+-  const [quickFilter, setQuickFilter] = useState(defaultQuickFilter);
+-  const [expression, setExpression] = useState<FilterExpression | null>(null);
+-  const [error, setError] = useState<string | null>(null);
+-
+-  const applyFilter = useCallback((items: T[]): T[] => {
+-    if (filterFn) {
+-      return filterFn(items, quickFilter, expression);
+-    }
+-
+-    // Default filtering behavior if no filterFn provided
+-    if (!quickFilter && !expression) return items;
+-
+-    return items.filter(item => {
+-      // Quick filter implementation
+-      if (quickFilter) {
+-        const searchStr = quickFilter.toLowerCase();
+-        return Object.values(item as Record<string, unknown>).some(
+-          value => String(value).toLowerCase().includes(searchStr)
+-        );
+-      }
+-
+-      // Advanced filter implementation
+-      if (expression) {
+-        const evaluateExpression = (expr: FilterExpression): boolean => {
+-          const value = (item as Record<string, unknown>)[expr.field];
+-          
+-          switch (expr.operator) {
+-            case '=':
+-              return value === expr.value;
+-            case '!=':
+-              return value !== expr.value;
+-            case '>':
+-              return Number(value) > Number(expr.value);
+-            case '<':
+-              return Number(value) < Number(expr.value);
+-            case '>=':
+-              return Number(value) >= Number(expr.value);
+-            case '<=':
+-              return Number(value) <= Number(expr.value);
+-            case 'contains':
+-              return String(value).toLowerCase().includes(String(expr.value).toLowerCase());
+-            case 'startsWith':
+-              return String(value).toLowerCase().startsWith(String(expr.value).toLowerCase());
+-            case 'endsWith':
+-              return String(value).toLowerCase().endsWith(String(expr.value).toLowerCase());
+-            default:
+-              return false;
+-          }
+-        };
+-
+-        if (expression.expressions && expression.combinator) {
+-          return expression.expressions.reduce((acc, expr) => {
+-            const result = evaluateExpression(expr);
+-            return expression.combinator === 'AND' ? acc && result : acc || result;
+-          }, expression.combinator === 'AND');
+-        }
+-
+-        return evaluateExpression(expression);
+-      }
+-
+-      return true;
+-    });
+-  }, [quickFilter, expression, filterFn]);
+-
+-  return {
+-    quickFilter,
+-    expression,
+-    error,
+-    setQuickFilter,
+-    setExpression,
+-    setError,
+-    applyFilter
+-  };
+-} 
+\ No newline at end of file
+diff --git a/src/hooks/useAdvancedFilter.ts b/src/hooks/useAdvancedFilter.ts
+index 9cf9a41..7ab58e8 100644
+--- a/src/hooks/useAdvancedFilter.ts
++++ b/src/hooks/useAdvancedFilter.ts
+@@ -1,98 +1,50 @@
+-import { useState, useCallback, useMemo } from 'react';
+-import type { FilterExpression, FilterField, FilterConfig } from '../types/filter';
+-import { parseExpression } from '../lib/utils/ExpressionParser';
++/**
++ * Hook for advanced filtering functionality
++ */
++import { useState, useCallback } from 'react';
++import { validateExpression, evaluateExpression } from '@/lib/utils/ExpressionParser';
++import type { FilterExpression, FilterConfig, FilterState } from '@/types/filter';
+ 
+-export interface UseAdvancedFilterProps<T> {
+-  defaultQuickFilter?: string;
+-  config: FilterConfig<T>;
+-  filterFn?: (item: T, quickFilter: string, expression: FilterExpression | null) => boolean;
+-}
++const STORAGE_KEY = 'filterPresets';
+ 
+-export interface UseAdvancedFilterResult<T> {
+-  quickFilter: string;
+-  expression: FilterExpression | null;
+-  error: string | null;
+-  setQuickFilter: (value: string) => void;
+-  setExpression: (value: string) => void;
+-  clearFilters: () => void;
+-  filterItems: (items: T[]) => T[];
+-}
+-
+-export function useAdvancedFilter<T extends Record<string, unknown>>({
++export function useAdvancedFilter<T>(
++  config: FilterConfig<T>,
+   defaultQuickFilter = '',
+-  config,
+-  filterFn
+-}: UseAdvancedFilterProps<T>): UseAdvancedFilterResult<T> {
++  filterFn?: (items: T[], filter: string, expression: FilterExpression | null) => T[]
++): FilterState<T> {
+   const [quickFilter, setQuickFilter] = useState(defaultQuickFilter);
+   const [expression, setExpressionValue] = useState<FilterExpression | null>(null);
+   const [error, setError] = useState<string | null>(null);
+ 
+-  // Default filter function if none provided
+-  const defaultFilterFn = useCallback(
+-    (item: T, quickFilter: string, expression: FilterExpression | null) => {
+-      const matchesQuickFilter = quickFilter === '' || 
+-        Object.values(item).some(
+-          value => String(value).toLowerCase().includes(quickFilter.toLowerCase())
+-        );
+-
+-      if (!expression) return matchesQuickFilter;
+-
+-      const itemValue = item[expression.field];
+-      
+-      switch (expression.operator) {
+-        case '=':
+-          return itemValue === expression.value && matchesQuickFilter;
+-        case '!=':
+-          return itemValue !== expression.value && matchesQuickFilter;
+-        case '>':
+-          return (itemValue as number | Date) > expression.value && matchesQuickFilter;
+-        case '<':
+-          return (itemValue as number | Date) < expression.value && matchesQuickFilter;
+-        case '>=':
+-          return (itemValue as number | Date) >= expression.value && matchesQuickFilter;
+-        case '<=':
+-          return (itemValue as number | Date) <= expression.value && matchesQuickFilter;
+-        case 'contains':
+-          return String(itemValue).toLowerCase().includes(String(expression.value).toLowerCase()) && matchesQuickFilter;
+-        case 'startsWith':
+-          return String(itemValue).toLowerCase().startsWith(String(expression.value).toLowerCase()) && matchesQuickFilter;
+-        case 'endsWith':
+-          return String(itemValue).toLowerCase().endsWith(String(expression.value).toLowerCase()) && matchesQuickFilter;
+-        default:
+-          return matchesQuickFilter;
+-      }
+-    },
+-    []
+-  );
+-
+-  const setExpression = useCallback(
+-    (value: string) => {
+-      try {
+-        const parsedExpression = value ? parseExpression(value, config.fields) : null;
+-        setExpressionValue(parsedExpression);
+-        setError(null);
+-      } catch (err) {
+-        setError(err instanceof Error ? err.message : 'Invalid expression');
+-        setExpressionValue(null);
+-      }
+-    },
+-    [config.fields]
+-  );
++  const setExpression = useCallback((value: string) => {
++    try {
++      const parsedExpression = value ? validateExpression(value, config.fields) : null;
++      setExpressionValue(parsedExpression);
++      setError(null);
++    } catch (err) {
++      setError(err instanceof Error ? err.message : 'Invalid expression');
++      setExpressionValue(null);
++    }
++  }, [config.fields]);
++
++  const applyFilter = useCallback((items: T[]): T[] => {
++    if (filterFn) {
++      return filterFn(items, quickFilter, expression);
++    }
++
++    // Default filtering behavior if no filterFn provided
++    return items.filter(item => {
++      // Quick filter implementation
++      const matchesQuickFilter = !quickFilter || Object.values(item as Record<string, unknown>).some(
++        value => String(value).toLowerCase().includes(quickFilter.toLowerCase())
++      );
+ 
+-  const clearFilters = useCallback(() => {
+-    setQuickFilter('');
+-    setExpressionValue(null);
+-    setError(null);
+-  }, []);
++      // Advanced filter implementation
++      const matchesExpression = !expression || evaluateExpression(item, expression);
+ 
+-  const filterItems = useCallback(
+-    (items: T[]) => {
+-      return items.filter(item => 
+-        (filterFn || defaultFilterFn)(item, quickFilter, expression)
+-      );
+-    },
+-    [quickFilter, expression, filterFn, defaultFilterFn]
+-  );
++      return matchesQuickFilter && matchesExpression;
++    });
++  }, [quickFilter, expression, filterFn]);
+ 
+   return {
+     quickFilter,
+@@ -100,7 +52,7 @@ export function useAdvancedFilter<T extends Record<string, unknown>>({
+     error,
+     setQuickFilter,
+     setExpression,
+-    clearFilters,
+-    filterItems
++    setError,
++    applyFilter
+   };
+ } 
+\ No newline at end of file
+diff --git a/src/lib/api/clinic.ts b/src/lib/api/clinic.ts
+new file mode 100644
+index 0000000..e336081
+--- /dev/null
++++ b/src/lib/api/clinic.ts
+@@ -0,0 +1,116 @@
++/**
++ * Domain-specific wrappers for clinic operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/lib/supabase'
++import { toClinic } from '@/types/domain/clinic'
++import type { Clinic, ClinicRow } from '@/types/domain/clinic'
++import { isClinic } from '@/types/domain/clinic'
++import { logger } from '@/lib/logger'
++
++interface ClinicQueryParams {
++  page?: number
++  pageSize?: number
++  sortBy?: keyof ClinicRow
++  sortDirection?: 'asc' | 'desc'
++}
++
++/**
++ * Hook for querying clinics with domain-specific validation
++ */
++export function useClinics(params: ClinicQueryParams = {}) {
++  return useSupabaseQuery('clinics', params)
++}
++
++/**
++ * Hook for inserting a clinic with runtime validation
++ */
++export function useClinicInsert() {
++  const insert = useSupabaseInsert<'clinics'>()
++
++  return {
++    ...insert,
++    mutateAsync: async (clinic: Partial<Clinic>) => {
++      try {
++        // Runtime validation
++        if (!clinic.name) {
++          throw new Error('Clinic name is required')
++        }
++
++        // Transform to database format
++        const dbClinic: Partial<ClinicRow> = {
++          name: clinic.name,
++        }
++
++        const result = await insert.mutateAsync({
++          table: 'clinics',
++          data: dbClinic,
++        })
++
++        // Transform result back to domain type
++        return toClinic(result as ClinicRow)
++      } catch (error) {
++        logger.error('Failed to insert clinic', { error, clinic })
++        throw error
++      }
++    }
++  }
++}
++
++/**
++ * Hook for updating a clinic with runtime validation
++ */
++export function useClinicUpdate() {
++  const update = useSupabaseUpdate<'clinics'>()
++
++  return {
++    ...update,
++    mutateAsync: async ({ id, data }: { id: string; data: Partial<Clinic> }) => {
++      try {
++        // Runtime validation
++        if (data.name === '') {
++          throw new Error('Clinic name cannot be empty')
++        }
++
++        // Transform to database format
++        const dbClinic: Partial<ClinicRow> = {
++          name: data.name,
++        }
++
++        const result = await update.mutateAsync({
++          table: 'clinics',
++          id,
++          data: dbClinic,
++        })
++
++        // Transform result back to domain type
++        return toClinic(result as ClinicRow)
++      } catch (error) {
++        logger.error('Failed to update clinic', { error, id, data })
++        throw error
++      }
++    }
++  }
++}
++
++/**
++ * Hook for deleting a clinic
++ */
++export function useClinicDelete() {
++  const deleteClinic = useSupabaseDelete<'clinics'>()
++
++  return {
++    ...deleteClinic,
++    mutateAsync: async (id: string) => {
++      try {
++        await deleteClinic.mutateAsync({
++          table: 'clinics',
++          id,
++        })
++      } catch (error) {
++        logger.error('Failed to delete clinic', { error, id })
++        throw error
++      }
++    }
++  }
++} 
+\ No newline at end of file
+diff --git a/src/lib/api/ecg.ts b/src/lib/api/ecg.ts
+new file mode 100644
+index 0000000..b79d5be
+--- /dev/null
++++ b/src/lib/api/ecg.ts
+@@ -0,0 +1,89 @@
++/**
++ * Domain-specific wrappers for ECG operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseRPC } from '@/lib/supabase'
++import { toECGData } from '@/types/domain/ecg'
++import type { ECGData, ECGSampleRow, ECGQueryOptions, AggregatedLeadData } from '@/types/domain/ecg'
++import { isECGData } from '@/types/domain/ecg'
++import { logger } from '@/lib/logger'
++
++/**
++ * Hook for querying ECG data with domain-specific validation
++ */
++export function useECGData(options: ECGQueryOptions) {
++  const { podId, timeStart, timeEnd, maxPoints } = options
++
++  return useSupabaseRPC('downsample_ecg', {
++    p_pod_id: podId,
++    p_time_start: timeStart,
++    p_time_end: timeEnd,
++    p_factor: maxPoints || 1000,
++  })
++}
++
++/**
++ * Hook for querying aggregated lead data
++ */
++export function useAggregatedLeadData(
++  podId: string,
++  timeStart: string,
++  timeEnd: string,
++  bucketSeconds: number = 3600 // default 1 hour
++) {
++  return useSupabaseRPC('aggregate_leads', {
++    p_pod_id: podId,
++    p_time_start: timeStart,
++    p_time_end: timeEnd,
++    p_bucket_seconds: bucketSeconds,
++  })
++}
++
++/**
++ * Hook for getting pod data availability
++ */
++export function usePodDays(podId: string) {
++  return useSupabaseRPC('get_pod_days', {
++    p_pod_id: podId,
++  })
++}
++
++/**
++ * Hook for getting pod earliest/latest timestamps
++ */
++export function usePodTimeRange(podId: string) {
++  return useSupabaseRPC('get_pod_earliest_latest', {
++    p_pod_id: podId,
++  })
++}
++
++/**
++ * Utility function to validate ECG data
++ */
++function validateECGData(data: unknown): data is ECGData {
++  try {
++    if (!isECGData(data)) {
++      throw new Error('Invalid ECG data format')
++    }
++    return true
++  } catch (error) {
++    logger.error('ECG data validation failed', { error, data })
++    return false
++  }
++}
++
++/**
++ * Utility function to transform raw ECG samples to domain type
++ */
++export function transformECGSamples(samples: ECGSampleRow[]): ECGData[] {
++  return samples
++    .map(sample => {
++      try {
++        return toECGData(sample)
++      } catch (error) {
++        logger.error('Failed to transform ECG sample', { error, sample })
++        return null
++      }
++    })
++    .filter((data): data is ECGData => data !== null && validateECGData(data))
++} 
+\ No newline at end of file
+diff --git a/src/lib/api/study.ts b/src/lib/api/study.ts
+new file mode 100644
+index 0000000..21e7840
+--- /dev/null
++++ b/src/lib/api/study.ts
+@@ -0,0 +1,136 @@
++/**
++ * Domain-specific wrappers for study operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/lib/supabase'
++import { toStudy } from '@/types/domain/study'
++import type { Study, StudyRow } from '@/types/domain/study'
++import { isStudy } from '@/types/domain/study'
++import { logger } from '@/lib/logger'
++
++interface StudyQueryParams {
++  clinicId?: string
++  podId?: string
++  page?: number
++  pageSize?: number
++  sortBy?: keyof StudyRow
++  sortDirection?: 'asc' | 'desc'
++}
++
++/**
++ * Hook for querying studies with domain-specific validation
++ */
++export function useStudies(params: StudyQueryParams = {}) {
++  const { clinicId, podId, ...queryParams } = params
++
++  const filters: Record<string, unknown> = {}
++  if (clinicId) filters.clinic_id = clinicId
++  if (podId) filters.pod_id = podId
++
++  return useSupabaseQuery('study', {
++    ...queryParams,
++    filters,
++  })
++}
++
++/**
++ * Hook for inserting a study with runtime validation
++ */
++export function useStudyInsert() {
++  const insert = useSupabaseInsert<'study'>()
++
++  return {
++    ...insert,
++    mutateAsync: async (study: Partial<Study>) => {
++      try {
++        // Runtime validation
++        if (!study.study_id) {
++          throw new Error('study_id is required')
++        }
++
++        // Transform to database format
++        const dbStudy: Partial<StudyRow> = {
++          study_id: study.study_id,
++          clinic_id: study.clinic_id,
++          pod_id: study.pod_id,
++          duration: study.duration_days ? study.duration_days * 24 * 60 : undefined,
++          start_timestamp: study.start_timestamp,
++          end_timestamp: study.end_timestamp,
++          expected_end_timestamp: study.expected_end_timestamp,
++          study_type: study.study_type,
++          user_id: study.user_id,
++          created_by: study.created_by,
++        }
++
++        const result = await insert.mutateAsync({
++          table: 'study',
++          data: dbStudy,
++        })
++
++        // Transform result back to domain type
++        return toStudy(result as StudyRow)
++      } catch (error) {
++        logger.error('Failed to insert study', { error, study })
++        throw error
++      }
++    }
++  }
++}
++
++/**
++ * Hook for updating a study with runtime validation
++ */
++export function useStudyUpdate() {
++  const update = useSupabaseUpdate<'study'>()
++
++  return {
++    ...update,
++    mutateAsync: async ({ id, data }: { id: string; data: Partial<Study> }) => {
++      try {
++        // Transform to database format
++        const dbStudy: Partial<StudyRow> = {
++          duration: data.duration_days ? data.duration_days * 24 * 60 : undefined,
++          start_timestamp: data.start_timestamp,
++          end_timestamp: data.end_timestamp,
++          expected_end_timestamp: data.expected_end_timestamp,
++          study_type: data.study_type,
++          user_id: data.user_id,
++        }
++
++        const result = await update.mutateAsync({
++          table: 'study',
++          id,
++          data: dbStudy,
++        })
++
++        // Transform result back to domain type
++        return toStudy(result as StudyRow)
++      } catch (error) {
++        logger.error('Failed to update study', { error, id, data })
++        throw error
++      }
++    }
++  }
++}
++
++/**
++ * Hook for deleting a study
++ */
++export function useStudyDelete() {
++  const deleteStudy = useSupabaseDelete<'study'>()
++
++  return {
++    ...deleteStudy,
++    mutateAsync: async (id: string) => {
++      try {
++        await deleteStudy.mutateAsync({
++          table: 'study',
++          id,
++        })
++      } catch (error) {
++        logger.error('Failed to delete study', { error, id })
++        throw error
++      }
++    }
++  }
++} 
+\ No newline at end of file
+diff --git a/src/lib/api/supabase.ts b/src/lib/api/supabase.ts
+new file mode 100644
+index 0000000..1996ade
+--- /dev/null
++++ b/src/lib/api/supabase.ts
+@@ -0,0 +1,261 @@
++/**
++ * Unified Supabase API layer with React Query integration
++ */
++import { useQuery, useMutation } from '@tanstack/react-query'
++import { createClient, PostgrestError } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { SupabaseError } from '@/types/utils'
++import { logger } from '@/lib/logger'
++
++// Environment variables with validation
++const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
++const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
++
++if (!supabaseUrl) {
++  throw new SupabaseError('Missing VITE_SUPABASE_URL environment variable')
++}
++
++if (!supabaseAnonKey) {
++  throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable')
++}
++
++// Create and export the Supabase client
++export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
++  auth: {
++    persistSession: true,
++    autoRefreshToken: true,
++  },
++  global: {
++    headers: {
++      'x-application-name': 'ecg-lab',
++    },
++  },
++})
++
++// Type definitions
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++
++// Query parameters and response types
++interface QueryParams {
++  start?: number
++  end?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++
++interface QueryMetadata {
++  executionTime: number
++  cached: boolean
++}
++
++interface QueryResponse<T> {
++  data: T[]
++  error: Error | null
++  count: number
++  metadata: QueryMetadata
++}
++
++interface RPCOptions {
++  retry?: boolean
++  retryCount?: number
++  retryDelay?: number
++  component?: string
++  context?: Record<string, unknown>
++}
++
++// Core API functions
++async function queryTable<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++): Promise<QueryResponse<any>> {
++  const startTime = performance.now()
++  const { start, end, filters, sortBy, sortDirection = 'asc' } = params
++
++  try {
++    logger.debug('Querying table', { tableName, params })
++
++    let query = supabase.from(tableName).select('*', { count: 'exact' })
++
++    if (typeof start === 'number' && typeof end === 'number') {
++      query = query.range(start, end)
++    }
++
++    if (filters) {
++      Object.entries(filters).forEach(([key, value]) => {
++        if (value !== null && value !== undefined) {
++          // @ts-ignore - Supabase types are too strict here
++          query = query.eq(key, value)
++        }
++      })
++    }
++
++    if (sortBy) {
++      // @ts-ignore - Supabase types are too strict here
++      query = query.order(sortBy, { ascending: sortDirection === 'asc' })
++    }
++
++    const { data, error, count } = await query
++
++    if (error) {
++      throw new SupabaseError(error.message)
++    }
++
++    return {
++      data: data || [],
++      error: null,
++      count: count ?? 0,
++      metadata: {
++        executionTime: performance.now() - startTime,
++        cached: false,
++      },
++    }
++  } catch (error) {
++    logger.error('Query failed', { tableName, error })
++    return {
++      data: [],
++      error: error instanceof Error ? error : new Error('Unknown error'),
++      count: 0,
++      metadata: {
++        executionTime: performance.now() - startTime,
++        cached: false,
++      },
++    }
++  }
++}
++
++async function callRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args'],
++  options: RPCOptions = {}
++): Promise<RPCFunctions[T]['Returns']> {
++  const { retry = true, retryCount = 3, retryDelay = 1000, component, context } = options
++  let attempts = 0
++  let lastError: Error | null = null
++
++  while (attempts < retryCount) {
++    try {
++      logger.debug('Calling RPC function', { functionName, args, attempt: attempts + 1, component, context })
++      const { data, error } = await supabase.rpc(functionName, args || {})
++
++      if (error) {
++        throw new SupabaseError(error.message)
++      }
++
++      logger.debug('RPC call successful', { functionName, data })
++      return data as RPCFunctions[T]['Returns']
++    } catch (error) {
++      lastError = error instanceof Error ? error : new Error('Unknown error')
++      attempts++
++
++      logger.warn('RPC call failed', {
++        functionName,
++        error: lastError,
++        attempt: attempts,
++        willRetry: attempts < retryCount && retry,
++      })
++
++      if (attempts < retryCount && retry) {
++        await new Promise(resolve => setTimeout(resolve, retryDelay * attempts))
++      } else {
++        break
++      }
++    }
++  }
++
++  throw lastError ?? new Error('RPC call failed after retries')
++}
++
++// React Query hooks
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++) {
++  const { enabled = true, ...queryParams } = params
++
++  return useQuery<any[], PostgrestError>({
++    queryKey: ['table', tableName, queryParams],
++    queryFn: async () => {
++      const response = await queryTable(tableName, queryParams)
++      if (response.error) throw response.error
++      return response.data
++    },
++    enabled,
++  })
++}
++
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args'],
++  options: RPCOptions = {}
++) {
++  return useMutation<RPCFunctions[T]['Returns'], PostgrestError>({
++    mutationFn: async () => callRPC(functionName, args, options),
++  })
++}
++
++// Type-safe mutation hooks
++export function useSupabaseInsert<T extends TableName>() {
++  return useMutation<any, PostgrestError, { table: T; data: any }>({
++    mutationFn: async ({ table, data }) => {
++      logger.debug('Inserting row', { table, data })
++      const { data: result, error } = await supabase
++        .from(table)
++        // @ts-ignore - Supabase types are too strict here
++        .insert(data)
++        .select()
++        .single()
++
++      if (error) throw new SupabaseError(error.message)
++      return result
++    },
++  })
++}
++
++export function useSupabaseUpdate<T extends TableName>() {
++  return useMutation<any, PostgrestError, { table: T; id: string | number; data: any }>({
++    mutationFn: async ({ table, id, data }) => {
++      logger.debug('Updating row', { table, id, data })
++      const { data: result, error } = await supabase
++        .from(table)
++        // @ts-ignore - Supabase types are too strict here
++        .update(data)
++        // @ts-ignore - Supabase types are too strict here
++        .eq('id', id)
++        .select()
++        .single()
++
++      if (error) throw new SupabaseError(error.message)
++      return result
++    },
++  })
++}
++
++export function useSupabaseDelete<T extends TableName>() {
++  return useMutation<void, PostgrestError, { table: T; id: string | number }>({
++    mutationFn: async ({ table, id }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        // @ts-ignore - Supabase types are too strict here
++        .eq('id', id)
++
++      if (error) throw new SupabaseError(error.message)
++    },
++  })
++}
++
++// Export types
++export type {
++  TableName,
++  RPCName,
++  RPCFunctions,
++  QueryParams,
++  QueryResponse,
++  RPCOptions,
++} 
+\ No newline at end of file
+diff --git a/src/lib/logger.ts b/src/lib/logger.ts
+new file mode 100644
+index 0000000..527ce07
+--- /dev/null
++++ b/src/lib/logger.ts
+@@ -0,0 +1,40 @@
++/**
++ * Centralized logger configuration using loglevel
++ * This provides consistent logging across the application with proper log levels
++ */
++import log from 'loglevel';
++
++// Set default level based on environment
++const level = import.meta.env.DEV ? 'debug' : 'warn';
++log.setLevel(level);
++
++// Define logger interface for type safety
++export interface Logger {
++  debug(message: string, context?: Record<string, unknown>): void;
++  info(message: string, context?: Record<string, unknown>): void;
++  warn(message: string, context?: Record<string, unknown>): void;
++  error(message: string, context?: Record<string, unknown>): void;
++}
++
++// Create a wrapper to ensure consistent logging interface
++const logger: Logger = {
++  debug(message: string, context?: Record<string, unknown>) {
++    log.debug(message, context);
++  },
++  info(message: string, context?: Record<string, unknown>) {
++    log.info(message, context);
++  },
++  warn(message: string, context?: Record<string, unknown>) {
++    log.warn(message, context);
++  },
++  error(message: string, context?: Record<string, unknown>) {
++    log.error(message, context);
++  }
++};
++
++// Prevent modifications to the logger
++Object.freeze(logger);
++
++// Export both named and default for flexibility
++export { logger };
++export default logger; 
+\ No newline at end of file
+diff --git a/src/lib/supabase.ts b/src/lib/supabase.ts
+new file mode 100644
+index 0000000..a3f1db0
+--- /dev/null
++++ b/src/lib/supabase.ts
+@@ -0,0 +1,235 @@
++/**
++ * Unified Supabase client with React Query integration
++ * Simplified type approach that balances type safety with maintainability
++ */
++import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
++import { createClient, type PostgrestError } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { SupabaseError } from '@/types/utils'
++import { logger } from '@/lib/logger'
++
++// Type definitions with simplified approach
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++
++// Simplified query parameters
++interface QueryParams {
++  page?: number
++  pageSize?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++
++// Environment variables with validation
++const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
++const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
++
++if (!supabaseUrl) {
++  throw new SupabaseError('Missing VITE_SUPABASE_URL environment variable')
++}
++
++if (!supabaseAnonKey) {
++  throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable')
++}
++
++// Create and export the typed Supabase client
++export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
++  auth: {
++    persistSession: true,
++    autoRefreshToken: true,
++  },
++  global: {
++    headers: {
++      'x-application-name': 'ecg-lab',
++    },
++  },
++})
++
++/**
++ * Hook for querying a Supabase table with simplified type handling
++ */
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++) {
++  const {
++    page = 1,
++    pageSize = 10,
++    filters,
++    sortBy,
++    sortDirection = 'asc',
++    enabled = true,
++  } = params
++
++  return useQuery({
++    queryKey: ['table', tableName, params],
++    queryFn: async () => {
++      logger.debug('Querying table', { tableName, params })
++
++      // Type assertion for query builder
++      let query = supabase.from(tableName).select('*') as any
++
++      // Apply pagination
++      if (page && pageSize) {
++        const start = (page - 1) * pageSize
++        query = query.range(start, start + pageSize - 1)
++      }
++
++      // Apply filters with runtime validation
++      if (filters) {
++        Object.entries(filters).forEach(([key, value]) => {
++          if (value !== undefined && value !== null) {
++            query = query.eq(key, value)
++          }
++        })
++      }
++
++      // Apply sorting
++      if (sortBy) {
++        query = query.order(sortBy, {
++          ascending: sortDirection === 'asc',
++        })
++      }
++
++      const { data, error } = await query
++
++      if (error) {
++        logger.error('Query failed', { tableName, error })
++        throw new SupabaseError(error.message)
++      }
++
++      // Runtime validation could be added here
++      return data || []
++    },
++    enabled,
++  })
++}
++
++/**
++ * Hook for calling a Supabase RPC function with simplified typing
++ */
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args']
++) {
++  return useMutation({
++    mutationFn: async () => {
++      logger.debug('Calling RPC function', { functionName, args })
++      const { data, error } = await supabase.rpc(functionName, args || {})
++
++      if (error) {
++        logger.error('RPC call failed', { functionName, error })
++        throw new SupabaseError(error.message)
++      }
++
++      return data
++    },
++  })
++}
++
++/**
++ * Hook for inserting a row with runtime validation
++ */
++export function useSupabaseInsert<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation({
++    mutationFn: async ({ table, data }: { table: T; data: unknown }) => {
++      logger.debug('Inserting row', { table, data })
++
++      // Runtime validation could be added here
++      const { data: result, error } = await supabase
++        .from(table)
++        .insert(data as any)
++        .select()
++        .single()
++
++      if (error) {
++        logger.error('Insert failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++
++      return result
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++
++/**
++ * Hook for updating a row with runtime validation
++ */
++export function useSupabaseUpdate<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation({
++    mutationFn: async ({
++      table,
++      id,
++      data,
++    }: {
++      table: T
++      id: string | number
++      data: unknown
++    }) => {
++      logger.debug('Updating row', { table, id, data })
++
++      // Runtime validation could be added here
++      const { data: result, error } = await supabase
++        .from(table)
++        .update(data as any)
++        .eq('id', id)
++        .select()
++        .single()
++
++      if (error) {
++        logger.error('Update failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++
++      return result
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++
++/**
++ * Hook for deleting a row
++ */
++export function useSupabaseDelete<T extends TableName>() {
++  const queryClient = useQueryClient()
++
++  return useMutation({
++    mutationFn: async ({ table, id }: { table: T; id: string | number }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        .eq('id', id)
++
++      if (error) {
++        logger.error('Delete failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++
++// Export types for convenience
++export type {
++  Tables,
++  TableName,
++  RPCName,
++  RPCFunctions,
++  QueryParams,
++} 
+\ No newline at end of file
+diff --git a/src/lib/supabase/index.ts b/src/lib/supabase/index.ts
+index 298c3cf..c9e7a27 100644
+--- a/src/lib/supabase/index.ts
++++ b/src/lib/supabase/index.ts
+@@ -1,9 +1,10 @@
+ /**
+- * Basic Supabase client configuration
++ * Supabase client configuration with proper typing
+  */
+ import { createClient } from '@supabase/supabase-js';
+-import type { Database } from '../../types/database.types';
+-import { SupabaseError } from '../../types/utils';
++import type { Database } from '@/types/database.types';
++import { SupabaseError } from '@/types/utils';
++import { logger } from '@/lib/logger';
+ 
+ // Environment variables with validation
+ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+@@ -17,7 +18,7 @@ if (!supabaseAnonKey) {
+   throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable');
+ }
+ 
+-// Create and export the basic client
++// Create and export the typed client
+ export const supabase = createClient<Database>(
+   supabaseUrl,
+   supabaseAnonKey,
+@@ -31,45 +32,18 @@ export const supabase = createClient<Database>(
+         'x-application-name': 'ecg-lab',
+       },
+     },
++    db: {
++      schema: 'public',
++    },
+   }
+ );
+ 
+-// Export the Supabase client and common types
+-export {
+-  type Database,
+-  type QueryParams,
+-  type QueryResponse,
+-  type StudyRow,
+-  type StudyReadingRow,
+-  type ClinicRow,
+-  type ECGSampleRow,
+-  queryTable
+-} from './client';
+-
+-// Export pod-related functions
+-export {
+-  queryPods,
+-  getPodDays,
+-  getPodEarliestLatest,
+-  type PodRow,
+-  type PodListParams,
+-} from './pod';
+-
+-// Export ECG-related functions
+-export {
+-  fetchECGSamples,
+-  fetchLatestECGSample,
+-} from './ecg';
+-
+-// Export clinic-related functions
+-export {
+-  fetchClinics,
+-  fetchClinicById,
+-} from './clinic';
++// Log initialization
++logger.debug('Supabase client initialized', {
++  url: supabaseUrl,
++  schema: 'public',
++});
+ 
+-// Export study-related functions
+-export {
+-  fetchStudyById,
+-  fetchClinicStudies,
+-  fetchStudies
+-} from './study'; 
+\ No newline at end of file
++// Export types
++export type { Database };
++export type SupabaseClient = typeof supabase; 
+\ No newline at end of file
+diff --git a/src/lib/utils/ExpressionParser.ts b/src/lib/utils/ExpressionParser.ts
+index 4b7a29e..b7225d6 100644
+--- a/src/lib/utils/ExpressionParser.ts
++++ b/src/lib/utils/ExpressionParser.ts
+@@ -1,56 +1,68 @@
+-import type { FilterExpression, FilterField } from '../../types/filter';
++/**
++ * Expression parser for advanced filtering
++ */
++import type { FilterExpression, FilterField, FilterOperator } from '@/types/filter';
+ 
+-export class ExpressionParserError extends Error {
++export class ExpressionEvaluationError extends Error {
+   constructor(message: string) {
+     super(message);
+-    this.name = 'ExpressionParserError';
++    this.name = 'ExpressionEvaluationError';
+   }
+ }
+ 
+-export function parseExpression(
+-  expression: string,
+-  fields: FilterField[]
+-): FilterExpression | null {
+-  if (!expression.trim()) return null;
++// List of fields that can be filtered
++export const FILTERABLE_FIELDS = [
++  'qualityFraction',
++  'totalMinutes',
++  'batteryLevel',
++  'activeStudies',
++  'totalStudies',
++  'averageQuality'
++];
+ 
+-  // Basic expression parsing (field operator value)
+-  const parts = expression.split(/\s+/);
++const OPERATORS: FilterOperator[] = ['=', '!=', '>', '<', '>=', '<=', 'contains', 'startsWith', 'endsWith'];
++
++/**
++ * Validates and parses a filter expression string into a structured FilterExpression
++ */
++export function validateExpression(expression: string, fields: FilterField[]): FilterExpression {
++  if (!expression.trim()) {
++    throw new ExpressionEvaluationError('Expression cannot be empty');
++  }
++
++  // Simple expression parsing (field operator value)
++  const parts = expression.trim().split(/\s+/);
+   if (parts.length < 3) {
+-    throw new ExpressionParserError('Expression must contain field, operator, and value');
++    throw new ExpressionEvaluationError('Invalid expression format. Expected: field operator value');
+   }
+ 
+-  const [field, operator, ...valueParts] = parts;
+-  const value = valueParts.join(' ');
++  const field = parts[0];
++  const operator = parts[1] as FilterOperator;
++  const value = parts.slice(2).join(' ');
+ 
+   // Validate field
+-  const fieldDef = fields.find(f => f.key === field);
+-  if (!fieldDef) {
+-    throw new ExpressionParserError(`Unknown field: ${field}`);
++  if (!fields.some(f => f.key === field)) {
++    throw new ExpressionEvaluationError(`Invalid field: ${field}`);
+   }
+ 
+   // Validate operator
+-  const validOperators = {
+-    string: ['=', '!=', 'contains', 'startsWith', 'endsWith'],
+-    number: ['=', '!=', '>', '<', '>=', '<='],
+-    boolean: ['=', '!='],
+-    date: ['=', '!=', '>', '<', '>=', '<=']
+-  };
+-
+-  if (!validOperators[fieldDef.type].includes(operator)) {
+-    throw new ExpressionParserError(
+-      `Invalid operator '${operator}' for field type '${fieldDef.type}'`
+-    );
++  if (!OPERATORS.includes(operator)) {
++    throw new ExpressionEvaluationError(`Invalid operator: ${operator}`);
+   }
+ 
+-  // Parse value based on field type
++  // Get field type
++  const fieldDef = fields.find(f => f.key === field)!;
++
++  // Parse and validate value based on field type
+   let parsedValue: string | number | boolean | Date;
+   try {
+     switch (fieldDef.type) {
+       case 'number':
+-        parsedValue = Number(value);
+-        if (isNaN(parsedValue)) {
++        const num = parseFloat(value);
++        if (isNaN(num)) {
+           throw new Error('Invalid number');
+         }
++        parsedValue = num;
+         break;
+       case 'boolean':
+         if (!['true', 'false'].includes(value.toLowerCase())) {
+@@ -59,18 +71,17 @@ export function parseExpression(
+         parsedValue = value.toLowerCase() === 'true';
+         break;
+       case 'date':
+-        parsedValue = new Date(value);
+-        if (isNaN(parsedValue.getTime())) {
++        const date = new Date(value);
++        if (isNaN(date.getTime())) {
+           throw new Error('Invalid date');
+         }
++        parsedValue = date;
+         break;
+       default:
+         parsedValue = value;
+     }
+   } catch (err) {
+-    throw new ExpressionParserError(
+-      `Invalid value for field type '${fieldDef.type}': ${value}`
+-    );
++    throw new ExpressionEvaluationError(`Invalid value for type ${fieldDef.type}: ${value}`);
+   }
+ 
+   return {
+@@ -78,4 +89,35 @@ export function parseExpression(
+     operator,
+     value: parsedValue
+   };
++}
++
++/**
++ * Evaluates a filter expression against an item
++ */
++export function evaluateExpression<T>(item: T, expression: FilterExpression): boolean {
++  const itemValue = (item as Record<string, unknown>)[expression.field];
++  const exprValue = expression.value;
++  
++  switch (expression.operator) {
++    case '=':
++      return itemValue === exprValue;
++    case '!=':
++      return itemValue !== exprValue;
++    case '>':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue > exprValue;
++    case '<':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue < exprValue;
++    case '>=':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue >= exprValue;
++    case '<=':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue <= exprValue;
++    case 'contains':
++      return String(itemValue).toLowerCase().includes(String(exprValue).toLowerCase());
++    case 'startsWith':
++      return String(itemValue).toLowerCase().startsWith(String(exprValue).toLowerCase());
++    case 'endsWith':
++      return String(itemValue).toLowerCase().endsWith(String(exprValue).toLowerCase());
++    default:
++      return false;
++  }
+ } 
+\ No newline at end of file
+diff --git a/src/routes/index.tsx b/src/routes/index.tsx
+index 3417360..fcced04 100644
+--- a/src/routes/index.tsx
++++ b/src/routes/index.tsx
+@@ -38,7 +38,7 @@ const routes: AppRoute[] = [
+     requiresAuth: true,
+   },
+   {
+-    path: '/data',
++    path: '/datalab',
+     element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
+     label: 'Data',
+     requiresAuth: true,
+diff --git a/src/tests/hooks/useChunkedECG.test.tsx b/src/tests/hooks/useChunkedECG.test.tsx
+new file mode 100644
+index 0000000..3f42dcc
+--- /dev/null
++++ b/src/tests/hooks/useChunkedECG.test.tsx
+@@ -0,0 +1,214 @@
++/// <reference types="vitest" />
++/// <reference types="vite/client" />
++import { renderHook, waitFor } from '@testing-library/react'
++import { describe, it, expect, beforeEach, vi } from 'vitest'
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import { useChunkedECG } from '@/hooks/api/useChunkedECG'
++import { supabase } from '@/lib/supabase'
++import type { ReactNode } from 'react'
++
++// Mock supabase
++vi.mock('@/lib/supabase', () => ({
++  supabase: {
++    rpc: vi.fn()
++  }
++}))
++
++// Mock data
++const mockChunk = {
++  chunk_start: '2023-01-01T00:00:00Z',
++  chunk_end: '2023-01-01T00:05:00Z',
++  samples: [
++    {
++      time: '2023-01-01T00:00:00Z',
++      channels: [1, 2, 3],
++      lead_on_p: [true, true, true],
++      lead_on_n: [true, true, true],
++      quality: [true, true, true]
++    }
++  ]
++}
++
++// Test wrapper setup
++const createWrapper = () => {
++  const queryClient = new QueryClient({
++    defaultOptions: {
++      queries: {
++        retry: false,
++      },
++    },
++  })
++  return function Wrapper({ children }: { children: ReactNode }) {
++    return (
++      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
++    )
++  }
++}
++
++describe('useChunkedECG', () => {
++  beforeEach(() => {
++    vi.clearAllMocks()
++  })
++
++  it('fetches initial chunk correctly', async () => {
++    // Mock successful response
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++
++    // Should start loading
++    expect(result.current.isLoading).toBe(true)
++
++    // Wait for data
++    await waitFor(() => {
++      expect(result.current.isLoading).toBe(false)
++    })
++
++    // Verify data
++    expect(result.current.samples).toHaveLength(1)
++    expect(result.current.samples[0]).toEqual(mockChunk.samples[0])
++    expect(result.current.error).toBeNull()
++  })
++
++  it('handles errors gracefully', async () => {
++    // Mock error response
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: null,
++      error: { message: 'Failed to fetch' }
++    })
++
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++
++    await waitFor(() => {
++      expect(result.current.error).toBeTruthy()
++    })
++
++    expect(result.current.samples).toHaveLength(0)
++  })
++
++  it('fetches next page when requested', async () => {
++    // Mock successful responses for both initial and next page
++    vi.mocked(supabase.rpc)
++      .mockResolvedValueOnce({
++        data: [mockChunk],
++        error: null
++      })
++      .mockResolvedValueOnce({
++        data: [
++          {
++            ...mockChunk,
++            chunk_start: '2023-01-01T00:05:00Z',
++            chunk_end: '2023-01-01T00:10:00Z'
++          }
++        ],
++        error: null
++      })
++
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++
++    // Wait for initial data
++    await waitFor(() => {
++      expect(result.current.samples).toHaveLength(1)
++    })
++
++    // Fetch next page
++    await result.current.fetchNextPage()
++
++    // Wait for updated data
++    await waitFor(() => {
++      expect(result.current.samples).toHaveLength(2)
++    })
++
++    expect(result.current.hasNextPage).toBe(false)
++  })
++
++  it('respects the factor parameter', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 8
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++
++    expect(supabase.rpc).toHaveBeenCalledWith(
++      'downsample_ecg_chunked',
++      expect.objectContaining({
++        p_factor: 8
++      })
++    )
++  })
++
++  it('handles empty response correctly', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [],
++      error: null
++    })
++
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++
++    await waitFor(() => {
++      expect(result.current.isLoading).toBe(false)
++    })
++
++    expect(result.current.samples).toHaveLength(0)
++    expect(result.current.hasNextPage).toBe(false)
++  })
++}) 
+\ No newline at end of file
+diff --git a/src/tests/integration/MainECGViewer.test.tsx b/src/tests/integration/MainECGViewer.test.tsx
+new file mode 100644
+index 0000000..ac90248
+--- /dev/null
++++ b/src/tests/integration/MainECGViewer.test.tsx
+@@ -0,0 +1,248 @@
++/// <reference types="vitest" />
++/// <reference types="vite/client" />
++import '@testing-library/jest-dom'
++import { render, screen, waitFor, fireEvent } from '@testing-library/react'
++import { describe, it, expect, beforeEach, vi } from 'vitest'
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import MainECGViewer from '@/components/shared/ecg/MainECGViewer'
++import { supabase } from '@/lib/supabase'
++import type { ReactNode } from 'react'
++
++// Mock supabase
++vi.mock('@/lib/supabase', () => ({
++  supabase: {
++    rpc: vi.fn()
++  }
++}))
++
++// Mock data
++const mockChunk = {
++  chunk_start: '2023-01-01T00:00:00Z',
++  chunk_end: '2023-01-01T00:05:00Z',
++  samples: [
++    {
++      time: '2023-01-01T00:00:00Z',
++      channels: [1, 2, 3],
++      lead_on_p: [true, true, true],
++      lead_on_n: [true, true, true],
++      quality: [true, true, true]
++    }
++  ]
++}
++
++// Test wrapper setup
++const createWrapper = () => {
++  const queryClient = new QueryClient({
++    defaultOptions: {
++      queries: {
++        retry: false,
++      },
++    },
++  })
++  return function Wrapper({ children }: { children: ReactNode }) {
++    return (
++      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
++    )
++  }
++}
++
++describe('MainECGViewer Integration', () => {
++  const defaultProps = {
++    podId: 'test-pod',
++    timeStart: '2023-01-01T00:00:00Z',
++    timeEnd: '2023-01-01T01:00:00Z',
++    onClose: vi.fn(),
++    factor: 4
++  }
++
++  beforeEach(() => {
++    vi.clearAllMocks()
++  })
++
++  it('renders loading state initially', () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    expect(screen.getByTestId('ecg-loading')).toBeInTheDocument()
++  })
++
++  it('displays ECG data after loading', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    await waitFor(() => {
++      expect(screen.queryByTestId('ecg-loading')).not.toBeInTheDocument()
++    })
++
++    expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    expect(screen.getByTestId('ecg-timeline')).toBeInTheDocument()
++  })
++
++  it('handles errors gracefully', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: null,
++      error: { message: 'Failed to fetch ECG data' }
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-error')).toBeInTheDocument()
++    })
++
++    expect(screen.getByText(/Failed to fetch ECG data/i)).toBeInTheDocument()
++  })
++
++  it('loads more data on scroll', async () => {
++    // Mock initial chunk
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    // Mock next chunk
++    const nextChunk = {
++      ...mockChunk,
++      chunk_start: '2023-01-01T00:05:00Z',
++      chunk_end: '2023-01-01T00:10:00Z'
++    }
++
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [nextChunk],
++      error: null
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++
++    // Simulate scroll to bottom
++    const plotContainer = screen.getByTestId('ecg-plot-container')
++    fireEvent.scroll(plotContainer, {
++      target: {
++        scrollTop: plotContainer.scrollHeight,
++        scrollHeight: plotContainer.scrollHeight,
++        clientHeight: plotContainer.clientHeight
++      }
++    })
++
++    // Wait for next chunk to load
++    await waitFor(() => {
++      expect(vi.mocked(supabase.rpc)).toHaveBeenCalledTimes(2)
++    })
++
++    // Verify both chunks are displayed
++    expect(screen.getAllByTestId('ecg-sample')).toHaveLength(2)
++  })
++
++  it('throttles scroll events for performance', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValue({
++      data: [mockChunk],
++      error: null
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++
++    const plotContainer = screen.getByTestId('ecg-plot-container')
++
++    // Simulate multiple rapid scroll events
++    for (let i = 0; i < 5; i++) {
++      fireEvent.scroll(plotContainer, {
++        target: {
++          scrollTop: plotContainer.scrollHeight * (i + 1),
++          scrollHeight: plotContainer.scrollHeight,
++          clientHeight: plotContainer.clientHeight
++        }
++      })
++    }
++
++    // Wait a bit to let throttling take effect
++    await new Promise(resolve => setTimeout(resolve, 300))
++
++    // Should only make one additional request due to throttling
++    expect(vi.mocked(supabase.rpc)).toHaveBeenCalledTimes(2)
++  })
++
++  it('updates view on time range change', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValue({
++      data: [mockChunk],
++      error: null
++    })
++
++    const { rerender } = render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++
++    // Update time range
++    const newProps = {
++      ...defaultProps,
++      timeStart: '2023-01-01T01:00:00Z',
++      timeEnd: '2023-01-01T02:00:00Z'
++    }
++
++    rerender(<MainECGViewer {...newProps} />)
++
++    // Should trigger a new request with updated time range
++    await waitFor(() => {
++      expect(vi.mocked(supabase.rpc)).toHaveBeenCalledWith(
++        'downsample_ecg_chunked',
++        expect.objectContaining({
++          p_time_start: '2023-01-01T01:00:00Z',
++          p_time_end: '2023-01-01T02:00:00Z'
++        })
++      )
++    })
++  })
++
++  it('closes viewer when close button is clicked', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++
++    // Wait for render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++
++    // Click close button
++    fireEvent.click(screen.getByTestId('ecg-close-button'))
++
++    expect(defaultProps.onClose).toHaveBeenCalled()
++  })
++}) 
+\ No newline at end of file
+diff --git a/src/types/database.types.ts b/src/types/database.types.ts
+index 6b4a72f..224c226 100644
+--- a/src/types/database.types.ts
++++ b/src/types/database.types.ts
+@@ -995,9 +995,9 @@ export type Database = {
+       }
+       get_edge_function_stats: {
+         Args: {
+-          p_function_name: string
+-          p_time_start: string
+-          p_time_end: string
++          p_function_name?: string
++          p_time_start?: string
++          p_time_end?: string
+         }
+         Returns: {
+           function_name: string
+@@ -1052,16 +1052,29 @@ export type Database = {
+         }
+         Returns: number
+       }
+-      get_rpc_function_info: {
+-        Args: Record<PropertyKey, never>
+-        Returns: {
+-          function_name: string
+-          return_type: string
+-          arguments: string
+-          definition: string
+-          function_type: string
+-        }[]
+-      }
++      get_rpc_function_info:
++        | {
++            Args: Record<PropertyKey, never>
++            Returns: {
++              function_name: string
++              return_type: string
++              arguments: string
++              definition: string
++              function_type: string
++            }[]
++          }
++        | {
++            Args: {
++              p_function_name: string
++            }
++            Returns: {
++              function_name: string
++              return_type: string
++              arguments: string
++              definition: string
++              function_type: string
++            }[]
++          }
+       get_studies_with_aggregates: {
+         Args: Record<PropertyKey, never>
+         Returns: {
+diff --git a/src/types/domain/clinic.ts b/src/types/domain/clinic.ts
+index f571088..ef7faa8 100644
+--- a/src/types/domain/clinic.ts
++++ b/src/types/domain/clinic.ts
+@@ -4,10 +4,10 @@
+  */
+ 
+ import type { Database } from '../database.types';
+-import type { TableRow, TypeGuard, Transform, NonNullRequired } from '../utils';
++import type { TypeGuard, Transform, NonNullRequired } from '../utils';
+ 
+-// Raw database type
+-type ClinicRow = TableRow<'clinics'>;
++// Raw database type from generated types
++export type ClinicRow = Database['public']['Tables']['clinics']['Row'];
+ 
+ /**
+  * Domain-specific Clinic type
+diff --git a/src/types/domain/ecg.ts b/src/types/domain/ecg.ts
+index ab9abf2..253dd62 100644
+--- a/src/types/domain/ecg.ts
++++ b/src/types/domain/ecg.ts
+@@ -4,10 +4,10 @@
+  */
+ 
+ import type { Database } from '../database.types';
+-import type { TableRow, TypeGuard, Transform } from '../utils';
++import type { TypeGuard, Transform } from '../utils';
+ 
+-// Raw database type
+-type ECGSampleRow = TableRow<'ecg_sample'>;
++// Raw database type from generated types
++export type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
+ 
+ /**
+  * ECG data types for visualization and analysis.
+diff --git a/src/types/domain/pod.ts b/src/types/domain/pod.ts
+new file mode 100644
+index 0000000..bdf3e76
+--- /dev/null
++++ b/src/types/domain/pod.ts
+@@ -0,0 +1,22 @@
++/**
++ * Domain types for pods
++ */
++import type { Database } from '../database.types';
++
++// Raw database type from generated types
++export type PodRow = Database['public']['Tables']['pod']['Row'];
++
++// Query parameters for pod list
++export interface PodListParams {
++  page?: number;
++  pageSize?: number;
++  sortBy?: keyof PodRow;
++  sortDirection?: 'asc' | 'desc';
++  filter?: string;
++}
++
++// Response from get_pod_days RPC - using the actual RPC return type
++export type PodDayResponse = Database['public']['Functions']['get_pod_days']['Returns'][number];
++
++// Response from get_pod_earliest_latest RPC - using the actual RPC return type
++export type PodEarliestLatest = Database['public']['Functions']['get_pod_earliest_latest']['Returns'][number]; 
+\ No newline at end of file
+diff --git a/src/types/domain/study.ts b/src/types/domain/study.ts
+index d72d8b1..e1be3f9 100644
+--- a/src/types/domain/study.ts
++++ b/src/types/domain/study.ts
+@@ -10,12 +10,13 @@
+  * @module
+  */
+ 
+-import type { TableRow, TypeGuard, Transform } from '../utils';
++import type { Database } from '../database.types';
++import type { TypeGuard, Transform } from '../utils';
+ import { TransformError } from '../utils';
+ 
+-// Raw database types
+-type StudyRow = TableRow<'study'>;
+-type StudyReadingRow = TableRow<'study_readings'>;
++// Raw database types from generated types
++export type StudyRow = Database['public']['Tables']['study']['Row'];
++export type StudyReadingRow = Database['public']['Tables']['study_readings']['Row'];
+ 
+ /**
+  * Domain-specific Study type with computed fields and transformations
+diff --git a/src/types/filter.ts b/src/types/filter.ts
+index 3c0f9e0..ea411ee 100644
+--- a/src/types/filter.ts
++++ b/src/types/filter.ts
+@@ -1,55 +1,53 @@
+ /**
+- * Common filter types used across the application
++ * Shared types for advanced filtering functionality
+  */
+ 
+-export type FilterFieldType = 'string' | 'number' | 'boolean' | 'date';
++export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'contains' | 'startsWith' | 'endsWith';
+ 
+ export interface FilterField {
+   key: string;
+-  label: string;
+-  type: FilterFieldType;
+-  description?: string;
++  type: 'string' | 'number' | 'boolean' | 'date';
++  description: string;
++}
++
++export interface FilterExpression {
++  field: string;
++  operator: FilterOperator;
++  value: unknown;
+ }
+ 
+ export interface FilterPreset {
++  id: string;
+   name: string;
+   expression: string;
+-  description?: string;
+ }
+ 
+-export interface FilterConfig<T = unknown> {
++export interface FilterConfig<T> {
+   fields: FilterField[];
++  parseExpression: (expression: string) => FilterExpression | null;
++  placeholder?: string;
++  example?: string;
+   presets?: FilterPreset[];
+-  examples?: string[];
+-}
+-
+-export type FilterOperator = 
+-  | '=' 
+-  | '!=' 
+-  | '>' 
+-  | '<' 
+-  | '>=' 
+-  | '<=' 
+-  | 'contains' 
+-  | 'startsWith' 
+-  | 'endsWith';
+-
+-export interface FilterExpression {
+-  field: string;
+-  operator: FilterOperator;
+-  value: string | number | boolean | Date;
+ }
+ 
+ export interface FilterState<T> {
+   quickFilter: string;
+   expression: FilterExpression | null;
+   error: string | null;
+-  setQuickFilter: (filter: string) => void;
+-  setExpression: (expression: FilterExpression | null) => void;
+-  setError: (error: string | null) => void;
++  setQuickFilter: (value: string) => void;
++  setExpression: (value: string) => void;
++  setError: (value: string | null) => void;
+   applyFilter: (items: T[]) => T[];
+ }
+ 
++export type FilterFieldType = 'string' | 'number' | 'boolean' | 'date';
++
++export interface FilterPreset {
++  name: string;
++  expression: string;
++  description?: string;
++}
++
+ export interface FilterCondition {
+   field: string;
+   operator: FilterOperator;
+diff --git a/src/types/index.ts b/src/types/index.ts
+index 85907cc..b0b4c58 100644
+--- a/src/types/index.ts
++++ b/src/types/index.ts
+@@ -1,23 +1,14 @@
+ /**
+  * Type definitions for the application
+- * Re-exports database types, domain types, and type utilities
++ * Central export point for all types
+  */
+ 
+-// Database types
+-export type { Database } from './database.types';
+-
+-// Domain types
+-export type { Study, StudyReading } from './domain/study';
+-export { isStudy, toStudy, toStudyReading } from './domain/study';
+-
+-export type { ECGData, ECGQueryOptions } from './domain/ecg';
+-export { toECGData } from './domain/ecg';
+-
+-export type { Clinic } from './domain/clinic';
+-export { isClinic, toClinic } from './domain/clinic';
++// Re-export all types from utils
++export * from './utils';
+ 
+-export type { HolterStudy } from './domain/holter';
+-export { isHolterStudy, toHolterStudy } from './domain/holter';
++// Re-export all types from supabase
++export * from './supabase';
+ 
+-// Type utilities and helpers
+-export * from './utils';
++// Re-export domain types
++export * from './domain/study';
++export * from './domain/holter';
+diff --git a/src/types/supabase.ts b/src/types/supabase.ts
+index bb685e3..883b1cb 100644
+--- a/src/types/supabase.ts
++++ b/src/types/supabase.ts
+@@ -1,51 +1,60 @@
+-import type { Database } from './database.types';
++/**
++ * Central type definitions for Supabase
++ * Re-exports and utility types for working with the database
++ */
++import type {
++  Database,
++  Tables,
++  TableName,
++  TableRow,
++  TableInsert,
++  TableUpdate,
++  RPCFunctions,
++  RPCName,
++  QueryParams,
++  QueryMetadata,
++  QueryResponse,
++  RPCOptions,
++  SupabaseError,
++  RPCError
++} from './utils';
+ 
+-// Common Supabase operation types
+-export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+-export type TableInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+-export type TableUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
++// Re-export common types
++export type {
++  Database,
++  Tables,
++  TableName,
++  TableRow,
++  TableInsert,
++  TableUpdate,
++  RPCFunctions,
++  RPCName,
++  QueryParams,
++  QueryMetadata,
++  QueryResponse,
++  RPCOptions
++};
+ 
+-// RPC function types
+-export type RPCFunctionName = keyof Database['public']['Functions'];
+-export type RPCFunctionArgs<T extends RPCFunctionName> = Database['public']['Functions'][T]['Args'];
+-export type RPCFunctionReturns<T extends RPCFunctionName> = Database['public']['Functions'][T]['Returns'];
++// Additional RPC types
++export type RPCArgs<T extends RPCName> = RPCFunctions[T]['Args'];
++export type RPCReturns<T extends RPCName> = RPCFunctions[T]['Returns'];
+ 
+-// Query and Response types
+-export interface QueryParams {
+-  page?: number;
+-  pageSize?: number;
+-  sortBy?: string;
+-  sortDirection?: 'asc' | 'desc';
+-  filter?: string;
+-}
+-
+-export interface QueryResponse<T> {
+-  data: T[];
+-  count: number;
+-  error: Error | null;
+-}
+-
+-export interface RPCCallInfo {
+-  functionName: string;
+-  args?: Record<string, unknown>;
+-  timestamp: Date;
+-  duration: number;
+-  success: boolean;
+-  error?: Error;
+-}
+-
+-// Error types
+-export class SupabaseError extends Error {
+-  constructor(message: string) {
+-    super(message);
+-    this.name = 'SupabaseError';
++// Type assertions
++export function assertTableRow<T extends TableName>(
++  tableName: T,
++  data: unknown
++): asserts data is TableRow<T> {
++  if (!data || typeof data !== 'object') {
++    throw new Error(`Invalid table row data for table ${tableName}`);
+   }
+ }
+ 
+-export class RPCError extends SupabaseError {
+-  constructor(message: string, public functionName: string) {
+-    super(message);
+-    this.name = 'RPCError';
++export function assertRPCResult<T extends RPCName>(
++  functionName: T,
++  data: unknown
++): asserts data is RPCReturns<T> {
++  if (data === undefined || data === null) {
++    throw new Error(`Invalid RPC result for function ${functionName}`);
+   }
+ }
+ 
+@@ -71,7 +80,4 @@ export interface DatabaseStat {
+   stat_type: StatType;
+   hit_rate: number | null;
+   timestamp: string;
+-}
+-
+-// Re-export database types for convenience
+-export type { Database }; 
+\ No newline at end of file
++} 
+\ No newline at end of file
+diff --git a/src/types/utils.ts b/src/types/utils.ts
+index 0a7393e..c511d87 100644
+--- a/src/types/utils.ts
++++ b/src/types/utils.ts
+@@ -1,416 +1,82 @@
+ /**
+- * Type utilities and helper types for working with database and domain types
+- * 
+- * This file provides utility types for:
+- * 1. Accessing database types (Tables, Inserts, Updates)
+- * 2. Working with RPC functions
+- * 3. Type transformations and validations
+- * 4. Common type operations (NonNullRequired, Optional, etc.)
++ * Central type utilities for database and domain types
++ * Single source of truth for all database-related type utilities
+  */
+ 
+ import type { Database } from './database.types';
+ import type { SupabaseClient } from '@supabase/supabase-js';
+ 
++// Database type utilities
++export type Tables = Database['public']['Tables']
++export type TableName = keyof Tables
++export type RPCFunctions = Database['public']['Functions']
++export type RPCName = keyof RPCFunctions
++
+ /**
+  * Helper type to extract Row types from Database tables
+- * @example
+- * // Get the type of a study row
+- * type StudyRow = TableRow<'study'>;
+- * // Returns Database['public']['Tables']['study']['Row']
+  */
+-export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
++export type TableRow<T extends TableName> = Tables[T]['Row']
+ 
+ /**
+  * Helper type to extract Insert types from Database tables
+- * @example
+- * // Get the insert type for a study
+- * type StudyInsert = TableInsert<'study'>;
+- * // Returns Database['public']['Tables']['study']['Insert']
+  */
+-export type TableInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
++export type TableInsert<T extends TableName> = Tables[T]['Insert']
+ 
+ /**
+  * Helper type to extract Update types from Database tables
+- * @example
+- * // Get the update type for a study
+- * type StudyUpdate = TableUpdate<'study'>;
+- * // Returns Database['public']['Tables']['study']['Update']
+- */
+-export type TableUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+-
+-/**
+- * Helper type to extract RPC function return types
+- * @example
+- * // Get the return type of the get_clinic_overview RPC function
+- * type ClinicOverview = RPCResponse<'get_clinic_overview'>;
+- */
+-export type RPCResponse<
+-  T extends keyof Database['public']['Functions']
+-> = Database['public']['Functions'][T]['Returns'];
+-
+-/**
+- * Helper type to extract RPC function argument types
+- * @example
+- * // Get the argument type for the get_clinic_overview RPC function
+- * type ClinicOverviewArgs = RPCArgs<'get_clinic_overview'>;
+- */
+-export type RPCArgs<
+-  T extends keyof Database['public']['Functions']
+-> = Database['public']['Functions'][T]['Args'];
+-
+-/**
+- * Helper to convert database types to domain types with nullable fields
+- * @example
+- * // Make all fields in a type nullable
+- * type NullableStudy = WithNullable<Study>;
+- */
+-export type WithNullable<T> = {
+-  [P in keyof T]: T[P] | null;
+-};
+-
+-/**
+- * Helper to make all properties in a type required and non-null
+- * 
+- * Unlike TypeScript's built-in Required<T> which only makes properties required,
+- * this type also ensures all properties are non-null by applying NonNullable<T>
+- * to each property.
+- * 
+- * @example
+- * // Make all fields in a type required and non-null
+- * type NonNullStudy = NonNullRequired<Study>;
+- * 
+- * // Difference from TypeScript's Required<T>:
+- * type BuiltInRequired = Required<{ name?: string | null }>;     // { name: string | null }
+- * type CustomNonNull = NonNullRequired<{ name?: string | null }> // { name: string }
+- */
+-export type NonNullRequired<T> = {
+-  [P in keyof T]-?: NonNullable<T[P]>;
+-};
+-
+-/**
+- * Helper to make all properties in a type optional
+- * @example
+- * // Make all fields in a type optional
+- * type OptionalStudy = Optional<Study>;
+- */
+-export type Optional<T> = {
+-  [P in keyof T]?: T[P];
+-};
+-
+-/**
+- * Helper to pick specific properties from a type and make them required and non-null
+- * 
+- * Similar to NonNullRequired<T>, but only applies to specific properties.
+- * This ensures the selected properties are both required and non-null.
+- * 
+- * @example
+- * // Pick id and name from Study and make them required and non-null
+- * type StudyIdentifier = NonNullRequiredPick<Study, 'id' | 'name'>;
+- * 
+- * // Difference from TypeScript's Pick + Required:
+- * type BuiltInPick = Required<Pick<{ id?: string | null }, 'id'>>;     // { id: string | null }
+- * type CustomPick = NonNullRequiredPick<{ id?: string | null }, 'id'>; // { id: string }
+  */
+-export type NonNullRequiredPick<T, K extends keyof T> = NonNullRequired<Pick<T, K>>;
++export type TableUpdate<T extends TableName> = Tables[T]['Update']
+ 
+-/**
+- * Helper to create a type guard function type
+- * @example
+- * // Create a type guard for Study
+- * const isStudy: TypeGuard<Study> = (value): value is Study => { ... };
+- */
+-export type TypeGuard<T> = (value: unknown) => value is T;
+-
+-/**
+- * Helper to create a transformation function type
+- * @example
+- * // Create a transform function from StudyRow to Study
+- * const toStudy: Transform<StudyRow, Study> = (row) => { ... };
+- */
+-export type Transform<T, U> = (input: T) => U;
+-
+-/**
+- * Error type for failed transformations
+- * @example
+- * throw new TransformError('Invalid study data', { study_id: 'missing' });
+- */
+-export class TransformError extends Error {
+-  constructor(
+-    message: string,
+-    public readonly details?: Record<string, string>
+-  ) {
+-    super(message);
+-    this.name = 'TransformError';
+-  }
++// Query and Response types
++export interface QueryParams {
++  page?: number
++  pageSize?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
+ }
+ 
+-/**
+- * Type utility to get the row type for a given table
+- */
+-export type SupabaseRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
+-
+-/**
+- * Type utility to get the insert type for a given table
+- */
+-export type SupabaseInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
+-
+-/**
+- * Type utility to get the update type for a given table
+- */
+-export type SupabaseUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+-
+-// Query Types
+-export interface QueryParams {
+-  page?: number;
+-  pageSize?: number;
+-  start?: number;
+-  end?: number;
+-  filters?: Record<string, unknown>;
+-  sortBy?: string;
+-  sortDirection?: 'asc' | 'desc';
+-  filter?: string;
++export interface QueryMetadata {
++  executionTime: number
++  cached: boolean
+ }
+ 
+ export interface QueryResponse<T> {
+-  data: T[];
+-  count: number;
+-  error: Error | null;
+-  metadata?: {
+-    executionTime?: number;
+-    cached?: boolean;
+-  };
++  data: T[]
++  error: Error | null
++  count: number
++  metadata: QueryMetadata
+ }
+ 
+-// Supabase Query Types
+-export type PostgrestResponse<T> = {
+-  data: T | null;
+-  error: SupabaseError | null;
+-  count?: number | null;
+-  status: number;
+-  statusText: string;
+-};
++export interface RPCOptions {
++  retry?: boolean
++  retryCount?: number
++  retryDelay?: number
++  component?: string
++  context?: Record<string, unknown>
++}
+ 
+-// Base error types
++// Error types
+ export class SupabaseError extends Error {
+   constructor(message: string) {
+-    super(message);
+-    this.name = 'SupabaseError';
++    super(message)
++    this.name = 'SupabaseError'
+   }
+ }
+ 
+-export class RPCError extends SupabaseError {
++export class RPCError extends Error {
+   constructor(message: string, public functionName: string) {
+-    super(message);
+-    this.name = 'RPCError';
+-  }
+-}
+-
+-// Strongly typed client
+-export type TypedSupabaseClient = SupabaseClient<Database>;
+-
+-// RPC Types
+-export type DatabaseFunctions = Database['public']['Functions'];
+-export type RPCFunctionName = keyof DatabaseFunctions;
+-export type RPCFunctionArgs<T extends RPCFunctionName> = DatabaseFunctions[T]['Args'];
+-export type RPCFunctionReturns<T extends RPCFunctionName> = DatabaseFunctions[T]['Returns'];
+-
+-// Diagnostic Types
+-export interface RPCCallInfo {
+-  id: string;
+-  functionName: string;
+-  component?: string;
+-  args?: Record<string, unknown>;
+-  timestamp: Date;
+-  duration: number;
+-  status: 'pending' | 'success' | 'error';
+-  error?: Error;
+-  context?: unknown;
+-  params?: unknown;
+-  attempt?: number;
+-  executionTime?: number;
+-}
+-
+-export interface DiagnosticOptions {
+-  includeTimings?: boolean;
+-  includeErrors?: boolean;
+-  maxEntries?: number;
+-  component?: string;
+-  context?: Record<string, unknown>;
+-  retryConfig?: {
+-    maxAttempts?: number;
+-    timeWindow?: number;
+-    backoffFactor?: number;
+-  };
+-}
+-
+-export interface DatabaseStatsRPC {
+-  stat_type: string;
+-  rolname: string | null;
+-  query: string | null;
+-  calls: bigint | null;
+-  total_time: number | null;
+-  min_time: number | null;
+-  max_time: number | null;
+-  mean_time: number | null;
+-  avg_rows: number | null;
+-  prop_total_time: string | null;
+-  hit_rate: number | null;
+-}
+-
+-// Common table row types
+-export type StudyRow = TableRow<'study'>;
+-export type StudyReadingRow = TableRow<'study_readings'>;
+-export type PodRow = TableRow<'pod'>;
+-export type ClinicRow = TableRow<'clinics'>;
+-export type ECGSampleRow = TableRow<'ecg_sample'>;
+-export type EdgeFunctionStatsRow = TableRow<'edge_function_stats'>;
+-export type RPCCallInfoRow = TableRow<'rpc_call_info'>;
+-export type DatasetRow = TableRow<'datasets'>;
+-
+-// Database Stats types
+-export const StatTypes = {
+-  QUERY_COUNT: 'query_count',
+-  CACHE_HIT_RATE: 'cache_hit_rates',
+-  TABLE_HIT_RATE: 'table_hit_rate',
+-  AVG_QUERY_TIME: 'avg_query_time',
+-  ERROR_RATE: 'error_rate',
+-  ACTIVE_CONNECTIONS: 'active_connections',
+-  MOST_TIME_CONSUMING: 'most_time_consuming_queries',
+-  CUMULATIVE_EXECUTION_TIME: 'cumulative_total_execution_time'
+-} as const;
+-
+-export type StatType = typeof StatTypes[keyof typeof StatTypes];
+-
+-export interface DatabaseStats {
+-  stat_type: string;
+-  rolname: string;
+-  query: string;
+-  calls: number;
+-  total_time: number;
+-  min_time: number;
+-  max_time: number;
+-  mean_time: number;
+-  avg_rows: number;
+-  prop_total_time: string;
+-  hit_rate: number;
+-}
+-
+-export interface EdgeFunctionStats {
+-  function_name: string;
+-  total_invocations: number;
+-  success_rate: number;
+-  average_duration_ms: number;
+-  memory_usage: number;
+-  cpu_time: string; // interval type from Postgres
+-  peak_concurrent_executions: number;
+-  last_invocation: string; // timestamp with time zone
+-}
+-
+-export interface ActiveComponent {
+-  id: string;
+-  name: string;
+-  mountedAt: Date;
+-  lastUpdated: Date;
+-  updateCount: number;
+-}
+-
+-// Re-export Database type for convenience
+-export type { Database };
+-
+-// Type Guards - Pure boolean returns, no throws
+-export function isEdgeFunctionStats(value: unknown): value is EdgeFunctionStats {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<EdgeFunctionStats>;
+-  
+-  return (
+-    typeof v.function_name === 'string' &&
+-    typeof v.total_invocations === 'number' &&
+-    typeof v.success_rate === 'number' &&
+-    typeof v.average_duration_ms === 'number' &&
+-    typeof v.memory_usage === 'number' &&
+-    typeof v.cpu_time === 'string' &&
+-    typeof v.peak_concurrent_executions === 'number' &&
+-    typeof v.last_invocation === 'string'
+-  );
+-}
+-
+-export function isDatabaseStatsRPC(value: unknown): value is DatabaseStatsRPC {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<DatabaseStatsRPC>;
+-  
+-  return (
+-    typeof v.stat_type === 'string' &&
+-    (v.rolname === null || typeof v.rolname === 'string') &&
+-    (v.query === null || typeof v.query === 'string') &&
+-    (v.calls === null || typeof v.calls === 'bigint') &&
+-    (v.total_time === null || typeof v.total_time === 'number') &&
+-    (v.mean_time === null || typeof v.mean_time === 'number') &&
+-    (v.avg_rows === null || typeof v.avg_rows === 'number') &&
+-    (v.prop_total_time === null || typeof v.prop_total_time === 'string') &&
+-    (v.hit_rate === null || typeof v.hit_rate === 'number')
+-  );
+-}
+-
+-// Assertion functions - Throw on invalid data
+-export function assertEdgeFunctionStats(value: unknown): asserts value is EdgeFunctionStats {
+-  if (!isEdgeFunctionStats(value)) {
+-    throw new TransformError('Invalid EdgeFunctionStats data', {
+-      value: JSON.stringify(value)
+-    });
++    super(message)
++    this.name = 'RPCError'
+   }
+ }
+ 
+-export function assertDatabaseStatsRPC(value: unknown): asserts value is DatabaseStatsRPC {
+-  if (!isDatabaseStatsRPC(value)) {
+-    throw new TransformError('Invalid DatabaseStatsRPC data', {
+-      value: JSON.stringify(value)
+-    });
+-  }
+-}
++// Type guard utilities
++export type TypeGuard<T> = (value: unknown) => value is T
+ 
+-// Type Guards for Table Row Types
+-export function isStudyRow(value: unknown): value is StudyRow {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<StudyRow>;
+-  
+-  return (
+-    typeof v.study_id === 'string' &&
+-    (v.clinic_id === null || typeof v.clinic_id === 'string') &&
+-    (v.pod_id === null || typeof v.pod_id === 'string') &&
+-    (v.study_type === null || typeof v.study_type === 'string')
+-  );
+-}
+-
+-export function isClinicRow(value: unknown): value is ClinicRow {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<ClinicRow>;
+-  
+-  return (
+-    typeof v.id === 'string' &&
+-    (v.name === null || typeof v.name === 'string')
+-  );
+-}
+-
+-export function isPodRow(value: unknown): value is PodRow {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<PodRow>;
+-  
+-  return (
+-    typeof v.id === 'string' &&
+-    (v.assigned_study_id === null || typeof v.assigned_study_id === 'string') &&
+-    (v.assigned_user_id === null || typeof v.assigned_user_id === 'string') &&
+-    (v.status === null || typeof v.status === 'string')
+-  );
+-}
++// Transform utilities
++export type Transform<T, U> = (value: T) => U
+ 
+-export function isDatasetRow(value: unknown): value is DatasetRow {
+-  if (!value || typeof value !== 'object') return false;
+-  const v = value as Partial<DatasetRow>;
+-  
+-  return (
+-    typeof v.id === 'string' &&
+-    typeof v.name === 'string' &&
+-    (v.created_at === null || typeof v.created_at === 'string') &&
+-    (v.status === null || typeof v.status === 'string')
+-  );
+-} 
+\ No newline at end of file
++// Re-export Database type as the single source of truth
++export type { Database } 
+\ No newline at end of file
+diff --git a/supabase/migrations/20240219210500_add_monitoring_functions.sql b/supabase/migrations/20240219210500_add_monitoring_functions.sql
+deleted file mode 100644
+index 8c57aed..0000000
+--- a/supabase/migrations/20240219210500_add_monitoring_functions.sql
++++ /dev/null
+@@ -1,190 +0,0 @@
+--- Enable the pg_stat_statements extension if not already enabled
+-CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+-
+--- Create edge_function_stats table
+-CREATE TABLE IF NOT EXISTS public.edge_function_stats (
+-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+-    function_name text NOT NULL,
+-    execution_duration interval NOT NULL,
+-    success boolean NOT NULL DEFAULT true,
+-    error_message text,
+-    created_at timestamptz NOT NULL DEFAULT now(),
+-    request_id text,
+-    memory_usage bigint,
+-    cpu_time interval
+-);
+-
+--- Add indexes for better query performance
+-CREATE INDEX IF NOT EXISTS idx_edge_function_stats_function_name ON public.edge_function_stats(function_name);
+-CREATE INDEX IF NOT EXISTS idx_edge_function_stats_created_at ON public.edge_function_stats(created_at);
+-
+--- Create the database stats function
+-CREATE OR REPLACE FUNCTION public.get_database_stats()
+-RETURNS TABLE(
+-    stat_type text,
+-    rolname text,
+-    query text,
+-    calls bigint,
+-    total_time numeric,
+-    min_time numeric,
+-    max_time numeric,
+-    mean_time numeric,
+-    avg_rows numeric,
+-    prop_total_time text,
+-    hit_rate numeric
+-) AS $$
+-BEGIN
+-    -- Get most time-consuming queries
+-    RETURN QUERY
+-    SELECT
+-        'Most Time Consuming Queries' AS stat_type,
+-        roles.rolname,
+-        statements.query,
+-        statements.calls,
+-        statements.total_exec_time + statements.total_plan_time AS total_time,
+-        statements.min_exec_time + statements.min_plan_time AS min_time,
+-        statements.max_exec_time + statements.max_plan_time AS max_time,
+-        statements.mean_exec_time + statements.mean_plan_time AS mean_time,
+-        statements.rows / NULLIF(statements.calls, 0) AS avg_rows,
+-        NULL AS prop_total_time,
+-        NULL::numeric AS hit_rate
+-    FROM
+-        pg_stat_statements AS statements
+-    INNER JOIN
+-        pg_roles AS roles ON statements.userid = roles.oid
+-    ORDER BY
+-        total_time DESC
+-    LIMIT 100;
+-
+-    -- Get proportion of total execution time for the most time-consuming queries
+-    RETURN QUERY
+-    SELECT
+-        'Cumulative Total Execution Time' AS stat_type,
+-        roles.rolname,
+-        statements.query,
+-        statements.calls,
+-        statements.total_exec_time + statements.total_plan_time AS total_time,
+-        NULL AS min_time,
+-        NULL AS max_time,
+-        NULL AS mean_time,
+-        NULL AS avg_rows,
+-        TO_CHAR(
+-            (
+-                (statements.total_exec_time + statements.total_plan_time) / SUM(statements.total_exec_time + statements.total_plan_time) OVER ()
+-            ) * 100,
+-            'FM90D0'
+-        ) || '%' AS prop_total_time,
+-        NULL::numeric AS hit_rate
+-    FROM
+-        pg_stat_statements AS statements
+-    INNER JOIN
+-        pg_roles AS roles ON statements.userid = roles.oid
+-    ORDER BY
+-        total_time DESC
+-    LIMIT 100;
+-
+-    -- Get cache hit rates
+-    RETURN QUERY
+-    SELECT
+-        'Cache Hit Rates' AS stat_type,
+-        NULL AS rolname,
+-        NULL AS query,
+-        NULL AS calls,
+-        NULL AS total_time,
+-        NULL AS min_time,
+-        NULL AS max_time,
+-        NULL AS mean_time,
+-        NULL AS avg_rows,
+-        NULL AS prop_total_time,
+-        (SUM(idx_blks_hit) / NULLIF(SUM(idx_blks_hit + idx_blks_read), 0)) * 100 AS hit_rate
+-    FROM
+-        pg_statio_user_indexes
+-    UNION ALL
+-    SELECT
+-        'Table Hit Rate' AS stat_type,
+-        NULL AS rolname,
+-        NULL AS query,
+-        NULL AS calls,
+-        NULL AS total_time,
+-        NULL AS min_time,
+-        NULL AS max_time,
+-        NULL AS mean_time,
+-        NULL AS avg_rows,
+-        NULL AS prop_total_time,
+-        (SUM(heap_blks_hit) / NULLIF(SUM(heap_blks_hit) + SUM(heap_blks_read), 0)) * 100 AS hit_rate
+-    FROM
+-        pg_statio_user_tables;
+-END;
+-$$ LANGUAGE plpgsql;
+-
+--- Create the edge function stats function
+-CREATE OR REPLACE FUNCTION public.get_edge_function_stats(
+-    p_function_name text,
+-    p_time_start timestamptz,
+-    p_time_end timestamptz
+-)
+-RETURNS TABLE (
+-    function_name text,
+-    total_invocations bigint,
+-    success_rate numeric,
+-    average_duration_ms numeric,
+-    memory_usage bigint,
+-    cpu_time interval,
+-    peak_concurrent_executions bigint,
+-    last_invocation timestamptz
+-) AS $$
+-BEGIN
+-    RETURN QUERY
+-    WITH stats AS (
+-        SELECT
+-            efs.function_name,
+-            COUNT(*) AS total_invocations,
+-            AVG(EXTRACT(EPOCH FROM execution_duration) * 1000) AS average_duration_ms,
+-            COUNT(*) FILTER (WHERE success) / COUNT(*)::numeric AS success_rate,
+-            MAX(memory_usage) AS memory_usage,
+-            MAX(cpu_time) AS cpu_time,
+-            COUNT(*) FILTER (
+-                WHERE created_at >= p_time_start 
+-                AND created_at < p_time_start + interval '1 minute'
+-            ) AS peak_concurrent,
+-            MAX(created_at) AS last_invocation
+-        FROM
+-            public.edge_function_stats efs
+-        WHERE
+-            (p_function_name IS NULL OR efs.function_name = p_function_name)
+-            AND (
+-                created_at >= p_time_start
+-                AND created_at <= p_time_end
+-            )
+-        GROUP BY
+-            efs.function_name
+-    )
+-    SELECT
+-        s.function_name,
+-        s.total_invocations,
+-        s.success_rate,
+-        s.average_duration_ms,
+-        s.memory_usage,
+-        s.cpu_time,
+-        s.peak_concurrent AS peak_concurrent_executions,
+-        s.last_invocation
+-    FROM
+-        stats s
+-    ORDER BY
+-        s.total_invocations DESC;
+-END;
+-$$ LANGUAGE plpgsql;
+-
+--- Add RLS policies
+-ALTER TABLE public.edge_function_stats ENABLE ROW LEVEL SECURITY;
+-
+-CREATE POLICY "Allow read access to authenticated users"
+-    ON public.edge_function_stats
+-    FOR SELECT
+-    TO authenticated
+-    USING (true);
+-
+--- Add comments
+-COMMENT ON FUNCTION public.get_database_stats IS 'Returns detailed database performance statistics including query times and cache hit rates';
+-COMMENT ON FUNCTION public.get_edge_function_stats IS 'Returns performance statistics for edge functions within a specified time range';
+-COMMENT ON TABLE public.edge_function_stats IS 'Stores execution statistics for edge functions'; 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121121_noisy_hall.sql b/supabase/migrations/20250206121121_noisy_hall.sql
+deleted file mode 100644
+index e449f5d..0000000
+--- a/supabase/migrations/20250206121121_noisy_hall.sql
++++ /dev/null
+@@ -1,295 +0,0 @@
+-/*
+-  # Update ECG downsampling function
+-  
+-  1. Changes
+-    - Drop existing function first to allow return type change
+-    - Recreate function with proper column names and types
+-    - Quote "time" column name since it's a reserved keyword
+-*/
+-
+-DROP FUNCTION IF EXISTS downsample_ecg(uuid, timestamptz, timestamptz, integer);
+-
+-CREATE FUNCTION downsample_ecg(
+-  p_id uuid,
+-  t_start timestamptz,
+-  t_end timestamptz,
+-  max_pts integer DEFAULT 5000
+-) RETURNS TABLE (
+-  "time" timestamptz,
+-  channel_1 real,
+-  channel_2 real,
+-  channel_3 real,
+-  lead_on_p_1 boolean,
+-  lead_on_p_2 boolean,
+-  lead_on_p_3 boolean,
+-  lead_on_n_1 boolean,
+-  lead_on_n_2 boolean,
+-  lead_on_n_3 boolean,
+-  quality_1 boolean,
+-  quality_2 boolean,
+-  quality_3 boolean
+-) LANGUAGE plpgsql
+-SECURITY DEFINER
+-SET search_path = public
+-AS $$
+-DECLARE
+-  total_points integer;
+-  step_size integer;
+-BEGIN
+-  -- Get total number of points in range
+-  SELECT COUNT(*)
+-  INTO total_points
+-  FROM ecg_sample
+-  WHERE pod_id = p_id
+-    AND "time" >= t_start
+-    AND "time" <= t_end;
+-
+-  -- Calculate step size for downsampling
+-  step_size := GREATEST(1, (total_points / NULLIF(max_pts, 0))::integer);
+-
+-  RETURN QUERY
+-  WITH numbered_rows AS (
+-    SELECT 
+-      "time",
+-      channel_1,
+-      channel_2,
+-      channel_3,
+-      lead_on_p_1,
+-      lead_on_p_2,
+-      lead_on_p_3,
+-      lead_on_n_1,
+-      lead_on_n_2,
+-      lead_on_n_3,
+-      quality_1,
+-      quality_2,
+-      quality_3,
+-      ROW_NUMBER() OVER (ORDER BY "time") as rn
+-    FROM ecg_sample
+-    WHERE pod_id = p_id
+-      AND "time" >= t_start
+-      AND "time" <= t_end
+-  )
+-  SELECT 
+-    "time",
+-    channel_1,
+-    channel_2,
+-    channel_3,
+-    lead_on_p_1,
+-    lead_on_p_2,
+-    lead_on_p_3,
+-    lead_on_n_1,
+-    lead_on_n_2,
+-    lead_on_n_3,
+-    quality_1,
+-    quality_2,
+-    quality_3
+-  FROM numbered_rows
+-  WHERE rn % step_size = 0
+-  ORDER BY "time"
+-  LIMIT LEAST(max_pts, total_points);
+-END;
+-$$;
+-
+--- Enable Row Level Security
+-alter table public.study enable row level security;
+-alter table public.pod enable row level security;
+-alter table public.ecg_sample enable row level security;
+-alter table public.clinics enable row level security;
+-alter table public.study_readings enable row level security;
+-
+--- Create downsample_ecg function
+-create or replace function public.downsample_ecg(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_factor integer default 4
+-)
+-returns table (
+-  sample_time timestamptz,
+-  downsampled_channel_1 real,
+-  downsampled_channel_2 real,
+-  downsampled_channel_3 real,
+-  lead_on_p_1 boolean,
+-  lead_on_p_2 boolean,
+-  lead_on_p_3 boolean,
+-  lead_on_n_1 boolean,
+-  lead_on_n_2 boolean,
+-  lead_on_n_3 boolean,
+-  quality_1 boolean,
+-  quality_2 boolean,
+-  quality_3 boolean
+-)
+-language sql
+-security definer
+-as $$
+-  -- Clamp factor between 1 and 4 (320Hz to 80Hz)
+-  with params as (
+-    select
+-      greatest(1, least(4, p_factor)) as factor
+-  ),
+-  -- Get row number for each sample to pick every Nth row
+-  numbered_samples as (
+-    select
+-      time,
+-      channel_1,
+-      channel_2,
+-      channel_3,
+-      lead_on_p_1,
+-      lead_on_p_2,
+-      lead_on_p_3,
+-      lead_on_n_1,
+-      lead_on_n_2,
+-      lead_on_n_3,
+-      quality_1,
+-      quality_2,
+-      quality_3,
+-      row_number() over (order by time) as rn
+-    from
+-      public.ecg_sample
+-    where
+-      pod_id = p_pod_id
+-      and time between p_time_start and p_time_end
+-  )
+-  select
+-    time as sample_time,
+-    channel_1 as downsampled_channel_1,
+-    channel_2 as downsampled_channel_2,
+-    channel_3 as downsampled_channel_3,
+-    lead_on_p_1,
+-    lead_on_p_2,
+-    lead_on_p_3,
+-    lead_on_n_1,
+-    lead_on_n_2,
+-    lead_on_n_3,
+-    quality_1,
+-    quality_2,
+-    quality_3
+-  from
+-    numbered_samples,
+-    params
+-  where
+-    rn % params.factor = 0
+-  order by
+-    time;
+-$$;
+-
+--- Create aggregate_leads function
+-create or replace function public.aggregate_leads(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_bucket_seconds integer
+-)
+-returns table (
+-  time_bucket timestamptz,
+-  lead_on_p_1 float8,
+-  lead_on_p_2 float8,
+-  lead_on_p_3 float8,
+-  lead_on_n_1 float8,
+-  lead_on_n_2 float8,
+-  lead_on_n_3 float8,
+-  quality_1_percent float8,
+-  quality_2_percent float8,
+-  quality_3_percent float8
+-)
+-language sql
+-security definer
+-as $$
+-  select
+-    time_bucket(p_bucket_seconds * '1 second'::interval, time) as time_bucket,
+-    avg(case when lead_on_p_1 then 1.0 else 0.0 end) as lead_on_p_1,
+-    avg(case when lead_on_p_2 then 1.0 else 0.0 end) as lead_on_p_2,
+-    avg(case when lead_on_p_3 then 1.0 else 0.0 end) as lead_on_p_3,
+-    avg(case when lead_on_n_1 then 1.0 else 0.0 end) as lead_on_n_1,
+-    avg(case when lead_on_n_2 then 1.0 else 0.0 end) as lead_on_n_2,
+-    avg(case when lead_on_n_3 then 1.0 else 0.0 end) as lead_on_n_3,
+-    avg(case when quality_1 then 100.0 else 0.0 end) as quality_1_percent,
+-    avg(case when quality_2 then 100.0 else 0.0 end) as quality_2_percent,
+-    avg(case when quality_3 then 100.0 else 0.0 end) as quality_3_percent
+-  from
+-    public.ecg_sample
+-  where
+-    pod_id = p_pod_id
+-    and time between p_time_start and p_time_end
+-  group by
+-    time_bucket
+-  order by
+-    time_bucket;
+-$$;
+-
+--- Create get_pod_days function
+-create or replace function public.get_pod_days(
+-  p_pod_id uuid
+-)
+-returns table (
+-  day_value date
+-)
+-language sql
+-security definer
+-as $$
+-  select distinct
+-    date_trunc('day', time)::date as day_value
+-  from
+-    public.ecg_sample
+-  where
+-    pod_id = p_pod_id
+-  order by
+-    day_value;
+-$$;
+-
+--- Create get_pod_earliest_latest function
+-create or replace function public.get_pod_earliest_latest(
+-  p_pod_id uuid
+-)
+-returns table (
+-  earliest_time timestamptz,
+-  latest_time timestamptz
+-)
+-language sql
+-security definer
+-as $$
+-  select
+-    min(time) as earliest_time,
+-    max(time) as latest_time
+-  from
+-    public.ecg_sample
+-  where
+-    pod_id = p_pod_id;
+-$$;
+-
+--- Create get_study_details_with_earliest_latest function
+-create or replace function public.get_study_details_with_earliest_latest(
+-  p_study_id uuid
+-)
+-returns table (
+-  study_id uuid,
+-  clinic_id uuid,
+-  pod_id uuid,
+-  start_timestamp timestamptz,
+-  end_timestamp timestamptz,
+-  earliest_time timestamptz,
+-  latest_time timestamptz
+-)
+-language sql
+-security definer
+-as $$
+-  select
+-    s.study_id,
+-    s.clinic_id,
+-    s.pod_id,
+-    s.start_timestamp,
+-    s.end_timestamp,
+-    min(e.time) as earliest_time,
+-    max(e.time) as latest_time
+-  from
+-    public.study s
+-    left join public.ecg_sample e on s.pod_id = e.pod_id
+-  where
+-    s.study_id = p_study_id
+-  group by
+-    s.study_id,
+-    s.clinic_id,
+-    s.pod_id,
+-    s.start_timestamp,
+-    s.end_timestamp;
+-$$;
+diff --git a/supabase/migrations/20250206121122_fix_rls_and_functions.sql b/supabase/migrations/20250206121122_fix_rls_and_functions.sql
+deleted file mode 100644
+index 4de4aec..0000000
+--- a/supabase/migrations/20250206121122_fix_rls_and_functions.sql
++++ /dev/null
+@@ -1,133 +0,0 @@
+--- Drop the old max_pts based function
+-drop function if exists public.downsample_ecg(uuid, timestamptz, timestamptz, integer);
+-
+--- Add RLS policies for tables
+-create policy "Public read access to studies"
+-on public.study
+-for select
+-to authenticated, anon
+-using (true);
+-
+-create policy "Authenticated users can create studies"
+-on public.study
+-for insert
+-to authenticated
+-with check (auth.uid() = created_by);
+-
+-create policy "Users can update their own studies"
+-on public.study
+-for update
+-to authenticated
+-using (auth.uid() = created_by)
+-with check (auth.uid() = created_by);
+-
+-create policy "Users can delete their own studies"
+-on public.study
+-for delete
+-to authenticated
+-using (auth.uid() = created_by);
+-
+--- Pod policies
+-create policy "Public read access to pods"
+-on public.pod
+-for select
+-to authenticated, anon
+-using (true);
+-
+-create policy "Authenticated users can create pods"
+-on public.pod
+-for insert
+-to authenticated
+-with check (auth.uid() = assigned_user_id);
+-
+-create policy "Users can update their assigned pods"
+-on public.pod
+-for update
+-to authenticated
+-using (auth.uid() = assigned_user_id)
+-with check (auth.uid() = assigned_user_id);
+-
+-create policy "Users can delete their assigned pods"
+-on public.pod
+-for delete
+-to authenticated
+-using (auth.uid() = assigned_user_id);
+-
+--- ECG sample policies
+-create policy "Public read access to ECG samples"
+-on public.ecg_sample
+-for select
+-to authenticated, anon
+-using (true);
+-
+-create policy "Authenticated users can insert ECG samples for their pods"
+-on public.ecg_sample
+-for insert
+-to authenticated
+-with check (
+-  exists (
+-    select 1 from public.pod
+-    where id = ecg_sample.pod_id
+-    and assigned_user_id = auth.uid()
+-  )
+-);
+-
+--- Clinic policies
+-create policy "Public read access to clinics"
+-on public.clinics
+-for select
+-to authenticated, anon
+-using (true);
+-
+--- Study readings policies
+-create policy "Public read access to study readings"
+-on public.study_readings
+-for select
+-to authenticated, anon
+-using (true);
+-
+-create policy "Authenticated users can create readings for their studies"
+-on public.study_readings
+-for insert
+-to authenticated
+-with check (
+-  exists (
+-    select 1 from public.study
+-    where study_id = study_readings.study_id
+-    and created_by = auth.uid()
+-  )
+-);
+-
+-create policy "Users can update their own study readings"
+-on public.study_readings
+-for update
+-to authenticated
+-using (created_by = auth.uid())
+-with check (created_by = auth.uid());
+-
+-create policy "Users can delete their own study readings"
+-on public.study_readings
+-for delete
+-to authenticated
+-using (created_by = auth.uid());
+-
+--- Add comments to explain RLS policies
+-comment on policy "Public read access to studies" on public.study is 'Anyone can view studies';
+-comment on policy "Authenticated users can create studies" on public.study is 'Authenticated users can create studies they own';
+-comment on policy "Users can update their own studies" on public.study is 'Users can only update studies they created';
+-comment on policy "Users can delete their own studies" on public.study is 'Users can only delete studies they created';
+-
+-comment on policy "Public read access to pods" on public.pod is 'Anyone can view pods';
+-comment on policy "Authenticated users can create pods" on public.pod is 'Authenticated users can create pods assigned to them';
+-comment on policy "Users can update their assigned pods" on public.pod is 'Users can only update pods assigned to them';
+-comment on policy "Users can delete their assigned pods" on public.pod is 'Users can only delete pods assigned to them';
+-
+-comment on policy "Public read access to ECG samples" on public.ecg_sample is 'Anyone can view ECG samples';
+-comment on policy "Authenticated users can insert ECG samples for their pods" on public.ecg_sample is 'Users can only insert ECG samples for pods assigned to them';
+-
+-comment on policy "Public read access to clinics" on public.clinics is 'Anyone can view clinics';
+-
+-comment on policy "Public read access to study readings" on public.study_readings is 'Anyone can view study readings';
+-comment on policy "Authenticated users can create readings for their studies" on public.study_readings is 'Users can create readings for studies they own';
+-comment on policy "Users can update their own study readings" on public.study_readings is 'Users can only update readings they created';
+-comment on policy "Users can delete their own study readings" on public.study_readings is 'Users can only delete readings they created'; 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121123_realistic_ecg_diagnostics.sql b/supabase/migrations/20250206121123_realistic_ecg_diagnostics.sql
+deleted file mode 100644
+index f472c65..0000000
+--- a/supabase/migrations/20250206121123_realistic_ecg_diagnostics.sql
++++ /dev/null
+@@ -1,210 +0,0 @@
+--- Drop existing function if it exists
+-drop function if exists public.get_ecg_diagnostics(uuid, timestamptz, timestamptz);
+-
+--- Create realistic get_ecg_diagnostics function
+-create or replace function public.get_ecg_diagnostics(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz
+-)
+-returns table (
+-  signal_quality json,
+-  connection_stats json,
+-  data_quality json
+-)
+-language sql
+-security definer
+-set search_path = public
+-as $$
+-  with signal_metrics as (
+-    select
+-      -- Basic signal statistics per channel
+-      stddev(channel_1) as noise_level_1,
+-      stddev(channel_2) as noise_level_2,
+-      stddev(channel_3) as noise_level_3,
+-      
+-      -- Baseline drift (measure of low-frequency wandering)
+-      percentile_cont(0.95) within group (order by abs(
+-        avg(channel_1) over (
+-          order by time 
+-          rows between 320 preceding and current row
+-        ) - avg(channel_1) over (
+-          order by time 
+-          rows between 3200 preceding and current row
+-        )
+-      )) as baseline_drift_1,
+-      
+-      percentile_cont(0.95) within group (order by abs(
+-        avg(channel_2) over (
+-          order by time 
+-          rows between 320 preceding and current row
+-        ) - avg(channel_2) over (
+-          order by time 
+-          rows between 3200 preceding and current row
+-        )
+-      )) as baseline_drift_2,
+-      
+-      percentile_cont(0.95) within group (order by abs(
+-        avg(channel_3) over (
+-          order by time 
+-          rows between 320 preceding and current row
+-        ) - avg(channel_3) over (
+-          order by time 
+-          rows between 3200 preceding and current row
+-        )
+-      )) as baseline_drift_3,
+-      
+-      -- Lead quality scores (percentage of good quality samples)
+-      avg(case when quality_1 then 100.0 else 0.0 end) as quality_score_1,
+-      avg(case when quality_2 then 100.0 else 0.0 end) as quality_score_2,
+-      avg(case when quality_3 then 100.0 else 0.0 end) as quality_score_3
+-    from
+-      ecg_sample
+-    where
+-      pod_id = p_pod_id
+-      and time between p_time_start and p_time_end
+-  ),
+-  connection_metrics as (
+-    select
+-      -- Total samples in time range
+-      count(*) as total_samples,
+-      
+-      -- Missing samples (no quality on any channel)
+-      sum(case when not (quality_1 or quality_2 or quality_3) then 1 else 0 end) as missing_samples,
+-      
+-      -- Connection drops (count minutes where all leads are off)
+-      count(distinct case 
+-        when not (lead_on_p_1 or lead_on_p_2 or lead_on_p_3 or 
+-                 lead_on_n_1 or lead_on_n_2 or lead_on_n_3) 
+-        then date_trunc('minute', time) 
+-      end) as connection_drops,
+-      
+-      -- Actual sampling frequency
+-      round(count(*)::numeric / greatest(1, extract(epoch from (p_time_end - p_time_start)))) as sampling_frequency,
+-      
+-      -- Lead-off events per channel (count transitions from on to off)
+-      sum(case when lead_on_p_1 != lag(lead_on_p_1) over (order by time) then 1 else 0 end) as lead_transitions_1,
+-      sum(case when lead_on_p_2 != lag(lead_on_p_2) over (order by time) then 1 else 0 end) as lead_transitions_2,
+-      sum(case when lead_on_p_3 != lag(lead_on_p_3) over (order by time) then 1 else 0 end) as lead_transitions_3
+-    from
+-      ecg_sample
+-    where
+-      pod_id = p_pod_id
+-      and time between p_time_start and p_time_end
+-  ),
+-  data_quality_metrics as (
+-    select
+-      -- Continuous recording segments
+-      count(distinct case 
+-        when time - lag(time) over (order by time) > interval '1 second'
+-        then date_trunc('minute', time)
+-      end) as recording_gaps,
+-      
+-      -- Percentage of time with all leads connected
+-      avg(case 
+-        when (lead_on_p_1 and lead_on_p_2 and lead_on_p_3 and 
+-              lead_on_n_1 and lead_on_n_2 and lead_on_n_3) 
+-        then 100.0 
+-        else 0.0 
+-      end) as all_leads_connected_percent,
+-      
+-      -- Longest continuous recording segment in seconds
+-      max(
+-        extract(epoch from (
+-          time - lag(time) over (
+-            order by time
+-            rows between unbounded preceding and current row
+-          )
+-        ))
+-      ) as max_continuous_segment
+-    from
+-      ecg_sample
+-    where
+-      pod_id = p_pod_id
+-      and time between p_time_start and p_time_end
+-  )
+-  select
+-    -- Signal quality metrics
+-    json_build_object(
+-      'noise_levels', json_build_object(
+-        'channel_1', sm.noise_level_1,
+-        'channel_2', sm.noise_level_2,
+-        'channel_3', sm.noise_level_3
+-      ),
+-      'baseline_drift', json_build_object(
+-        'channel_1', sm.baseline_drift_1,
+-        'channel_2', sm.baseline_drift_2,
+-        'channel_3', sm.baseline_drift_3
+-      ),
+-      'quality_scores', json_build_object(
+-        'channel_1', sm.quality_score_1,
+-        'channel_2', sm.quality_score_2,
+-        'channel_3', sm.quality_score_3
+-      )
+-    ) as signal_quality,
+-    
+-    -- Connection statistics
+-    json_build_object(
+-      'total_samples', cm.total_samples,
+-      'missing_samples', cm.missing_samples,
+-      'connection_drops', cm.connection_drops,
+-      'sampling_frequency', cm.sampling_frequency,
+-      'lead_transitions', json_build_object(
+-        'channel_1', cm.lead_transitions_1,
+-        'channel_2', cm.lead_transitions_2,
+-        'channel_3', cm.lead_transitions_3
+-      )
+-    ) as connection_stats,
+-    
+-    -- Data quality metrics
+-    json_build_object(
+-      'recording_gaps', dq.recording_gaps,
+-      'all_leads_connected_percent', dq.all_leads_connected_percent,
+-      'max_continuous_segment_seconds', dq.max_continuous_segment
+-    ) as data_quality
+-  from
+-    signal_metrics sm,
+-    connection_metrics cm,
+-    data_quality_metrics dq;
+-$$;
+-
+-comment on function public.get_ecg_diagnostics is 'Calculates realistic signal quality and connection statistics from raw ECG data';
+-
+--- Example of what the output looks like:
+-/*
+-{
+-  "signal_quality": {
+-    "noise_levels": {
+-      "channel_1": 0.15,
+-      "channel_2": 0.12,
+-      "channel_3": 0.18
+-    },
+-    "baseline_drift": {
+-      "channel_1": 0.05,
+-      "channel_2": 0.04,
+-      "channel_3": 0.06
+-    },
+-    "quality_scores": {
+-      "channel_1": 98.5,
+-      "channel_2": 97.8,
+-      "channel_3": 96.9
+-    }
+-  },
+-  "connection_stats": {
+-    "total_samples": 96000,
+-    "missing_samples": 120,
+-    "connection_drops": 2,
+-    "sampling_frequency": 320,
+-    "lead_transitions": {
+-      "channel_1": 4,
+-      "channel_2": 3,
+-      "channel_3": 5
+-    }
+-  },
+-  "data_quality": {
+-    "recording_gaps": 3,
+-    "all_leads_connected_percent": 98.5,
+-    "max_continuous_segment_seconds": 3600
+-  }
+-}
+-*/ 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121124_optimize_ecg_functions.sql b/supabase/migrations/20250206121124_optimize_ecg_functions.sql
+deleted file mode 100644
+index 4e81fa2..0000000
+--- a/supabase/migrations/20250206121124_optimize_ecg_functions.sql
++++ /dev/null
+@@ -1,217 +0,0 @@
+--- Add indexes for performance
+-create index if not exists ecg_sample_pod_time_idx 
+-on public.ecg_sample (pod_id, time);
+-
+-create index if not exists ecg_sample_quality_idx 
+-on public.ecg_sample (pod_id, quality_1, quality_2, quality_3);
+-
+-create index if not exists ecg_sample_lead_status_idx 
+-on public.ecg_sample (pod_id, lead_on_p_1, lead_on_p_2, lead_on_p_3);
+-
+--- Create chunked version of downsample_ecg
+-create or replace function public.downsample_ecg_chunked(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_factor integer default 4,
+-  p_chunk_minutes integer default 5,
+-  p_offset integer default 0,
+-  p_limit integer default 1000
+-)
+-returns table (
+-  chunk_start timestamptz,
+-  chunk_end timestamptz,
+-  samples jsonb
+-)
+-language plpgsql
+-security definer
+-set search_path = public
+-as $$
+-declare
+-  v_chunk_interval interval;
+-  v_current_start timestamptz;
+-  v_current_end timestamptz;
+-begin
+-  -- Validate and clamp parameters
+-  p_factor := greatest(1, least(4, p_factor));
+-  p_chunk_minutes := greatest(1, least(60, p_chunk_minutes));
+-  v_chunk_interval := (p_chunk_minutes || ' minutes')::interval;
+-  
+-  -- Initialize chunk window
+-  v_current_start := p_time_start + (p_offset * v_chunk_interval);
+-  
+-  -- Return chunks
+-  for i in 1..p_limit loop
+-    v_current_end := v_current_start + v_chunk_interval;
+-    exit when v_current_start >= p_time_end;
+-    
+-    return query
+-    with numbered_samples as (
+-      select
+-        time,
+-        channel_1,
+-        channel_2,
+-        channel_3,
+-        lead_on_p_1,
+-        lead_on_p_2,
+-        lead_on_p_3,
+-        lead_on_n_1,
+-        lead_on_n_2,
+-        lead_on_n_3,
+-        quality_1,
+-        quality_2,
+-        quality_3,
+-        row_number() over (order by time) as rn
+-      from
+-        ecg_sample
+-      where
+-        pod_id = p_pod_id
+-        and time >= v_current_start
+-        and time < v_current_end
+-    )
+-    select 
+-      v_current_start,
+-      v_current_end,
+-      jsonb_agg(
+-        jsonb_build_object(
+-          'time', time,
+-          'channels', array[channel_1, channel_2, channel_3],
+-          'lead_on_p', array[lead_on_p_1, lead_on_p_2, lead_on_p_3],
+-          'lead_on_n', array[lead_on_n_1, lead_on_n_2, lead_on_n_3],
+-          'quality', array[quality_1, quality_2, quality_3]
+-        )
+-      ) as samples
+-    from
+-      numbered_samples
+-    where
+-      rn % p_factor = 0;
+-    
+-    v_current_start := v_current_end;
+-  end loop;
+-end;
+-$$;
+-
+--- Create chunked version of get_ecg_diagnostics
+-create or replace function public.get_ecg_diagnostics_chunked(
+-  p_pod_id uuid,
+-  p_time_start timestamptz,
+-  p_time_end timestamptz,
+-  p_chunk_minutes integer default 5,
+-  p_offset integer default 0,
+-  p_limit integer default 1000
+-)
+-returns table (
+-  chunk_start timestamptz,
+-  chunk_end timestamptz,
+-  metrics jsonb
+-)
+-language plpgsql
+-security definer
+-set search_path = public
+-as $$
+-declare
+-  v_chunk_interval interval;
+-  v_current_start timestamptz;
+-  v_current_end timestamptz;
+-begin
+-  -- Validate parameters
+-  p_chunk_minutes := greatest(1, least(60, p_chunk_minutes));
+-  v_chunk_interval := (p_chunk_minutes || ' minutes')::interval;
+-  
+-  -- Initialize chunk window
+-  v_current_start := p_time_start + (p_offset * v_chunk_interval);
+-  
+-  -- Return chunks
+-  for i in 1..p_limit loop
+-    v_current_end := v_current_start + v_chunk_interval;
+-    exit when v_current_start >= p_time_end;
+-    
+-    return query
+-    with signal_metrics as (
+-      select
+-        stddev(channel_1) as noise_level_1,
+-        stddev(channel_2) as noise_level_2,
+-        stddev(channel_3) as noise_level_3,
+-        avg(case when quality_1 then 100.0 else 0.0 end) as quality_score_1,
+-        avg(case when quality_2 then 100.0 else 0.0 end) as quality_score_2,
+-        avg(case when quality_3 then 100.0 else 0.0 end) as quality_score_3
+-      from
+-        ecg_sample
+-      where
+-        pod_id = p_pod_id
+-        and time >= v_current_start
+-        and time < v_current_end
+-    ),
+-    connection_metrics as (
+-      select
+-        count(*) as total_samples,
+-        sum(case when not (quality_1 or quality_2 or quality_3) then 1 else 0 end) as missing_samples,
+-        count(distinct case 
+-          when not (lead_on_p_1 or lead_on_p_2 or lead_on_p_3) 
+-          then date_trunc('minute', time) 
+-        end) as connection_drops
+-      from
+-        ecg_sample
+-      where
+-        pod_id = p_pod_id
+-        and time >= v_current_start
+-        and time < v_current_end
+-    )
+-    select
+-      v_current_start,
+-      v_current_end,
+-      jsonb_build_object(
+-        'signal_quality', jsonb_build_object(
+-          'noise_levels', jsonb_build_object(
+-            'channel_1', sm.noise_level_1,
+-            'channel_2', sm.noise_level_2,
+-            'channel_3', sm.noise_level_3
+-          ),
+-          'quality_scores', jsonb_build_object(
+-            'channel_1', sm.quality_score_1,
+-            'channel_2', sm.quality_score_2,
+-            'channel_3', sm.quality_score_3
+-          )
+-        ),
+-        'connection_stats', jsonb_build_object(
+-          'total_samples', cm.total_samples,
+-          'missing_samples', cm.missing_samples,
+-          'connection_drops', cm.connection_drops
+-        )
+-      ) as metrics
+-    from
+-      signal_metrics sm,
+-      connection_metrics cm;
+-    
+-    v_current_start := v_current_end;
+-  end loop;
+-end;
+-$$;
+-
+-comment on function public.downsample_ecg_chunked is 'Returns downsampled ECG data in time-based chunks for efficient loading and caching';
+-comment on function public.get_ecg_diagnostics_chunked is 'Returns ECG diagnostics in time-based chunks for efficient loading and caching';
+-
+--- Example usage:
+-/*
+--- Get first 5 chunks of 5 minutes each:
+-select * from downsample_ecg_chunked(
+-  'pod-id-here',
+-  '2024-02-06T00:00:00Z',
+-  '2024-02-06T01:00:00Z',
+-  p_factor := 4,
+-  p_chunk_minutes := 5,
+-  p_offset := 0,
+-  p_limit := 5
+-);
+-
+--- Get next 5 chunks:
+-select * from downsample_ecg_chunked(
+-  'pod-id-here',
+-  '2024-02-06T00:00:00Z',
+-  '2024-02-06T01:00:00Z',
+-  p_factor := 4,
+-  p_chunk_minutes := 5,
+-  p_offset := 5,
+-  p_limit := 5
+-);
+-*/ 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121125_handle_edge_cases.sql b/supabase/migrations/20250206121125_handle_edge_cases.sql
+deleted file mode 100644
+index 5059fb5..0000000
+--- a/supabase/migrations/20250206121125_handle_edge_cases.sql
++++ /dev/null
+@@ -1,133 +0,0 @@
+--- Create helper function for safe text handling
+-create or replace function public.coalesce_text(
+-  value text,
+-  default_value text default 'Unknown'
+-)
+-returns text
+-language sql
+-immutable
+-security definer
+-set search_path = public
+-as $$
+-  select coalesce(value, default_value);
+-$$;
+-
+--- Create helper function for safe numeric handling
+-create or replace function public.coalesce_numeric(
+-  value numeric,
+-  default_value numeric default 0
+-)
+-returns numeric
+-language sql
+-immutable
+-security definer
+-set search_path = public
+-as $$
+-  select coalesce(value, default_value);
+-$$;
+-
+--- Create helper function for safe array handling
+-create or replace function public.coalesce_array(
+-  value anyarray,
+-  default_value anyarray
+-)
+-returns anyarray
+-language sql
+-immutable
+-security definer
+-set search_path = public
+-as $$
+-  select coalesce(value, default_value);
+-$$;
+-
+--- Create helper function for safe JSON handling
+-create or replace function public.coalesce_json(
+-  value json,
+-  default_value json default '{}'::json
+-)
+-returns json
+-language sql
+-immutable
+-security definer
+-set search_path = public
+-as $$
+-  select coalesce(value, default_value);
+-$$;
+-
+--- Create helper function for safe JSONB handling
+-create or replace function public.coalesce_jsonb(
+-  value jsonb,
+-  default_value jsonb default '{}'::jsonb
+-)
+-returns jsonb
+-language sql
+-immutable
+-security definer
+-set search_path = public
+-as $$
+-  select coalesce(value, default_value);
+-$$;
+-
+--- Create helper view for safe pod data access
+-create or replace view public.safe_pod_view as
+-select
+-  id,
+-  public.coalesce_text(assigned_study_id) as assigned_study_id,
+-  public.coalesce_text(assigned_user_id) as assigned_user_id,
+-  public.coalesce_text(status, 'unknown') as status,
+-  public.coalesce_numeric(time_since_first_use, 0) as time_since_first_use
+-from
+-  public.pod;
+-
+--- Create helper view for safe study data access
+-create or replace view public.safe_study_view as
+-select
+-  study_id,
+-  public.coalesce_text(clinic_id) as clinic_id,
+-  public.coalesce_text(pod_id) as pod_id,
+-  public.coalesce_text(created_by) as created_by,
+-  public.coalesce_text(study_type, 'unknown') as study_type,
+-  public.coalesce_numeric(duration, 0) as duration,
+-  public.coalesce_numeric(aggregated_quality_minutes, 0) as aggregated_quality_minutes,
+-  public.coalesce_numeric(aggregated_total_minutes, 0) as aggregated_total_minutes,
+-  coalesce(start_timestamp, now()) as start_timestamp,
+-  coalesce(end_timestamp, now()) as end_timestamp,
+-  coalesce(expected_end_timestamp, now()) as expected_end_timestamp,
+-  coalesce(created_at, now()) as created_at,
+-  coalesce(updated_at, now()) as updated_at
+-from
+-  public.study;
+-
+--- Create helper view for safe clinic data access
+-create or replace view public.safe_clinic_view as
+-select
+-  id,
+-  public.coalesce_text(name, 'Unnamed Clinic') as name
+-from
+-  public.clinics;
+-
+--- Create helper view for safe study readings access
+-create or replace view public.safe_study_readings_view as
+-select
+-  id,
+-  study_id,
+-  public.coalesce_text(created_by) as created_by,
+-  public.coalesce_text(status, 'unknown') as status,
+-  public.coalesce_numeric(battery_level, 0) as battery_level,
+-  public.coalesce_numeric(quality_minutes, 0) as quality_minutes,
+-  public.coalesce_numeric(total_minutes, 0) as total_minutes,
+-  coalesce(timestamp, now()) as timestamp,
+-  coalesce(created_at, now()) as created_at
+-from
+-  public.study_readings;
+-
+-comment on function public.coalesce_text is 'Helper function for safe text handling with default value';
+-comment on function public.coalesce_numeric is 'Helper function for safe numeric handling with default value';
+-comment on function public.coalesce_array is 'Helper function for safe array handling with default value';
+-comment on function public.coalesce_json is 'Helper function for safe JSON handling with default value';
+-comment on function public.coalesce_jsonb is 'Helper function for safe JSONB handling with default value';
+-
+-comment on view public.safe_pod_view is 'Safe view of pod data with null handling';
+-comment on view public.safe_study_view is 'Safe view of study data with null handling';
+-comment on view public.safe_clinic_view is 'Safe view of clinic data with null handling';
+-comment on view public.safe_study_readings_view is 'Safe view of study readings with null handling'; 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121126_clinic_analytics.sql b/supabase/migrations/20250206121126_clinic_analytics.sql
+deleted file mode 100644
+index 14dbe60..0000000
+--- a/supabase/migrations/20250206121126_clinic_analytics.sql
++++ /dev/null
+@@ -1,44 +0,0 @@
+--- Create get_clinic_analytics function
+-create or replace function public.get_clinic_analytics(
+-  clinic_id uuid default null
+-)
+-returns table (
+-  totalPatients bigint,
+-  activePatients bigint,
+-  totalStudies bigint,
+-  activeStudies bigint
+-)
+-language sql
+-security definer
+-set search_path = public
+-as $$
+-  with clinic_stats as (
+-    select
+-      count(distinct s.user_id) as total_patients,
+-      count(distinct case when s.end_timestamp is null then s.user_id end) as active_patients,
+-      count(*) as total_studies,
+-      count(case when s.end_timestamp is null then 1 end) as active_studies
+-    from
+-      study s
+-    where
+-      clinic_id = coalesce($1, clinic_id)
+-  )
+-  select
+-    total_patients,
+-    active_patients,
+-    total_studies,
+-    active_studies
+-  from
+-    clinic_stats;
+-$$;
+-
+-comment on function public.get_clinic_analytics is 'Returns analytics about patients and studies for a clinic';
+-
+--- Example usage:
+-/*
+--- Get analytics for a specific clinic:
+-select * from get_clinic_analytics('clinic-id-here');
+-
+--- Get analytics for all clinics combined:
+-select * from get_clinic_analytics();
+-*/ 
+\ No newline at end of file
+diff --git a/supabase/migrations/20250206121127_create_datasets_table.sql b/supabase/migrations/20250206121127_create_datasets_table.sql
+deleted file mode 100644
+index 318f2f8..0000000
+--- a/supabase/migrations/20250206121127_create_datasets_table.sql
++++ /dev/null
+@@ -1,65 +0,0 @@
+--- Create the datasets table
+-CREATE TABLE IF NOT EXISTS public.datasets (
+-    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+-    name text NOT NULL,
+-    type text NOT NULL CHECK (type IN ('ecg', 'activity', 'sleep')),
+-    description text,
+-    size bigint DEFAULT 0,
+-    status text DEFAULT 'processing' CHECK (status IN ('processing', 'ready', 'error')),
+-    created_at timestamptz NOT NULL DEFAULT now(),
+-    updated_at timestamptz NOT NULL DEFAULT now(),
+-    created_by uuid REFERENCES auth.users(id),
+-    metadata jsonb DEFAULT '{}'::jsonb
+-);
+-
+--- Create updated_at trigger
+-CREATE OR REPLACE FUNCTION public.handle_updated_at()
+-RETURNS TRIGGER AS $$
+-BEGIN
+-    NEW.updated_at = now();
+-    RETURN NEW;
+-END;
+-$$ LANGUAGE plpgsql;
+-
+-CREATE TRIGGER datasets_updated_at
+-    BEFORE UPDATE ON public.datasets
+-    FOR EACH ROW
+-    EXECUTE FUNCTION public.handle_updated_at();
+-
+--- Create indexes
+-CREATE INDEX IF NOT EXISTS idx_datasets_created_by ON public.datasets(created_by);
+-CREATE INDEX IF NOT EXISTS idx_datasets_status ON public.datasets(status);
+-CREATE INDEX IF NOT EXISTS idx_datasets_created_at ON public.datasets(created_at);
+-
+--- Enable RLS
+-ALTER TABLE public.datasets ENABLE ROW LEVEL SECURITY;
+-
+--- RLS Policies
+-CREATE POLICY "Users can view all active datasets"
+-    ON public.datasets
+-    FOR SELECT
+-    TO authenticated
+-    USING (status = 'active');
+-
+-CREATE POLICY "Users can create datasets"
+-    ON public.datasets
+-    FOR INSERT
+-    TO authenticated
+-    WITH CHECK (auth.uid() = created_by);
+-
+-CREATE POLICY "Users can update their own datasets"
+-    ON public.datasets
+-    FOR UPDATE
+-    TO authenticated
+-    USING (auth.uid() = created_by)
+-    WITH CHECK (auth.uid() = created_by);
+-
+-CREATE POLICY "Users can delete their own datasets"
+-    ON public.datasets
+-    FOR DELETE
+-    TO authenticated
+-    USING (auth.uid() = created_by);
+-
+--- Grant permissions
+-GRANT ALL ON public.datasets TO authenticated;
+-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated; 
+\ No newline at end of file

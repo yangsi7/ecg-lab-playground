@@ -38,7 +38,7 @@ const routes: AppRoute[] = [
     requiresAuth: true,
   },
   {
-    path: '/data',
+    path: '/datalab',
     element: <GenericErrorBoundary><AuthGuard><DataLab /></AuthGuard></GenericErrorBoundary>,
     label: 'Data',
     requiresAuth: true,

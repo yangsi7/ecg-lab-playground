@@ -1,13 +1,10 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Filter, X } from 'lucide-react';
-import { FILTERABLE_FIELDS } from '../../../lib/utils/ExpressionParser';
-import type { FilterExpression, FilterConfig } from '../../../types/filter';
-
-export interface FilterPreset {
-  id: string;
-  name: string;
-  expression: string;
-}
+/**
+ * Advanced filter component with expression-based filtering
+ */
+import React, { useState, useCallback } from 'react';
+import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
+import { useAdvancedFilter } from '@/hooks/useAdvancedFilter';
+import type { FilterConfig, FilterExpression } from '@/types/filter';
 
 export interface AdvancedFilterProps<T> {
   config: FilterConfig<T>;
@@ -23,46 +20,48 @@ export function AdvancedFilter<T>({
   className = ''
 }: AdvancedFilterProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
-  const [expression, setExpression] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
+  const [showFields, setShowFields] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [presetName, setPresetName] = useState('');
 
-  const handleExpressionChange = useCallback((newExpression: string) => {
-    setExpression(newExpression);
-    try {
-      // Parse and validate expression based on config
-      const parsedExpression = config.parseExpression(newExpression);
-      setError(null);
-      onFilterChange(parsedExpression);
+  const {
+    expression,
+    error,
+    setExpression,
+    setError
+  } = useAdvancedFilter(config);
+
+  const handleExpressionChange = useCallback((value: string) => {
+    setExpression(value);
+    if (!error) {
+      onFilterChange(expression);
       onFilterError?.(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Invalid filter expression';
-      setError(errorMessage);
+    } else {
       onFilterChange(null);
-      onFilterError?.(errorMessage);
+      onFilterError?.(error);
     }
-  }, [config, onFilterChange, onFilterError]);
+  }, [expression, error, onFilterChange, onFilterError, setExpression]);
 
-  const handlePresetSelect = useCallback((preset: FilterPreset) => {
+  const handlePresetSelect = useCallback((preset: { id: string; name: string; expression: string }) => {
     setExpression(preset.expression);
-    try {
-      onFilterChange(config.parseExpression(preset.expression));
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Invalid preset expression');
-      onFilterError?.(err instanceof Error ? err.message : null);
+    if (!error) {
+      onFilterChange(expression);
+      onFilterError?.(null);
+    } else {
+      onFilterError?.(error);
     }
-  }, [config, onFilterChange, onFilterError]);
+  }, [expression, error, onFilterChange, onFilterError, setExpression]);
 
   const handleClear = useCallback(() => {
     setExpression('');
     onFilterChange(null);
     setError(null);
-  }, [onFilterChange]);
+    onFilterError?.(null);
+  }, [onFilterChange, setExpression, setError, onFilterError]);
 
-  const availableFieldsDisplay = useMemo(() => 
-    config.fields.map(field => `${field.key}: ${field.description}`).join('\n'),
-    [config.fields]
-  );
+  const availableFieldsDisplay = config.fields.map(field => 
+    `${field.key}: ${field.description}`
+  ).join('\n');
 
   return (
     <div className={`relative ${className}`}>
@@ -91,7 +90,7 @@ export function AdvancedFilter<T>({
               Filter Expression
             </label>
             <textarea
-              value={expression}
+              value={expression?.toString() || ''}
               onChange={(e) => handleExpressionChange(e.target.value)}
               className="w-full h-24 px-3 py-2 text-sm bg-gray-700 text-white rounded-md focus:ring-2 focus:ring-blue-500 focus:outline-none"
               placeholder={config.placeholder}
@@ -101,7 +100,7 @@ export function AdvancedFilter<T>({
             )}
           </div>
 
-          {config.presets.length > 0 && (
+          {config.presets && config.presets.length > 0 && (
             <div className="space-y-2">
               <label className="block text-xs font-medium text-gray-400">
                 Presets
@@ -129,12 +128,14 @@ export function AdvancedFilter<T>({
             </pre>
           </div>
 
-          <div className="text-sm text-gray-400">
-            <h4 className="font-medium mb-1">Example:</h4>
-            <pre className="bg-white/5 p-2 rounded">
-              {config.example}
-            </pre>
-          </div>
+          {config.example && (
+            <div className="text-sm text-gray-400">
+              <h4 className="font-medium mb-1">Example:</h4>
+              <pre className="bg-white/5 p-2 rounded">
+                {config.example}
+              </pre>
+            </div>
+          )}
 
           <div className="flex justify-end gap-2">
             <button

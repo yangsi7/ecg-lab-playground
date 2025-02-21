@@ -4,10 +4,10 @@
  */
 
 import type { Database } from '../database.types';
-import type { TableRow, TypeGuard, Transform, NonNullRequired } from '../utils';
+import type { TypeGuard, Transform, NonNullRequired } from '../utils';
 
-// Raw database type
-type ClinicRow = TableRow<'clinics'>;
+// Raw database type from generated types
+export type ClinicRow = Database['public']['Tables']['clinics']['Row'];
 
 /**
  * Domain-specific Clinic type

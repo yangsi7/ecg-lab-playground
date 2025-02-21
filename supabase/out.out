@@ -1,0 +1,2182 @@
++- ## SUPABASE, RPC AND EDGEFUNCTION KNOWLEDGE BASE
++RPC Calls (from the code references)
++get_study_details_with_earliest_latest
++Usage: In StudyContext, HolterDetail, etc. to fetch basic study + earliest/latest times.
++Input: { p_study_id: string }
++Output: Array with a single object containing study_id, pod_id, earliest_time, latest_time, etc.
++get_pod_days
++Usage: Retrieve an array of distinct days for a given pod.
++Input: { p_pod_id: string }
++Output: [ { day_value: string }, ... ]
++get_clinic_overview
++Usage: Summaries for a single clinic (active, total studies, etc.).
++Input: { _clinic_id: string }
++Output: [{ active_studies, total_studies, average_quality_hours, recent_alerts }]
++get_clinic_status_breakdown, get_clinic_quality_breakdown, get_clinic_weekly_quality, get_clinic_monthly_quality, get_clinic_weekly_studies, get_clinic_monthly_studies
++Used in ClinicLab, returning different sets of aggregated stats for clinic(s).
++Inputs: _clinic_id optional or required
++Outputs: Arrays of objects with relevant summary fields.
++downsample_ecg
++Usage: Returns every nth sample for an ECG for a time range. Called either from an Edge Function or directly.
++Inputs: { p_pod_id, p_time_start, p_time_end, p_factor }
++Outputs: Array of data points with sample_time, downsampled_channel_1, etc.
++aggregate_leads
++Usage: Summarizes lead-on and quality across a time bucket.
++Inputs: { p_pod_id, p_time_start, p_time_end, p_bucket_seconds }
++Output: [ { time_bucket, lead_on_p_1, ..., quality_1_percent, ...} ]
++And several other functions, but above are the big ones used in the code.
++Edge Functions (in ./supabase/functions)
++downsample-ecg/index.ts
++Usage: Receives POST requests with JSON: { pod_id, time_start, time_end, factor }.
++Internally calls downsample_ecg DB function.
++Returns: JSON with the downsampled data and metadata about sampling frequency.
++RETRIEVE FUNCTION INFO USING `SELECT * FROM get_rpc_function_info('FUNCTION_NAME`);
++RETURNS TABLE(
++    function_name text,
++    return_type text,
++    arguments text,
++    definition text,
++    function_type text
++)
++        "@types/loglevel": "^1.5.4",
++        "loglevel": "^1.9.2",
++    "node_modules/@types/loglevel": {
++      "version": "1.5.4",
++      "resolved": "https://registry.npmjs.org/@types/loglevel/-/loglevel-1.5.4.tgz",
++      "integrity": "sha512-8dx4ckP0vndJeN+iKZwdGiapLqFjVQ3JLOt92uqK0C63acs5NcPLbUOpfXCJkKVRjZLBQjw8NIGNBSsnatFnFQ==",
++      "license": "MIT"
++    },
++    "node_modules/loglevel": {
++      "version": "1.9.2",
++      "resolved": "https://registry.npmjs.org/loglevel/-/loglevel-1.9.2.tgz",
++      "integrity": "sha512-HgMmCqIJSAKqo68l0rS2AanEWfkxaZ5wNiEFb5ggm08lDs9Xl2KxBlX3PTcaD2chBM1gXAYf491/M2Rv8Jwayg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 0.6.0"
++      },
++      "funding": {
++        "type": "tidelift",
++        "url": "https://tidelift.com/funding/github/npm/loglevel"
++      }
++    },
++    "@types/loglevel": "^1.5.4",
++    "loglevel": "^1.9.2",
++ * @deprecated Use CalendarSelector directly with variant='pod'
++import React from 'react';
++import { CalendarSelector } from '@/components/shared/CalendarSelector';
++import type { CalendarSelectorProps } from '@/components/shared/CalendarSelector';
++  availableDays: string[];
++  onSelectDay: (day: Date) => void;
++  selectedDate?: Date;
++  className?: string;
++export function CalendarSelectorPodDays({
++  availableDays,
++  onSelectDay,
++  selectedDate,
++  className,
++  return (
++    <CalendarSelector
++      variant="pod"
++      availableDays={availableDays}
++      onSelectDay={onSelectDay}
++      selectedDate={selectedDate}
++      className={className}
++      title="Select Recording Date"
++    />
++  );
++/**
++ * @deprecated Use Histogram component directly with variant='24h'
++ */
++import { Histogram, type HistogramDataPoint } from '@/components/shared/Histogram';
++  data: HistogramDataPoint[];
++  loading?: boolean;
++  selectedHour?: number;
++  onHourSelect?: (hour: number) => void;
++  className?: string;
++export function HolterHistogram24h({
++  data,
++  loading,
++  selectedHour,
++  onHourSelect,
++  className,
++}: HolterHistogram24hProps) {
++  return (
++    <Histogram
++      variant="24h"
++      data={data}
++      loading={loading}
++      selectedHour={selectedHour}
++      onHourSelect={onHourSelect}
++      className={className}
++      title="24-Hour Quality Overview"
++      showQuality
++    />
++  );
++/**
++ * Advanced filter component with expression-based filtering
++ */
++import React, { useState, useCallback } from 'react';
++import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
++import { useAdvancedFilter } from '@/hooks/useAdvancedFilter';
++import type { FilterConfig, FilterExpression } from '@/types/filter';
++  const [showFields, setShowFields] = useState(false);
++  const [showSaveDialog, setShowSaveDialog] = useState(false);
++  const [presetName, setPresetName] = useState('');
++  const {
++    expression,
++    error,
++    setExpression,
++    setError
++  } = useAdvancedFilter(config);
++  const handleExpressionChange = useCallback((value: string) => {
++    setExpression(value);
++    if (!error) {
++      onFilterChange(expression);
++    } else {
++      onFilterError?.(error);
++  }, [expression, error, onFilterChange, onFilterError, setExpression]);
++  const handlePresetSelect = useCallback((preset: { id: string; name: string; expression: string }) => {
++    if (!error) {
++      onFilterChange(expression);
++      onFilterError?.(null);
++    } else {
++      onFilterError?.(error);
++  }, [expression, error, onFilterChange, onFilterError, setExpression]);
++    onFilterError?.(null);
++  }, [onFilterChange, setExpression, setError, onFilterError]);
++  const availableFieldsDisplay = config.fields.map(field => 
++    `${field.key}: ${field.description}`
++  ).join('\n');
++              value={expression?.toString() || ''}
++          {config.presets && config.presets.length > 0 && (
++          {config.example && (
++            <div className="text-sm text-gray-400">
++              <h4 className="font-medium mb-1">Example:</h4>
++              <pre className="bg-white/5 p-2 rounded">
++                {config.example}
++              </pre>
++            </div>
++          )}
++/**
++ * Unified calendar selector component that supports both basic and pod-specific use cases
++ */
++import React, { useEffect, useState } from 'react'
++import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
++export interface CalendarSelectorProps {
++  // Core functionality
++  availableDays?: string[] | Date[];
++  onSelectDay: (day: Date) => void;
++  selectedDate?: Date | null;
++  
++  // Styling and behavior options
++  className?: string;
++  showUnavailableDays?: boolean;
++  variant?: 'default' | 'pod';  // 'pod' adds the pod-specific styling
++  title?: string;  // Custom title for the calendar
++}
++export function CalendarSelector({ 
++  availableDays = [],
++  onSelectDay,
++  selectedDate = null,
++  className = '',
++  showUnavailableDays = false,
++  variant = 'default',
++  title = 'Select Date'
++}: CalendarSelectorProps) {
++  const [currentDate, setCurrentDate] = useState<Date | null>(selectedDate);
++  const [viewMonth, setViewMonth] = useState<Date>(() => selectedDate || new Date());
++  
++  // Convert all available days to Date objects and create a Set of date strings for comparison
++  const availableDatesSet = new Set(
++    availableDays.map(d => 
++      typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]
++    )
++  );
++  useEffect(() => {
++    if (availableDays.length && !currentDate) {
++      // Default to latest available day
++      const latest = availableDays[availableDays.length - 1];
++      const latestDate = typeof latest === 'string' ? new Date(latest.split('T')[0]) : latest;
++      setCurrentDate(latestDate);
++      setViewMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
++      onSelectDay(latestDate);
++    }
++  }, [availableDays, currentDate]);
++  useEffect(() => {
++    if (selectedDate) {
++      setCurrentDate(selectedDate);
++      setViewMonth(new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1));
++    }
++  }, [selectedDate]);
++  const handleSelect = (day: Date) => {
++    if (!isAvailable(day) && !showUnavailableDays) return;
++    setCurrentDate(day);
++    onSelectDay(day);
++  };
++  const handlePrevMonth = () => {
++    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
++  };
++  const handleNextMonth = () => {
++    setViewMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
++  };
++  // Build the 6-week grid
++  const startOfView = new Date(viewMonth);
++  const dayOfWeek = startOfView.getDay();
++  startOfView.setDate(startOfView.getDate() - dayOfWeek);
++  const daysInView: Date[] = [];
++  for (let i = 0; i < 42; i++) {
++    const d = new Date(startOfView);
++    d.setDate(startOfView.getDate() + i);
++    daysInView.push(d);
++  }
++  function isAvailable(day: Date) {
++    if (!availableDays.length) return true;
++    return availableDatesSet.has(day.toISOString().split('T')[0]);
++  }
++  function isSameDay(d1: Date, d2: Date) {
++    return d1.getFullYear() === d2.getFullYear() &&
++           d1.getMonth() === d2.getMonth() &&
++           d1.getDate() === d2.getDate();
++  }
++  // Determine container classes based on variant
++  const containerClasses = variant === 'pod' 
++    ? 'bg-white/5 rounded-xl p-4 space-y-4'
++    : '';
++  return (
++    <div className={`w-full max-w-md ${containerClasses} ${className}`}>
++      {variant === 'pod' && (
++        <div className="flex items-center gap-2">
++          <Calendar className="h-5 w-5 text-blue-400" />
++          <h3 className="text-lg font-medium text-white">{title}</h3>
++        </div>
++      )}
++      {/* Header */}
++      <div className="flex items-center justify-between mb-4">
++        <button
++          onClick={handlePrevMonth}
++          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
++        >
++          <ChevronLeft className="h-5 w-5" />
++        </button>
++        <h2 className="text-lg font-semibold">
++          {viewMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
++        </h2>
++        <button
++          onClick={handleNextMonth}
++          className="p-2 hover:bg-gray-100 rounded-full dark:hover:bg-gray-800"
++        >
++          <ChevronRight className="h-5 w-5" />
++        </button>
++      </div>
++      {/* Calendar Grid */}
++      <div className="grid grid-cols-7 gap-1">
++        {/* Weekday headers */}
++        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
++          <div key={day} className="text-center text-sm font-medium text-gray-500 dark:text-gray-400">
++            {day}
++          </div>
++        ))}
++        {/* Calendar days */}
++        {daysInView.map((day, i) => {
++          const isSelected = currentDate && isSameDay(day, currentDate);
++          const isDayAvailable = isAvailable(day);
++          const isCurrentMonth = day.getMonth() === viewMonth.getMonth();
++          return (
++            <button
++              key={i}
++              onClick={() => handleSelect(day)}
++              disabled={!showUnavailableDays && !isDayAvailable}
++              className={`
++                aspect-square p-2 text-sm rounded-lg transition-colors
++                ${isCurrentMonth ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-600'}
++                ${isSelected ? 'bg-blue-500 text-white' : ''}
++                ${!isSelected && isDayAvailable && isCurrentMonth ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : ''}
++                ${!isDayAvailable && !showUnavailableDays ? 'opacity-50 cursor-not-allowed' : ''}
++              `}
++            >
++              {day.getDate()}
++            </button>
++          );
++        })}
++      </div>
++    </div>
++  );
++} 
++/**
++ * Unified histogram component that supports both 24-hour and hourly visualizations
++ */
++import React from 'react';
++import {
++  BarChart,
++  Bar,
++  XAxis,
++  YAxis,
++  Tooltip,
++  ResponsiveContainer,
++  CartesianGrid,
++} from 'recharts';
++import { Loader2 } from 'lucide-react';
++export interface HistogramDataPoint {
++  hour: number;
++  value: number;
++  quality?: number;
++  label?: string;
++}
++interface HistogramProps {
++  // Core data
++  data: HistogramDataPoint[];
++  loading?: boolean;
++  
++  // Interaction
++  selectedHour?: number;
++  onHourSelect?: (hour: number) => void;
++  
++  // Customization
++  variant?: '24h' | 'hourly';
++  title?: string;
++  height?: number;
++  barColor?: string;
++  showQuality?: boolean;
++  className?: string;
++}
++export function Histogram({
++  data,
++  loading = false,
++  selectedHour,
++  onHourSelect,
++  variant = '24h',
++  title = '',
++  height = 300,
++  barColor = '#3B82F6', // blue-500
++  showQuality = false,
++  className = '',
++}: HistogramProps) {
++  // Transform data for display
++  const chartData = data.map(point => ({
++    ...point,
++    label: variant === '24h' 
++      ? `${String(point.hour).padStart(2, '0')}:00`
++      : point.label || `${String(point.hour).padStart(2, '0')}:00`,
++    fillColor: selectedHour === point.hour ? '#60A5FA' : barColor, // blue-400 for selected
++  }));
++  const handleBarClick = (data: any) => {
++    if (onHourSelect && typeof data.hour === 'number') {
++      onHourSelect(data.hour);
++    }
++  };
++  const CustomTooltip = ({ active, payload }: any) => {
++    if (!active || !payload?.length) return null;
++    
++    const data = payload[0].payload;
++    return (
++      <div className="bg-white dark:bg-gray-800 p-2 rounded shadow-lg border border-gray-200 dark:border-gray-700">
++        <p className="font-medium">{data.label}</p>
++        <p className="text-sm text-gray-600 dark:text-gray-400">
++          Value: {data.value.toFixed(2)}
++        </p>
++        {showQuality && typeof data.quality === 'number' && (
++          <p className="text-sm text-gray-600 dark:text-gray-400">
++            Quality: {(data.quality * 100).toFixed(1)}%
++          </p>
++        )}
++      </div>
++    );
++  };
++  if (loading) {
++    return (
++      <div className="flex items-center justify-center h-[300px]">
++        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
++      </div>
++    );
++  }
++  return (
++    <div className={`w-full ${className}`}>
++      {title && (
++        <h3 className="text-lg font-medium mb-4 text-gray-900 dark:text-gray-100">
++          {title}
++        </h3>
++      )}
++      <div style={{ height: `${height}px` }}>
++        <ResponsiveContainer width="100%" height="100%">
++          <BarChart
++            data={chartData}
++            margin={{ top: 10, right: 10, left: 0, bottom: 20 }}
++          >
++            <CartesianGrid
++              strokeDasharray="3 3"
++              vertical={false}
++              stroke="#374151"
++              opacity={0.2}
++            />
++            <XAxis
++              dataKey="label"
++              tick={{ fill: '#9CA3AF' }}
++              tickLine={{ stroke: '#4B5563' }}
++              axisLine={{ stroke: '#4B5563' }}
++            />
++            <YAxis
++              tick={{ fill: '#9CA3AF' }}
++              tickLine={{ stroke: '#4B5563' }}
++              axisLine={{ stroke: '#4B5563' }}
++              width={40}
++            />
++            <Tooltip content={<CustomTooltip />} />
++            <Bar
++              dataKey="value"
++              fill={barColor}
++              onClick={handleBarClick}
++              cursor={onHourSelect ? 'pointer' : 'default'}
++              fillOpacity={showQuality ? 0.8 : 1}
++            >
++              {chartData.map((entry, index) => (
++                <rect
++                  key={`bar-${index}`}
++                  fill={entry.fillColor}
++                  className="transition-colors duration-200"
++                />
++              ))}
++            </Bar>
++            {showQuality && (
++              <Bar
++                dataKey="quality"
++                fill="#10B981" // emerald-500
++                opacity={0.3}
++              />
++            )}
++          </BarChart>
++        </ResponsiveContainer>
++      </div>
++    </div>
++  );
++} 
++import { logger } from '@/lib/logger'
++import { callRPC } from '@/hooks/api/core/utils'
++import type { Database } from '@/types/database.types'
++} from '@/types/domain/clinic'
++export function useClinicAnalytics(clinicId: string | null): ClinicAnalyticsResult {
++  const [loading, setLoading] = useState(true)
++  const [error, setError] = useState<string | null>(null)
++  const [overview, setOverview] = useState<ClinicOverview | null>(null)
++  const [statusBreakdown, setStatusBreakdown] = useState<ClinicStatusBreakdown[] | null>(null)
++  const [qualityBreakdown, setQualityBreakdown] = useState<ClinicQualityBreakdown[] | null>(null)
++  const [weeklyQuality, setWeeklyQuality] = useState<WeeklyMonthlyQuality[]>([])
++  const [monthlyQuality, setMonthlyQuality] = useState<WeeklyMonthlyQuality[]>([])
++  const [weeklyStudies, setWeeklyStudies] = useState<WeeklyMonthlyStudies[]>([])
++  const [monthlyStudies, setMonthlyStudies] = useState<WeeklyMonthlyStudies[]>([])
++  const [weeklyActiveStudies, setWeeklyActiveStudies] = useState<WeeklyHistogramPoint[]>([])
++  const [weeklyAvgQuality, setWeeklyAvgQuality] = useState<WeeklyHistogramPoint[]>([])
++  const [clinicBreakdown, setClinicBreakdown] = useState<ClinicStatsRow[]>([])
++  const [newStudiesLast3mo, setNewStudiesLast3mo] = useState(0)
++  const [growthPercent, setGrowthPercent] = useState(0)
++    let canceled = false
++    async function fetchAnalytics() {
++      if (!clinicId) {
++        setOverview(null)
++        setStatusBreakdown(null)
++        setQualityBreakdown(null)
++        setWeeklyQuality([])
++        setMonthlyQuality([])
++        setWeeklyStudies([])
++        setMonthlyStudies([])
++        setWeeklyActiveStudies([])
++        setWeeklyAvgQuality([])
++        setClinicBreakdown([])
++        setNewStudiesLast3mo(0)
++        setGrowthPercent(0)
++        setLoading(false)
++        return
++      }
++      setLoading(true)
++      setError(null)
++      try {
++        logger.debug('Fetching clinic analytics', { clinicId })
++        const result = await callRPC('get_clinic_analytics', { clinic_id: clinicId })
++        
++        if (!canceled && result) {
++          // Transform the result into the expected shape
++          const analytics = result[0] as { totalpatients: number; activepatients: number; totalstudies: number; activestudies: number }
++          setOverview({
++            active_studies: analytics.activestudies,
++            total_studies: analytics.totalstudies,
++            average_quality_hours: 0, // Not available in the current response
++            recent_alerts: null // Not available in the current response
++          })
++          // Other fields are not available in the current response
++          setStatusBreakdown(null)
++          setQualityBreakdown(null)
++          setWeeklyQuality([])
++          setMonthlyQuality([])
++          setWeeklyStudies([])
++          setMonthlyStudies([])
++          setWeeklyActiveStudies([])
++          setWeeklyAvgQuality([])
++          setClinicBreakdown([])
++          setNewStudiesLast3mo(0)
++          setGrowthPercent(0)
++        }
++      } catch (err: any) {
++        if (!canceled) {
++          logger.error('Failed to fetch clinic analytics', { error: err.message })
++          setError(err.message)
++        }
++      } finally {
++        if (!canceled) {
++          setLoading(false)
++        }
++    fetchAnalytics()
++      canceled = true
++  return {
++    loading,
++    error,
++    overview,
++    statusBreakdown,
++    qualityBreakdown,
++    weeklyQuality,
++    monthlyQuality,
++    weeklyStudies,
++    monthlyStudies,
++    weeklyActiveStudies,
++    weeklyAvgQuality,
++    clinicBreakdown,
++    newStudiesLast3mo,
++    growthPercent
++  }
++import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
++import type { PostgrestError, PostgrestSingleResponse } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { supabase } from '@/lib/supabase'
++import { logger } from '@/lib/logger'
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++type QueryParams<T extends TableName> = {
++  page?: number
++  pageSize?: number
++  filters?: Partial<Record<keyof Tables[T]['Row'], unknown>>
++  sortBy?: keyof Tables[T]['Row']
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++/**
++ * Hook for querying a Supabase table with filtering, sorting and pagination
++ */
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams<T> = {}
++) {
++  const {
++    page = 1,
++    pageSize = 10,
++    filters,
++    sortBy,
++    sortDirection = 'asc',
++    enabled = true,
++  } = params
++  return useQuery<Tables[T]['Row'][], PostgrestError>({
++    queryKey: ['table', tableName, params],
++    queryFn: async () => {
++      logger.debug('Querying table', { tableName, params })
++      // Type-safe query builder
++      let query = supabase.from(tableName).select('*') as any
++      // Apply pagination
++      if (page && pageSize) {
++        const start = (page - 1) * pageSize
++        query = query.range(start, start + pageSize - 1)
++      }
++      // Apply filters
++      if (filters) {
++        Object.entries(filters).forEach(([key, value]) => {
++          if (value !== undefined && value !== null) {
++            query = query.eq(key, value)
++          }
++        })
++      }
++      // Apply sorting
++      if (sortBy) {
++        query = query.order(sortBy as string, {
++          ascending: sortDirection === 'asc',
++        })
++      }
++      const { data, error } = await query as PostgrestSingleResponse<Tables[T]['Row'][]>
++      if (error) {
++        logger.error('Query failed', { tableName, error })
++        throw error
++      }
++      return data || []
++    },
++    enabled,
++  })
++}
++/**
++ * Hook for calling a Supabase RPC function
++ */
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  params?: RPCFunctions[T]['Args']
++) {
++  return useMutation<RPCFunctions[T]['Returns'], PostgrestError, RPCFunctions[T]['Args']>({
++    mutationFn: async (args) => {
++      logger.debug('Calling RPC function', { functionName, args })
++      const { data, error } = await supabase.rpc(functionName, args || params || {})
++      
++      if (error) {
++        logger.error('RPC call failed', { functionName, error })
++        throw error
++      }
++      return data as RPCFunctions[T]['Returns']
++    }
++  })
++}
++/**
++ * Hook for inserting a row into a Supabase table
++ */
++export function useSupabaseInsert<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation<Tables[T]['Row'], PostgrestError, { table: T; data: Tables[T]['Insert'] }>({
++    mutationFn: async ({ table, data }) => {
++      logger.debug('Inserting row', { table, data })
++      const { data: result, error } = await (supabase
++        .from(table)
++        .insert(data)
++        .select()
++        .single() as any) as PostgrestSingleResponse<Tables[T]['Row']>
++      if (error) {
++        logger.error('Insert failed', { table, error })
++        throw error
++      }
++      return result as Tables[T]['Row']
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++/**
++ * Hook for updating a row in a Supabase table
++ */
++export function useSupabaseUpdate<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation<Tables[T]['Row'], PostgrestError, { table: T; id: string | number; data: Tables[T]['Update'] }>({
++    mutationFn: async ({ table, id, data }) => {
++      logger.debug('Updating row', { table, id, data })
++      const { data: result, error } = await (supabase
++        .from(table)
++        .update(data)
++        .eq('id', String(id))
++        .select()
++        .single() as any) as PostgrestSingleResponse<Tables[T]['Row']>
++      if (error) {
++        logger.error('Update failed', { table, error })
++        throw error
++      }
++      return result as Tables[T]['Row']
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++/**
++ * Hook for deleting a row from a Supabase table
++ */
++export function useSupabaseDelete<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation<void, PostgrestError, { table: T; id: string | number }>({
++    mutationFn: async ({ table, id }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        .eq('id', String(id))
++      if (error) {
++        logger.error('Delete failed', { table, error })
++        throw error
++      }
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    }
++  })
++}
++// Export types
++export type { 
++  TableName,
++  Tables,
++  RPCName,
++  RPCFunctions,
++  QueryParams
++} 
++/**
++ * Hook for advanced filtering functionality
++ */
++import { useState, useCallback } from 'react';
++import { validateExpression, evaluateExpression } from '@/lib/utils/ExpressionParser';
++import type { FilterExpression, FilterConfig, FilterState } from '@/types/filter';
++const STORAGE_KEY = 'filterPresets';
++export function useAdvancedFilter<T>(
++  config: FilterConfig<T>,
++  filterFn?: (items: T[], filter: string, expression: FilterExpression | null) => T[]
++): FilterState<T> {
++  const setExpression = useCallback((value: string) => {
++    try {
++      const parsedExpression = value ? validateExpression(value, config.fields) : null;
++      setExpressionValue(parsedExpression);
++      setError(null);
++    } catch (err) {
++      setError(err instanceof Error ? err.message : 'Invalid expression');
++      setExpressionValue(null);
++    }
++  }, [config.fields]);
++  const applyFilter = useCallback((items: T[]): T[] => {
++    if (filterFn) {
++      return filterFn(items, quickFilter, expression);
++    }
++    // Default filtering behavior if no filterFn provided
++    return items.filter(item => {
++      // Quick filter implementation
++      const matchesQuickFilter = !quickFilter || Object.values(item as Record<string, unknown>).some(
++        value => String(value).toLowerCase().includes(quickFilter.toLowerCase())
++      );
++      // Advanced filter implementation
++      const matchesExpression = !expression || evaluateExpression(item, expression);
++      return matchesQuickFilter && matchesExpression;
++    });
++  }, [quickFilter, expression, filterFn]);
++    setError,
++    applyFilter
++/**
++ * Domain-specific wrappers for clinic operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/lib/supabase'
++import { toClinic } from '@/types/domain/clinic'
++import type { Clinic, ClinicRow } from '@/types/domain/clinic'
++import { isClinic } from '@/types/domain/clinic'
++import { logger } from '@/lib/logger'
++interface ClinicQueryParams {
++  page?: number
++  pageSize?: number
++  sortBy?: keyof ClinicRow
++  sortDirection?: 'asc' | 'desc'
++}
++/**
++ * Hook for querying clinics with domain-specific validation
++ */
++export function useClinics(params: ClinicQueryParams = {}) {
++  return useSupabaseQuery('clinics', params)
++}
++/**
++ * Hook for inserting a clinic with runtime validation
++ */
++export function useClinicInsert() {
++  const insert = useSupabaseInsert<'clinics'>()
++  return {
++    ...insert,
++    mutateAsync: async (clinic: Partial<Clinic>) => {
++      try {
++        // Runtime validation
++        if (!clinic.name) {
++          throw new Error('Clinic name is required')
++        }
++        // Transform to database format
++        const dbClinic: Partial<ClinicRow> = {
++          name: clinic.name,
++        }
++        const result = await insert.mutateAsync({
++          table: 'clinics',
++          data: dbClinic,
++        })
++        // Transform result back to domain type
++        return toClinic(result as ClinicRow)
++      } catch (error) {
++        logger.error('Failed to insert clinic', { error, clinic })
++        throw error
++      }
++    }
++  }
++}
++/**
++ * Hook for updating a clinic with runtime validation
++ */
++export function useClinicUpdate() {
++  const update = useSupabaseUpdate<'clinics'>()
++  return {
++    ...update,
++    mutateAsync: async ({ id, data }: { id: string; data: Partial<Clinic> }) => {
++      try {
++        // Runtime validation
++        if (data.name === '') {
++          throw new Error('Clinic name cannot be empty')
++        }
++        // Transform to database format
++        const dbClinic: Partial<ClinicRow> = {
++          name: data.name,
++        }
++        const result = await update.mutateAsync({
++          table: 'clinics',
++          id,
++          data: dbClinic,
++        })
++        // Transform result back to domain type
++        return toClinic(result as ClinicRow)
++      } catch (error) {
++        logger.error('Failed to update clinic', { error, id, data })
++        throw error
++      }
++    }
++  }
++}
++/**
++ * Hook for deleting a clinic
++ */
++export function useClinicDelete() {
++  const deleteClinic = useSupabaseDelete<'clinics'>()
++  return {
++    ...deleteClinic,
++    mutateAsync: async (id: string) => {
++      try {
++        await deleteClinic.mutateAsync({
++          table: 'clinics',
++          id,
++        })
++      } catch (error) {
++        logger.error('Failed to delete clinic', { error, id })
++        throw error
++      }
++    }
++  }
++} 
++/**
++ * Domain-specific wrappers for ECG operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseRPC } from '@/lib/supabase'
++import { toECGData } from '@/types/domain/ecg'
++import type { ECGData, ECGSampleRow, ECGQueryOptions, AggregatedLeadData } from '@/types/domain/ecg'
++import { isECGData } from '@/types/domain/ecg'
++import { logger } from '@/lib/logger'
++/**
++ * Hook for querying ECG data with domain-specific validation
++ */
++export function useECGData(options: ECGQueryOptions) {
++  const { podId, timeStart, timeEnd, maxPoints } = options
++  return useSupabaseRPC('downsample_ecg', {
++    p_pod_id: podId,
++    p_time_start: timeStart,
++    p_time_end: timeEnd,
++    p_factor: maxPoints || 1000,
++  })
++}
++/**
++ * Hook for querying aggregated lead data
++ */
++export function useAggregatedLeadData(
++  podId: string,
++  timeStart: string,
++  timeEnd: string,
++  bucketSeconds: number = 3600 // default 1 hour
++) {
++  return useSupabaseRPC('aggregate_leads', {
++    p_pod_id: podId,
++    p_time_start: timeStart,
++    p_time_end: timeEnd,
++    p_bucket_seconds: bucketSeconds,
++  })
++}
++/**
++ * Hook for getting pod data availability
++ */
++export function usePodDays(podId: string) {
++  return useSupabaseRPC('get_pod_days', {
++    p_pod_id: podId,
++  })
++}
++/**
++ * Hook for getting pod earliest/latest timestamps
++ */
++export function usePodTimeRange(podId: string) {
++  return useSupabaseRPC('get_pod_earliest_latest', {
++    p_pod_id: podId,
++  })
++}
++/**
++ * Utility function to validate ECG data
++ */
++function validateECGData(data: unknown): data is ECGData {
++  try {
++    if (!isECGData(data)) {
++      throw new Error('Invalid ECG data format')
++    }
++    return true
++  } catch (error) {
++    logger.error('ECG data validation failed', { error, data })
++    return false
++  }
++}
++/**
++ * Utility function to transform raw ECG samples to domain type
++ */
++export function transformECGSamples(samples: ECGSampleRow[]): ECGData[] {
++  return samples
++    .map(sample => {
++      try {
++        return toECGData(sample)
++      } catch (error) {
++        logger.error('Failed to transform ECG sample', { error, sample })
++        return null
++      }
++    })
++    .filter((data): data is ECGData => data !== null && validateECGData(data))
++} 
++/**
++ * Domain-specific wrappers for study operations
++ * Includes runtime validation and type safety
++ */
++import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/lib/supabase'
++import { toStudy } from '@/types/domain/study'
++import type { Study, StudyRow } from '@/types/domain/study'
++import { isStudy } from '@/types/domain/study'
++import { logger } from '@/lib/logger'
++interface StudyQueryParams {
++  clinicId?: string
++  podId?: string
++  page?: number
++  pageSize?: number
++  sortBy?: keyof StudyRow
++  sortDirection?: 'asc' | 'desc'
++}
++/**
++ * Hook for querying studies with domain-specific validation
++ */
++export function useStudies(params: StudyQueryParams = {}) {
++  const { clinicId, podId, ...queryParams } = params
++  const filters: Record<string, unknown> = {}
++  if (clinicId) filters.clinic_id = clinicId
++  if (podId) filters.pod_id = podId
++  return useSupabaseQuery('study', {
++    ...queryParams,
++    filters,
++  })
++}
++/**
++ * Hook for inserting a study with runtime validation
++ */
++export function useStudyInsert() {
++  const insert = useSupabaseInsert<'study'>()
++  return {
++    ...insert,
++    mutateAsync: async (study: Partial<Study>) => {
++      try {
++        // Runtime validation
++        if (!study.study_id) {
++          throw new Error('study_id is required')
++        }
++        // Transform to database format
++        const dbStudy: Partial<StudyRow> = {
++          study_id: study.study_id,
++          clinic_id: study.clinic_id,
++          pod_id: study.pod_id,
++          duration: study.duration_days ? study.duration_days * 24 * 60 : undefined,
++          start_timestamp: study.start_timestamp,
++          end_timestamp: study.end_timestamp,
++          expected_end_timestamp: study.expected_end_timestamp,
++          study_type: study.study_type,
++          user_id: study.user_id,
++          created_by: study.created_by,
++        }
++        const result = await insert.mutateAsync({
++          table: 'study',
++          data: dbStudy,
++        })
++        // Transform result back to domain type
++        return toStudy(result as StudyRow)
++      } catch (error) {
++        logger.error('Failed to insert study', { error, study })
++        throw error
++      }
++    }
++  }
++}
++/**
++ * Hook for updating a study with runtime validation
++ */
++export function useStudyUpdate() {
++  const update = useSupabaseUpdate<'study'>()
++  return {
++    ...update,
++    mutateAsync: async ({ id, data }: { id: string; data: Partial<Study> }) => {
++      try {
++        // Transform to database format
++        const dbStudy: Partial<StudyRow> = {
++          duration: data.duration_days ? data.duration_days * 24 * 60 : undefined,
++          start_timestamp: data.start_timestamp,
++          end_timestamp: data.end_timestamp,
++          expected_end_timestamp: data.expected_end_timestamp,
++          study_type: data.study_type,
++          user_id: data.user_id,
++        }
++        const result = await update.mutateAsync({
++          table: 'study',
++          id,
++          data: dbStudy,
++        })
++        // Transform result back to domain type
++        return toStudy(result as StudyRow)
++      } catch (error) {
++        logger.error('Failed to update study', { error, id, data })
++        throw error
++      }
++    }
++  }
++}
++/**
++ * Hook for deleting a study
++ */
++export function useStudyDelete() {
++  const deleteStudy = useSupabaseDelete<'study'>()
++  return {
++    ...deleteStudy,
++    mutateAsync: async (id: string) => {
++      try {
++        await deleteStudy.mutateAsync({
++          table: 'study',
++          id,
++        })
++      } catch (error) {
++        logger.error('Failed to delete study', { error, id })
++        throw error
++      }
++    }
++  }
++} 
++/**
++ * Unified Supabase API layer with React Query integration
++ */
++import { useQuery, useMutation } from '@tanstack/react-query'
++import { createClient, PostgrestError } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { SupabaseError } from '@/types/utils'
++import { logger } from '@/lib/logger'
++// Environment variables with validation
++const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
++const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
++if (!supabaseUrl) {
++  throw new SupabaseError('Missing VITE_SUPABASE_URL environment variable')
++}
++if (!supabaseAnonKey) {
++  throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable')
++}
++// Create and export the Supabase client
++export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
++  auth: {
++    persistSession: true,
++    autoRefreshToken: true,
++  },
++  global: {
++    headers: {
++      'x-application-name': 'ecg-lab',
++    },
++  },
++})
++// Type definitions
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++// Query parameters and response types
++interface QueryParams {
++  start?: number
++  end?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++interface QueryMetadata {
++  executionTime: number
++  cached: boolean
++}
++interface QueryResponse<T> {
++  data: T[]
++  error: Error | null
++  count: number
++  metadata: QueryMetadata
++}
++interface RPCOptions {
++  retry?: boolean
++  retryCount?: number
++  retryDelay?: number
++  component?: string
++  context?: Record<string, unknown>
++}
++// Core API functions
++async function queryTable<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++): Promise<QueryResponse<any>> {
++  const startTime = performance.now()
++  const { start, end, filters, sortBy, sortDirection = 'asc' } = params
++  try {
++    logger.debug('Querying table', { tableName, params })
++    let query = supabase.from(tableName).select('*', { count: 'exact' })
++    if (typeof start === 'number' && typeof end === 'number') {
++      query = query.range(start, end)
++    }
++    if (filters) {
++      Object.entries(filters).forEach(([key, value]) => {
++        if (value !== null && value !== undefined) {
++          // @ts-ignore - Supabase types are too strict here
++          query = query.eq(key, value)
++        }
++      })
++    }
++    if (sortBy) {
++      // @ts-ignore - Supabase types are too strict here
++      query = query.order(sortBy, { ascending: sortDirection === 'asc' })
++    }
++    const { data, error, count } = await query
++    if (error) {
++      throw new SupabaseError(error.message)
++    }
++    return {
++      data: data || [],
++      error: null,
++      count: count ?? 0,
++      metadata: {
++        executionTime: performance.now() - startTime,
++        cached: false,
++      },
++    }
++  } catch (error) {
++    logger.error('Query failed', { tableName, error })
++    return {
++      data: [],
++      error: error instanceof Error ? error : new Error('Unknown error'),
++      count: 0,
++      metadata: {
++        executionTime: performance.now() - startTime,
++        cached: false,
++      },
++    }
++  }
++}
++async function callRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args'],
++  options: RPCOptions = {}
++): Promise<RPCFunctions[T]['Returns']> {
++  const { retry = true, retryCount = 3, retryDelay = 1000, component, context } = options
++  let attempts = 0
++  let lastError: Error | null = null
++  while (attempts < retryCount) {
++    try {
++      logger.debug('Calling RPC function', { functionName, args, attempt: attempts + 1, component, context })
++      const { data, error } = await supabase.rpc(functionName, args || {})
++      if (error) {
++        throw new SupabaseError(error.message)
++      }
++      logger.debug('RPC call successful', { functionName, data })
++      return data as RPCFunctions[T]['Returns']
++    } catch (error) {
++      lastError = error instanceof Error ? error : new Error('Unknown error')
++      attempts++
++      logger.warn('RPC call failed', {
++        functionName,
++        error: lastError,
++        attempt: attempts,
++        willRetry: attempts < retryCount && retry,
++      })
++      if (attempts < retryCount && retry) {
++        await new Promise(resolve => setTimeout(resolve, retryDelay * attempts))
++      } else {
++        break
++      }
++    }
++  }
++  throw lastError ?? new Error('RPC call failed after retries')
++}
++// React Query hooks
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++) {
++  const { enabled = true, ...queryParams } = params
++  return useQuery<any[], PostgrestError>({
++    queryKey: ['table', tableName, queryParams],
++    queryFn: async () => {
++      const response = await queryTable(tableName, queryParams)
++      if (response.error) throw response.error
++      return response.data
++    },
++    enabled,
++  })
++}
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args'],
++  options: RPCOptions = {}
++) {
++  return useMutation<RPCFunctions[T]['Returns'], PostgrestError>({
++    mutationFn: async () => callRPC(functionName, args, options),
++  })
++}
++// Type-safe mutation hooks
++export function useSupabaseInsert<T extends TableName>() {
++  return useMutation<any, PostgrestError, { table: T; data: any }>({
++    mutationFn: async ({ table, data }) => {
++      logger.debug('Inserting row', { table, data })
++      const { data: result, error } = await supabase
++        .from(table)
++        // @ts-ignore - Supabase types are too strict here
++        .insert(data)
++        .select()
++        .single()
++      if (error) throw new SupabaseError(error.message)
++      return result
++    },
++  })
++}
++export function useSupabaseUpdate<T extends TableName>() {
++  return useMutation<any, PostgrestError, { table: T; id: string | number; data: any }>({
++    mutationFn: async ({ table, id, data }) => {
++      logger.debug('Updating row', { table, id, data })
++      const { data: result, error } = await supabase
++        .from(table)
++        // @ts-ignore - Supabase types are too strict here
++        .update(data)
++        // @ts-ignore - Supabase types are too strict here
++        .eq('id', id)
++        .select()
++        .single()
++      if (error) throw new SupabaseError(error.message)
++      return result
++    },
++  })
++}
++export function useSupabaseDelete<T extends TableName>() {
++  return useMutation<void, PostgrestError, { table: T; id: string | number }>({
++    mutationFn: async ({ table, id }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        // @ts-ignore - Supabase types are too strict here
++        .eq('id', id)
++      if (error) throw new SupabaseError(error.message)
++    },
++  })
++}
++// Export types
++export type {
++  TableName,
++  RPCName,
++  RPCFunctions,
++  QueryParams,
++  QueryResponse,
++  RPCOptions,
++} 
++/**
++ * Centralized logger configuration using loglevel
++ * This provides consistent logging across the application with proper log levels
++ */
++import log from 'loglevel';
++// Set default level based on environment
++const level = import.meta.env.DEV ? 'debug' : 'warn';
++log.setLevel(level);
++// Define logger interface for type safety
++export interface Logger {
++  debug(message: string, context?: Record<string, unknown>): void;
++  info(message: string, context?: Record<string, unknown>): void;
++  warn(message: string, context?: Record<string, unknown>): void;
++  error(message: string, context?: Record<string, unknown>): void;
++}
++// Create a wrapper to ensure consistent logging interface
++const logger: Logger = {
++  debug(message: string, context?: Record<string, unknown>) {
++    log.debug(message, context);
++  },
++  info(message: string, context?: Record<string, unknown>) {
++    log.info(message, context);
++  },
++  warn(message: string, context?: Record<string, unknown>) {
++    log.warn(message, context);
++  },
++  error(message: string, context?: Record<string, unknown>) {
++    log.error(message, context);
++  }
++};
++// Prevent modifications to the logger
++Object.freeze(logger);
++// Export both named and default for flexibility
++export { logger };
++export default logger; 
++/**
++ * Unified Supabase client with React Query integration
++ * Simplified type approach that balances type safety with maintainability
++ */
++import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
++import { createClient, type PostgrestError } from '@supabase/supabase-js'
++import type { Database } from '@/types/database.types'
++import { SupabaseError } from '@/types/utils'
++import { logger } from '@/lib/logger'
++// Type definitions with simplified approach
++type Tables = Database['public']['Tables']
++type TableName = keyof Tables
++type RPCFunctions = Database['public']['Functions']
++type RPCName = keyof RPCFunctions
++// Simplified query parameters
++interface QueryParams {
++  page?: number
++  pageSize?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++}
++// Environment variables with validation
++const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
++const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
++if (!supabaseUrl) {
++  throw new SupabaseError('Missing VITE_SUPABASE_URL environment variable')
++}
++if (!supabaseAnonKey) {
++  throw new SupabaseError('Missing VITE_SUPABASE_ANON_KEY environment variable')
++}
++// Create and export the typed Supabase client
++export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
++  auth: {
++    persistSession: true,
++    autoRefreshToken: true,
++  },
++  global: {
++    headers: {
++      'x-application-name': 'ecg-lab',
++    },
++  },
++})
++/**
++ * Hook for querying a Supabase table with simplified type handling
++ */
++export function useSupabaseQuery<T extends TableName>(
++  tableName: T,
++  params: QueryParams = {}
++) {
++  const {
++    page = 1,
++    pageSize = 10,
++    filters,
++    sortBy,
++    sortDirection = 'asc',
++    enabled = true,
++  } = params
++  return useQuery({
++    queryKey: ['table', tableName, params],
++    queryFn: async () => {
++      logger.debug('Querying table', { tableName, params })
++      // Type assertion for query builder
++      let query = supabase.from(tableName).select('*') as any
++      // Apply pagination
++      if (page && pageSize) {
++        const start = (page - 1) * pageSize
++        query = query.range(start, start + pageSize - 1)
++      }
++      // Apply filters with runtime validation
++      if (filters) {
++        Object.entries(filters).forEach(([key, value]) => {
++          if (value !== undefined && value !== null) {
++            query = query.eq(key, value)
++          }
++        })
++      }
++      // Apply sorting
++      if (sortBy) {
++        query = query.order(sortBy, {
++          ascending: sortDirection === 'asc',
++        })
++      }
++      const { data, error } = await query
++      if (error) {
++        logger.error('Query failed', { tableName, error })
++        throw new SupabaseError(error.message)
++      }
++      // Runtime validation could be added here
++      return data || []
++    },
++    enabled,
++  })
++}
++/**
++ * Hook for calling a Supabase RPC function with simplified typing
++ */
++export function useSupabaseRPC<T extends RPCName>(
++  functionName: T,
++  args?: RPCFunctions[T]['Args']
++) {
++  return useMutation({
++    mutationFn: async () => {
++      logger.debug('Calling RPC function', { functionName, args })
++      const { data, error } = await supabase.rpc(functionName, args || {})
++      if (error) {
++        logger.error('RPC call failed', { functionName, error })
++        throw new SupabaseError(error.message)
++      }
++      return data
++    },
++  })
++}
++/**
++ * Hook for inserting a row with runtime validation
++ */
++export function useSupabaseInsert<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation({
++    mutationFn: async ({ table, data }: { table: T; data: unknown }) => {
++      logger.debug('Inserting row', { table, data })
++      // Runtime validation could be added here
++      const { data: result, error } = await supabase
++        .from(table)
++        .insert(data as any)
++        .select()
++        .single()
++      if (error) {
++        logger.error('Insert failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++      return result
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++/**
++ * Hook for updating a row with runtime validation
++ */
++export function useSupabaseUpdate<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation({
++    mutationFn: async ({
++      table,
++      id,
++      data,
++    }: {
++      table: T
++      id: string | number
++      data: unknown
++    }) => {
++      logger.debug('Updating row', { table, id, data })
++      // Runtime validation could be added here
++      const { data: result, error } = await supabase
++        .from(table)
++        .update(data as any)
++        .eq('id', id)
++        .select()
++        .single()
++      if (error) {
++        logger.error('Update failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++      return result
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++/**
++ * Hook for deleting a row
++ */
++export function useSupabaseDelete<T extends TableName>() {
++  const queryClient = useQueryClient()
++  return useMutation({
++    mutationFn: async ({ table, id }: { table: T; id: string | number }) => {
++      logger.debug('Deleting row', { table, id })
++      const { error } = await supabase
++        .from(table)
++        .delete()
++        .eq('id', id)
++      if (error) {
++        logger.error('Delete failed', { table, error })
++        throw new SupabaseError(error.message)
++      }
++    },
++    onSuccess: (_, variables) => {
++      queryClient.invalidateQueries({ queryKey: ['table', variables.table] })
++    },
++  })
++}
++// Export types for convenience
++export type {
++  Tables,
++  TableName,
++  RPCName,
++  RPCFunctions,
++  QueryParams,
++} 
++ * Supabase client configuration with proper typing
++import type { Database } from '@/types/database.types';
++import { SupabaseError } from '@/types/utils';
++import { logger } from '@/lib/logger';
++// Create and export the typed client
++    db: {
++      schema: 'public',
++    },
++// Log initialization
++logger.debug('Supabase client initialized', {
++  url: supabaseUrl,
++  schema: 'public',
++});
++// Export types
++export type { Database };
++export type SupabaseClient = typeof supabase; 
++/**
++ * Expression parser for advanced filtering
++ */
++import type { FilterExpression, FilterField, FilterOperator } from '@/types/filter';
++export class ExpressionEvaluationError extends Error {
++    this.name = 'ExpressionEvaluationError';
++// List of fields that can be filtered
++export const FILTERABLE_FIELDS = [
++  'qualityFraction',
++  'totalMinutes',
++  'batteryLevel',
++  'activeStudies',
++  'totalStudies',
++  'averageQuality'
++];
++const OPERATORS: FilterOperator[] = ['=', '!=', '>', '<', '>=', '<=', 'contains', 'startsWith', 'endsWith'];
++/**
++ * Validates and parses a filter expression string into a structured FilterExpression
++ */
++export function validateExpression(expression: string, fields: FilterField[]): FilterExpression {
++  if (!expression.trim()) {
++    throw new ExpressionEvaluationError('Expression cannot be empty');
++  }
++  // Simple expression parsing (field operator value)
++  const parts = expression.trim().split(/\s+/);
++    throw new ExpressionEvaluationError('Invalid expression format. Expected: field operator value');
++  const field = parts[0];
++  const operator = parts[1] as FilterOperator;
++  const value = parts.slice(2).join(' ');
++  if (!fields.some(f => f.key === field)) {
++    throw new ExpressionEvaluationError(`Invalid field: ${field}`);
++  if (!OPERATORS.includes(operator)) {
++    throw new ExpressionEvaluationError(`Invalid operator: ${operator}`);
++  // Get field type
++  const fieldDef = fields.find(f => f.key === field)!;
++  // Parse and validate value based on field type
++        const num = parseFloat(value);
++        if (isNaN(num)) {
++        parsedValue = num;
++        const date = new Date(value);
++        if (isNaN(date.getTime())) {
++        parsedValue = date;
++    throw new ExpressionEvaluationError(`Invalid value for type ${fieldDef.type}: ${value}`);
++}
++/**
++ * Evaluates a filter expression against an item
++ */
++export function evaluateExpression<T>(item: T, expression: FilterExpression): boolean {
++  const itemValue = (item as Record<string, unknown>)[expression.field];
++  const exprValue = expression.value;
++  
++  switch (expression.operator) {
++    case '=':
++      return itemValue === exprValue;
++    case '!=':
++      return itemValue !== exprValue;
++    case '>':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue > exprValue;
++    case '<':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue < exprValue;
++    case '>=':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue >= exprValue;
++    case '<=':
++      return typeof itemValue === 'number' && typeof exprValue === 'number' && itemValue <= exprValue;
++    case 'contains':
++      return String(itemValue).toLowerCase().includes(String(exprValue).toLowerCase());
++    case 'startsWith':
++      return String(itemValue).toLowerCase().startsWith(String(exprValue).toLowerCase());
++    case 'endsWith':
++      return String(itemValue).toLowerCase().endsWith(String(exprValue).toLowerCase());
++    default:
++      return false;
++  }
++    path: '/datalab',
++/// <reference types="vitest" />
++/// <reference types="vite/client" />
++import { renderHook, waitFor } from '@testing-library/react'
++import { describe, it, expect, beforeEach, vi } from 'vitest'
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import { useChunkedECG } from '@/hooks/api/useChunkedECG'
++import { supabase } from '@/lib/supabase'
++import type { ReactNode } from 'react'
++// Mock supabase
++vi.mock('@/lib/supabase', () => ({
++  supabase: {
++    rpc: vi.fn()
++  }
++}))
++// Mock data
++const mockChunk = {
++  chunk_start: '2023-01-01T00:00:00Z',
++  chunk_end: '2023-01-01T00:05:00Z',
++  samples: [
++    {
++      time: '2023-01-01T00:00:00Z',
++      channels: [1, 2, 3],
++      lead_on_p: [true, true, true],
++      lead_on_n: [true, true, true],
++      quality: [true, true, true]
++    }
++  ]
++}
++// Test wrapper setup
++const createWrapper = () => {
++  const queryClient = new QueryClient({
++    defaultOptions: {
++      queries: {
++        retry: false,
++      },
++    },
++  })
++  return function Wrapper({ children }: { children: ReactNode }) {
++    return (
++      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
++    )
++  }
++}
++describe('useChunkedECG', () => {
++  beforeEach(() => {
++    vi.clearAllMocks()
++  })
++  it('fetches initial chunk correctly', async () => {
++    // Mock successful response
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++    // Should start loading
++    expect(result.current.isLoading).toBe(true)
++    // Wait for data
++    await waitFor(() => {
++      expect(result.current.isLoading).toBe(false)
++    })
++    // Verify data
++    expect(result.current.samples).toHaveLength(1)
++    expect(result.current.samples[0]).toEqual(mockChunk.samples[0])
++    expect(result.current.error).toBeNull()
++  })
++  it('handles errors gracefully', async () => {
++    // Mock error response
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: null,
++      error: { message: 'Failed to fetch' }
++    })
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++    await waitFor(() => {
++      expect(result.current.error).toBeTruthy()
++    })
++    expect(result.current.samples).toHaveLength(0)
++  })
++  it('fetches next page when requested', async () => {
++    // Mock successful responses for both initial and next page
++    vi.mocked(supabase.rpc)
++      .mockResolvedValueOnce({
++        data: [mockChunk],
++        error: null
++      })
++      .mockResolvedValueOnce({
++        data: [
++          {
++            ...mockChunk,
++            chunk_start: '2023-01-01T00:05:00Z',
++            chunk_end: '2023-01-01T00:10:00Z'
++          }
++        ],
++        error: null
++      })
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++    // Wait for initial data
++    await waitFor(() => {
++      expect(result.current.samples).toHaveLength(1)
++    })
++    // Fetch next page
++    await result.current.fetchNextPage()
++    // Wait for updated data
++    await waitFor(() => {
++      expect(result.current.samples).toHaveLength(2)
++    })
++    expect(result.current.hasNextPage).toBe(false)
++  })
++  it('respects the factor parameter', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 8
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++    expect(supabase.rpc).toHaveBeenCalledWith(
++      'downsample_ecg_chunked',
++      expect.objectContaining({
++        p_factor: 8
++      })
++    )
++  })
++  it('handles empty response correctly', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [],
++      error: null
++    })
++    const { result } = renderHook(
++      () =>
++        useChunkedECG({
++          pod_id: 'test-pod',
++          time_start: '2023-01-01T00:00:00Z',
++          time_end: '2023-01-01T01:00:00Z',
++          factor: 4
++        }),
++      {
++        wrapper: createWrapper()
++      }
++    )
++    await waitFor(() => {
++      expect(result.current.isLoading).toBe(false)
++    })
++    expect(result.current.samples).toHaveLength(0)
++    expect(result.current.hasNextPage).toBe(false)
++  })
++}) 
++/// <reference types="vitest" />
++/// <reference types="vite/client" />
++import '@testing-library/jest-dom'
++import { render, screen, waitFor, fireEvent } from '@testing-library/react'
++import { describe, it, expect, beforeEach, vi } from 'vitest'
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import MainECGViewer from '@/components/shared/ecg/MainECGViewer'
++import { supabase } from '@/lib/supabase'
++import type { ReactNode } from 'react'
++// Mock supabase
++vi.mock('@/lib/supabase', () => ({
++  supabase: {
++    rpc: vi.fn()
++  }
++}))
++// Mock data
++const mockChunk = {
++  chunk_start: '2023-01-01T00:00:00Z',
++  chunk_end: '2023-01-01T00:05:00Z',
++  samples: [
++    {
++      time: '2023-01-01T00:00:00Z',
++      channels: [1, 2, 3],
++      lead_on_p: [true, true, true],
++      lead_on_n: [true, true, true],
++      quality: [true, true, true]
++    }
++  ]
++}
++// Test wrapper setup
++const createWrapper = () => {
++  const queryClient = new QueryClient({
++    defaultOptions: {
++      queries: {
++        retry: false,
++      },
++    },
++  })
++  return function Wrapper({ children }: { children: ReactNode }) {
++    return (
++      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
++    )
++  }
++}
++describe('MainECGViewer Integration', () => {
++  const defaultProps = {
++    podId: 'test-pod',
++    timeStart: '2023-01-01T00:00:00Z',
++    timeEnd: '2023-01-01T01:00:00Z',
++    onClose: vi.fn(),
++    factor: 4
++  }
++  beforeEach(() => {
++    vi.clearAllMocks()
++  })
++  it('renders loading state initially', () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    expect(screen.getByTestId('ecg-loading')).toBeInTheDocument()
++  })
++  it('displays ECG data after loading', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    await waitFor(() => {
++      expect(screen.queryByTestId('ecg-loading')).not.toBeInTheDocument()
++    })
++    expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    expect(screen.getByTestId('ecg-timeline')).toBeInTheDocument()
++  })
++  it('handles errors gracefully', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: null,
++      error: { message: 'Failed to fetch ECG data' }
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-error')).toBeInTheDocument()
++    })
++    expect(screen.getByText(/Failed to fetch ECG data/i)).toBeInTheDocument()
++  })
++  it('loads more data on scroll', async () => {
++    // Mock initial chunk
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    // Mock next chunk
++    const nextChunk = {
++      ...mockChunk,
++      chunk_start: '2023-01-01T00:05:00Z',
++      chunk_end: '2023-01-01T00:10:00Z'
++    }
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [nextChunk],
++      error: null
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++    // Simulate scroll to bottom
++    const plotContainer = screen.getByTestId('ecg-plot-container')
++    fireEvent.scroll(plotContainer, {
++      target: {
++        scrollTop: plotContainer.scrollHeight,
++        scrollHeight: plotContainer.scrollHeight,
++        clientHeight: plotContainer.clientHeight
++      }
++    })
++    // Wait for next chunk to load
++    await waitFor(() => {
++      expect(vi.mocked(supabase.rpc)).toHaveBeenCalledTimes(2)
++    })
++    // Verify both chunks are displayed
++    expect(screen.getAllByTestId('ecg-sample')).toHaveLength(2)
++  })
++  it('throttles scroll events for performance', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValue({
++      data: [mockChunk],
++      error: null
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++    const plotContainer = screen.getByTestId('ecg-plot-container')
++    // Simulate multiple rapid scroll events
++    for (let i = 0; i < 5; i++) {
++      fireEvent.scroll(plotContainer, {
++        target: {
++          scrollTop: plotContainer.scrollHeight * (i + 1),
++          scrollHeight: plotContainer.scrollHeight,
++          clientHeight: plotContainer.clientHeight
++        }
++      })
++    }
++    // Wait a bit to let throttling take effect
++    await new Promise(resolve => setTimeout(resolve, 300))
++    // Should only make one additional request due to throttling
++    expect(vi.mocked(supabase.rpc)).toHaveBeenCalledTimes(2)
++  })
++  it('updates view on time range change', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValue({
++      data: [mockChunk],
++      error: null
++    })
++    const { rerender } = render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    // Wait for initial render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++    // Update time range
++    const newProps = {
++      ...defaultProps,
++      timeStart: '2023-01-01T01:00:00Z',
++      timeEnd: '2023-01-01T02:00:00Z'
++    }
++    rerender(<MainECGViewer {...newProps} />)
++    // Should trigger a new request with updated time range
++    await waitFor(() => {
++      expect(vi.mocked(supabase.rpc)).toHaveBeenCalledWith(
++        'downsample_ecg_chunked',
++        expect.objectContaining({
++          p_time_start: '2023-01-01T01:00:00Z',
++          p_time_end: '2023-01-01T02:00:00Z'
++        })
++      )
++    })
++  })
++  it('closes viewer when close button is clicked', async () => {
++    vi.mocked(supabase.rpc).mockResolvedValueOnce({
++      data: [mockChunk],
++      error: null
++    })
++    render(<MainECGViewer {...defaultProps} />, {
++      wrapper: createWrapper()
++    })
++    // Wait for render
++    await waitFor(() => {
++      expect(screen.getByTestId('ecg-plot')).toBeInTheDocument()
++    })
++    // Click close button
++    fireEvent.click(screen.getByTestId('ecg-close-button'))
++    expect(defaultProps.onClose).toHaveBeenCalled()
++  })
++}) 
++          p_function_name?: string
++          p_time_start?: string
++          p_time_end?: string
++      get_rpc_function_info:
++        | {
++            Args: Record<PropertyKey, never>
++            Returns: {
++              function_name: string
++              return_type: string
++              arguments: string
++              definition: string
++              function_type: string
++            }[]
++          }
++        | {
++            Args: {
++              p_function_name: string
++            }
++            Returns: {
++              function_name: string
++              return_type: string
++              arguments: string
++              definition: string
++              function_type: string
++            }[]
++          }
++import type { TypeGuard, Transform, NonNullRequired } from '../utils';
++// Raw database type from generated types
++export type ClinicRow = Database['public']['Tables']['clinics']['Row'];
++import type { TypeGuard, Transform } from '../utils';
++// Raw database type from generated types
++export type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
++/**
++ * Domain types for pods
++ */
++import type { Database } from '../database.types';
++// Raw database type from generated types
++export type PodRow = Database['public']['Tables']['pod']['Row'];
++// Query parameters for pod list
++export interface PodListParams {
++  page?: number;
++  pageSize?: number;
++  sortBy?: keyof PodRow;
++  sortDirection?: 'asc' | 'desc';
++  filter?: string;
++}
++// Response from get_pod_days RPC - using the actual RPC return type
++export type PodDayResponse = Database['public']['Functions']['get_pod_days']['Returns'][number];
++// Response from get_pod_earliest_latest RPC - using the actual RPC return type
++export type PodEarliestLatest = Database['public']['Functions']['get_pod_earliest_latest']['Returns'][number]; 
++import type { Database } from '../database.types';
++import type { TypeGuard, Transform } from '../utils';
++// Raw database types from generated types
++export type StudyRow = Database['public']['Tables']['study']['Row'];
++export type StudyReadingRow = Database['public']['Tables']['study_readings']['Row'];
++ * Shared types for advanced filtering functionality
++export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'contains' | 'startsWith' | 'endsWith';
++  type: 'string' | 'number' | 'boolean' | 'date';
++  description: string;
++}
++export interface FilterExpression {
++  field: string;
++  operator: FilterOperator;
++  value: unknown;
++  id: string;
++export interface FilterConfig<T> {
++  parseExpression: (expression: string) => FilterExpression | null;
++  placeholder?: string;
++  example?: string;
++  setQuickFilter: (value: string) => void;
++  setExpression: (value: string) => void;
++  setError: (value: string | null) => void;
++export type FilterFieldType = 'string' | 'number' | 'boolean' | 'date';
++export interface FilterPreset {
++  name: string;
++  expression: string;
++  description?: string;
++}
++ * Central export point for all types
++// Re-export all types from utils
++export * from './utils';
++// Re-export all types from supabase
++export * from './supabase';
++// Re-export domain types
++export * from './domain/study';
++export * from './domain/holter';
++/**
++ * Central type definitions for Supabase
++ * Re-exports and utility types for working with the database
++ */
++import type {
++  Database,
++  Tables,
++  TableName,
++  TableRow,
++  TableInsert,
++  TableUpdate,
++  RPCFunctions,
++  RPCName,
++  QueryParams,
++  QueryMetadata,
++  QueryResponse,
++  RPCOptions,
++  SupabaseError,
++  RPCError
++} from './utils';
++// Re-export common types
++export type {
++  Database,
++  Tables,
++  TableName,
++  TableRow,
++  TableInsert,
++  TableUpdate,
++  RPCFunctions,
++  RPCName,
++  QueryParams,
++  QueryMetadata,
++  QueryResponse,
++  RPCOptions
++};
++// Additional RPC types
++export type RPCArgs<T extends RPCName> = RPCFunctions[T]['Args'];
++export type RPCReturns<T extends RPCName> = RPCFunctions[T]['Returns'];
++// Type assertions
++export function assertTableRow<T extends TableName>(
++  tableName: T,
++  data: unknown
++): asserts data is TableRow<T> {
++  if (!data || typeof data !== 'object') {
++    throw new Error(`Invalid table row data for table ${tableName}`);
++export function assertRPCResult<T extends RPCName>(
++  functionName: T,
++  data: unknown
++): asserts data is RPCReturns<T> {
++  if (data === undefined || data === null) {
++    throw new Error(`Invalid RPC result for function ${functionName}`);
++} 
++ * Central type utilities for database and domain types
++ * Single source of truth for all database-related type utilities
++// Database type utilities
++export type Tables = Database['public']['Tables']
++export type TableName = keyof Tables
++export type RPCFunctions = Database['public']['Functions']
++export type RPCName = keyof RPCFunctions
++export type TableRow<T extends TableName> = Tables[T]['Row']
++export type TableInsert<T extends TableName> = Tables[T]['Insert']
++export type TableUpdate<T extends TableName> = Tables[T]['Update']
++// Query and Response types
++export interface QueryParams {
++  page?: number
++  pageSize?: number
++  filters?: Record<string, unknown>
++  sortBy?: string
++  sortDirection?: 'asc' | 'desc'
++  enabled?: boolean
++export interface QueryMetadata {
++  executionTime: number
++  cached: boolean
++  data: T[]
++  error: Error | null
++  count: number
++  metadata: QueryMetadata
++export interface RPCOptions {
++  retry?: boolean
++  retryCount?: number
++  retryDelay?: number
++  component?: string
++  context?: Record<string, unknown>
++}
++// Error types
++    super(message)
++    this.name = 'SupabaseError'
++export class RPCError extends Error {
++    super(message)
++    this.name = 'RPCError'
++// Type guard utilities
++export type TypeGuard<T> = (value: unknown) => value is T
++// Transform utilities
++export type Transform<T, U> = (value: T) => U
++// Re-export Database type as the single source of truth
++export type { Database } 

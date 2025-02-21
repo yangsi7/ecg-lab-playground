@@ -1,51 +1,60 @@
-import type { Database } from './database.types';
+/**
+ * Central type definitions for Supabase
+ * Re-exports and utility types for working with the database
+ */
+import type {
+  Database,
+  Tables,
+  TableName,
+  TableRow,
+  TableInsert,
+  TableUpdate,
+  RPCFunctions,
+  RPCName,
+  QueryParams,
+  QueryMetadata,
+  QueryResponse,
+  RPCOptions,
+  SupabaseError,
+  RPCError
+} from './utils';
 
-// Common Supabase operation types
-export type TableRow<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Row'];
-export type TableInsert<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Insert'];
-export type TableUpdate<T extends keyof Database['public']['Tables']> = Database['public']['Tables'][T]['Update'];
+// Re-export common types
+export type {
+  Database,
+  Tables,
+  TableName,
+  TableRow,
+  TableInsert,
+  TableUpdate,
+  RPCFunctions,
+  RPCName,
+  QueryParams,
+  QueryMetadata,
+  QueryResponse,
+  RPCOptions
+};
 
-// RPC function types
-export type RPCFunctionName = keyof Database['public']['Functions'];
-export type RPCFunctionArgs<T extends RPCFunctionName> = Database['public']['Functions'][T]['Args'];
-export type RPCFunctionReturns<T extends RPCFunctionName> = Database['public']['Functions'][T]['Returns'];
+// Additional RPC types
+export type RPCArgs<T extends RPCName> = RPCFunctions[T]['Args'];
+export type RPCReturns<T extends RPCName> = RPCFunctions[T]['Returns'];
 
-// Query and Response types
-export interface QueryParams {
-  page?: number;
-  pageSize?: number;
-  sortBy?: string;
-  sortDirection?: 'asc' | 'desc';
-  filter?: string;
-}
-
-export interface QueryResponse<T> {
-  data: T[];
-  count: number;
-  error: Error | null;
-}
-
-export interface RPCCallInfo {
-  functionName: string;
-  args?: Record<string, unknown>;
-  timestamp: Date;
-  duration: number;
-  success: boolean;
-  error?: Error;
-}
-
-// Error types
-export class SupabaseError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SupabaseError';
+// Type assertions
+export function assertTableRow<T extends TableName>(
+  tableName: T,
+  data: unknown
+): asserts data is TableRow<T> {
+  if (!data || typeof data !== 'object') {
+    throw new Error(`Invalid table row data for table ${tableName}`);
   }
 }
 
-export class RPCError extends SupabaseError {
-  constructor(message: string, public functionName: string) {
-    super(message);
-    this.name = 'RPCError';
+export function assertRPCResult<T extends RPCName>(
+  functionName: T,
+  data: unknown
+): asserts data is RPCReturns<T> {
+  if (data === undefined || data === null) {
+    throw new Error(`Invalid RPC result for function ${functionName}`);
   }
 }
 
@@ -71,7 +80,4 @@ export interface DatabaseStat {
   stat_type: StatType;
   hit_rate: number | null;
   timestamp: string;
-}
-
-// Re-export database types for convenience
-export type { Database }; 
+} 
