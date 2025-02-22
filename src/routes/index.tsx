@@ -3,11 +3,13 @@ import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { GenericErrorBoundary } from '@/components/shared/GenericErrorBoundary';
 import { AuthGuard } from '@/components/shared/AuthGuard';
+import { TimeRangeProvider } from '@/context/TimeRangeContext';
 import RootLayout from '@/components/RootLayout';
 
 // Lazy load components
 const DataLab = lazy(() => import('@/components/labs/DataLab'));
 const ClinicLab = lazy(() => import('@/components/labs/ClinicLab'));
+const ClinicTable = lazy(() => import('@/components/labs/ClinicLab/ClinicTable'));
 const ClinicDetail = lazy(() => import('@/components/labs/ClinicLab/ClinicDetail'));
 const HolterLab = lazy(() => import('@/components/labs/HolterLab'));
 const HolterDetail = lazy(() => import('@/components/labs/HolterLab/HolterDetail'));
@@ -32,14 +34,19 @@ const authRoutes: AppRoute[] = [
 const labRoutes: AppRoute[] = [
   {
     path: '/',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicLab /></AuthGuard></Suspense>,
-    label: 'Clinic',
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicTable /></AuthGuard></Suspense>,
+    label: 'Clinics',
     requiresAuth: true,
   },
   {
     path: '/clinic',
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicTable /></AuthGuard></Suspense>,
+    label: 'Clinics',
+    requiresAuth: true,
+  },
+  {
+    path: '/clinic/analytics',
     element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicLab /></AuthGuard></Suspense>,
-    label: 'Clinic',
     requiresAuth: true,
   },
   {
@@ -72,7 +79,15 @@ const labRoutes: AppRoute[] = [
   },
   {
     path: '/ecg/:studyId',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ECGViewerPage /></AuthGuard></Suspense>,
+    element: (
+      <Suspense fallback={<LoadingSpinner />}>
+        <AuthGuard>
+          <TimeRangeProvider>
+            <ECGViewerPage />
+          </TimeRangeProvider>
+        </AuthGuard>
+      </Suspense>
+    ),
     requiresAuth: true,
   }
 ];

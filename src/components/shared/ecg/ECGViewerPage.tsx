@@ -8,16 +8,18 @@
  * - Quick presets for common time ranges
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
-import { Search, Calendar, Clock, ChevronLeft, ChevronRight, FastForward, Rewind } from 'lucide-react'
+import { Search, Calendar, Clock, FastForward, Rewind } from 'lucide-react'
 import { useStudyContext } from '@/context/StudyContext'
+import { useTimeRange } from '@/context/TimeRangeContext'
 import { CalendarSelector } from '../CalendarSelector'
 import { EcgAggregatorView } from './EcgAggregatorView'
 import MainECGViewer from './MainECGViewer'
-import { usePodDays } from '../../../hooks/api/usePodDays'
-import { useStudyDetails } from '../../../hooks/api/useStudyDetails'
-import type { Database } from '../../../types/database.types'
+import { usePodDays } from '@/hooks/api/usePodDays'
+import { useStudyDetails } from '@/hooks/api/useStudyDetails'
+import { useLatestECGTimestamp } from '@/hooks/api/useLatestECGTimestamp'
+import type { Database } from '@/types/database.types'
 
 // Time range presets
 const TIME_PRESETS = [
@@ -27,62 +29,72 @@ const TIME_PRESETS = [
     { minutes: 60, label: '1 hour' }
 ]
 
-function formatTimeRange(date: Date, minutes: number): { start: string; end: string } {
-    const start = new Date(date)
-    const end = new Date(start.getTime() + minutes * 60 * 1000)
-    return {
-        start: start.toISOString(),
-        end: end.toISOString()
-    }
-}
-
 type PodDay = Database['public']['Functions']['get_pod_days']['Returns'][0]
 
 export default function ECGViewerPage() {
     const { studyId } = useParams<{ studyId: string }>()
     const { data: study, isLoading: studyLoading, error: studyError } = useStudyDetails(studyId || '')
-    const [selectedDay, setSelectedDay] = useState<Date>(new Date())
-    const [selectedHour, setSelectedHour] = useState<number | null>(null)
-    const [subwindow, setSubwindow] = useState<{ start: string; end: string } | null>(null)
-    const [viewerOpen, setViewerOpen] = useState(false)
-    const [searchQuery, setSearchQuery] = useState('')
-    const [selectedPreset, setSelectedPreset] = useState<number>(15) // Default to 15min
+    const { data: latestTimestamp, isLoading: timestampLoading } = useLatestECGTimestamp(studyId || '')
+    
+    // Get time range context
+    const {
+        selectedDay,
+        timeRange,
+        selectedPreset,
+        setSelectedDay,
+        setTimeRange,
+        setSelectedPreset,
+        updateTimeRangeForDay
+    } = useTimeRange()
+
+    const [selectedHour, setSelectedHour] = React.useState<number | null>(null)
+    const [viewerOpen, setViewerOpen] = React.useState(false)
 
     // Load available days for the selected pod
     const { data: podDays, isLoading: daysLoading } = usePodDays(study?.pod_id || '')
 
     // Set initial day when study data loads
     useEffect(() => {
-        if (study?.start_timestamp) {
-            setSelectedDay(new Date(study.start_timestamp))
+        if (latestTimestamp) {
+            // Use the latest timestamp if available
+            const latestDate = new Date(latestTimestamp)
+            setSelectedDay(latestDate)
+            updateTimeRangeForDay(latestDate)
+        } else if (study?.start_timestamp) {
+            // Fall back to study start time if no latest timestamp
+            const startDate = new Date(study.start_timestamp)
+            setSelectedDay(startDate)
+            updateTimeRangeForDay(startDate)
         }
-    }, [study?.start_timestamp])
+    }, [study?.start_timestamp, latestTimestamp, setSelectedDay, updateTimeRangeForDay])
 
     // Navigation helpers
     const moveTimeRange = (direction: 'forward' | 'backward') => {
-        if (!subwindow) return
-        const currentStart = new Date(subwindow.start)
-        const currentEnd = new Date(subwindow.end)
+        if (!timeRange) return
+        const currentStart = new Date(timeRange.start)
+        const currentEnd = new Date(timeRange.end)
         const duration = currentEnd.getTime() - currentStart.getTime()
 
         if (direction === 'forward') {
             const newStart = new Date(currentEnd)
             const newEnd = new Date(newStart.getTime() + duration)
-            setSubwindow({
+            setTimeRange({
                 start: newStart.toISOString(),
                 end: newEnd.toISOString()
             })
+            setSelectedDay(newStart) // Update selected day to match the new range
         } else {
             const newEnd = new Date(currentStart)
             const newStart = new Date(newEnd.getTime() - duration)
-            setSubwindow({
+            setTimeRange({
                 start: newStart.toISOString(),
                 end: newEnd.toISOString()
             })
+            setSelectedDay(newStart) // Update selected day to match the new range
         }
     }
 
-    if (studyLoading || daysLoading) {
+    if (studyLoading || daysLoading || timestampLoading) {
         return (
             <div className="min-h-screen bg-gray-900 text-white p-4 md:p-6 flex items-center justify-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
@@ -150,7 +162,10 @@ export default function ECGViewerPage() {
                             <h3 className="text-sm text-gray-400 mb-2">Select Day</h3>
                             <CalendarSelector
                                 availableDays={podDays?.map((d: PodDay) => d.day_value) || []}
-                                onSelectDay={setSelectedDay}
+                                onSelectDay={(date) => {
+                                    setSelectedDay(date)
+                                    updateTimeRangeForDay(date)
+                                }}
                                 selectedDate={selectedDay}
                             />
                         </div>
@@ -165,7 +180,7 @@ export default function ECGViewerPage() {
                                             key={preset.minutes}
                                             onClick={() => {
                                                 setSelectedPreset(preset.minutes)
-                                                setSubwindow(formatTimeRange(selectedDay, preset.minutes))
+                                                updateTimeRangeForDay(selectedDay)
                                             }}
                                             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                                                 selectedPreset === preset.minutes
@@ -179,7 +194,7 @@ export default function ECGViewerPage() {
                                 </div>
                             </div>
 
-                            {subwindow && (
+                            {timeRange && (
                                 <div className="space-y-2">
                                     <h3 className="text-sm text-gray-400">Selected Range</h3>
                                     <div className="flex items-center gap-2">
@@ -192,9 +207,9 @@ export default function ECGViewerPage() {
                                         </button>
                                         <div className="flex-1 bg-white/10 rounded-lg px-3 py-2 text-sm">
                                             <div className="flex items-center justify-between text-gray-300">
-                                                <span>{new Date(subwindow.start).toLocaleTimeString()}</span>
+                                                <span>{new Date(timeRange.start).toLocaleTimeString()}</span>
                                                 <Clock className="h-4 w-4 text-gray-500" />
-                                                <span>{new Date(subwindow.end).toLocaleTimeString()}</span>
+                                                <span>{new Date(timeRange.end).toLocaleTimeString()}</span>
                                             </div>
                                         </div>
                                         <button
@@ -209,7 +224,7 @@ export default function ECGViewerPage() {
                             )}
 
                             {/* View ECG Button */}
-                            {subwindow && study.pod_id && (
+                            {timeRange && study.pod_id && (
                                 <button
                                     onClick={() => setViewerOpen(true)}
                                     className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 
@@ -230,7 +245,8 @@ export default function ECGViewerPage() {
                         initialDate={selectedDay}
                         onTimeRangeSelect={(start, end) => {
                             setSelectedHour(null)
-                            setSubwindow({ start, end })
+                            setTimeRange({ start, end })
+                            setSelectedDay(new Date(start))
                         }}
                         pageSize={60}
                     />
@@ -238,11 +254,11 @@ export default function ECGViewerPage() {
             </div>
 
             {/* ECG Viewer Modal */}
-            {viewerOpen && subwindow && study.pod_id && (
+            {viewerOpen && timeRange && study.pod_id && (
                 <MainECGViewer
                     podId={study.pod_id}
-                    timeStart={subwindow.start}
-                    timeEnd={subwindow.end}
+                    timeStart={timeRange.start}
+                    timeEnd={timeRange.end}
                     onClose={() => setViewerOpen(false)}
                 />
             )}

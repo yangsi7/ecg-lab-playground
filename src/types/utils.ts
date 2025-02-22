@@ -102,6 +102,7 @@ export interface DatabaseStatsRPC {
     size_bytes: number;
     index_size_bytes: number;
     cache_hit_ratio: number;
+    query_id: string;
 }
 
 export interface RPCMetrics {
@@ -143,7 +144,8 @@ export const isDatabaseStatsRPC = (data: unknown): data is DatabaseStatsRPC => {
         typeof d.last_vacuum === 'string' &&
         typeof d.size_bytes === 'number' &&
         typeof d.index_size_bytes === 'number' &&
-        typeof d.cache_hit_ratio === 'number'
+        typeof d.cache_hit_ratio === 'number' &&
+        typeof d.query_id === 'string'
     );
 };
 

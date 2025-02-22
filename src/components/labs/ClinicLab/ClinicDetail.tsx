@@ -8,189 +8,139 @@
  * then display the same or expanded charts/time-series specifically for that clinic.
  */
 
-import { useParams } from 'react-router-dom'
-import { useClinicAnalytics } from '../../../hooks/api/useClinicAnalytics'
-import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
-import { SimpleBarChart, type ChartData } from '../../shared/charts/SimpleBarChart'
+import React from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useClinicDetails } from '@/hooks/api/useClinicDetails';
+import { useClinicAnalytics } from '@/hooks/api/useClinicAnalytics';
+import { ChevronLeft } from 'lucide-react';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import type { Database } from '@/types/database.types';
+
+type ClinicOverviewRow = Database['public']['Functions']['get_clinic_overview']['Returns'][0];
+type ClinicQualityBreakdownRow = Database['public']['Functions']['get_clinic_quality_breakdown']['Returns'][0];
+type ClinicStatusBreakdownRow = Database['public']['Functions']['get_clinic_status_breakdown']['Returns'][0];
 
 export default function ClinicDetail() {
-    const { clinicId } = useParams<{ clinicId: string }>()
+    const { clinicId } = useParams<{ clinicId: string }>();
+    const navigate = useNavigate();
+
     const {
-        loading,
-        error,
-        overview,
-        statusBreakdown,
-        qualityBreakdown,
-        weeklyQuality,
-        monthlyQuality,
-        weeklyStudies,
-        monthlyStudies
-    } = useClinicAnalytics(clinicId ?? null)
+        data: clinic,
+        isLoading: isLoadingClinic,
+        error: clinicError
+    } = useClinicDetails(clinicId ?? null);
 
-    // Transform data for charts
-    const weeklyQualityData: ChartData[] = weeklyQuality.map(wq => ({
-        week_start: wq.week_start,
-        average_quality: wq.average_quality,
-        value: wq.average_quality // Required by ChartData
-    }))
+    const {
+        data: analytics,
+        isLoading: isLoadingAnalytics,
+        error: analyticsError
+    } = useClinicAnalytics(clinicId ?? null);
 
-    const monthlyQualityData: ChartData[] = monthlyQuality.map(mq => ({
-        month_start: mq.month_start,
-        average_quality: mq.average_quality,
-        value: mq.average_quality // Required by ChartData
-    }))
-
-    const weeklyStudiesData: ChartData[] = weeklyStudies.map(ws => ({
-        week_start: ws.week_start,
-        open_studies: ws.open_studies,
-        value: ws.open_studies // Required by ChartData
-    }))
-
-    const monthlyStudiesData: ChartData[] = monthlyStudies.map(ms => ({
-        month_start: ms.month_start,
-        open_studies: ms.open_studies,
-        value: ms.open_studies // Required by ChartData
-    }))
-
-    if (loading) {
+    if (isLoadingClinic || isLoadingAnalytics) {
         return (
-            <div className="text-center text-gray-400 py-8">
-                Loading clinic details...
+            <div className="flex items-center justify-center h-screen">
+                <LoadingSpinner />
             </div>
-        )
+        );
     }
 
-    if (error) {
+    if (clinicError || analyticsError) {
         return (
-            <div className="text-center text-red-400 py-4">
-                Error: {error}
+            <div className="p-4">
+                <button 
+                    onClick={() => navigate('/clinic')} 
+                    className="mb-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Back to Clinics
+                </button>
+                <div className="text-red-500">
+                    {typeof clinicError === 'string' ? clinicError : 'An error occurred'}
+                    {typeof analyticsError === 'string' ? analyticsError : 'An error occurred'}
+                </div>
             </div>
-        )
+        );
+    }
+
+    if (!clinic || !analytics) {
+        return (
+            <div className="p-4">
+                <button 
+                    onClick={() => navigate('/clinic')} 
+                    className="mb-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Back to Clinics
+                </button>
+                <div>Clinic not found</div>
+            </div>
+        );
     }
 
     return (
-        <div className="space-y-6">
-            {/* Overview cards */}
-            {overview && (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="bg-white/10 backdrop-blur-xl overflow-hidden rounded-xl border border-white/10 transition hover:scale-[1.01] hover:shadow-lg">
-                        <div className="p-5 flex items-center">
-                            <Activity className="h-6 w-6 text-blue-400" />
-                            <div className="ml-4">
-                                <p className="text-sm text-gray-300">Active Studies</p>
-                                <p className="text-xl text-white font-semibold">
-                                    {overview.active_studies}
-                                </p>
-                            </div>
-                        </div>
+        <div className="p-4">
+            <div className="flex items-center mb-6">
+                <button 
+                    onClick={() => navigate('/clinic')} 
+                    className="mr-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                    <ChevronLeft className="w-4 h-4 mr-2" />
+                    Back to Clinics
+                </button>
+                <h1 className="text-2xl font-bold">
+                    {clinic.name || 'Unnamed Clinic'}
+                </h1>
+            </div>
+
+            {/* Overview Section */}
+            {analytics.overview && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold mb-2">Total Studies</h3>
+                        <p className="text-2xl">{analytics.overview.total_studies}</p>
                     </div>
-                    <div className="bg-white/10 backdrop-blur-xl overflow-hidden rounded-xl border border-white/10 transition hover:scale-[1.01] hover:shadow-lg">
-                        <div className="p-5 flex items-center">
-                            <TrendingUp className="h-6 w-6 text-emerald-400" />
-                            <div className="ml-4">
-                                <p className="text-sm text-gray-300">Total Studies</p>
-                                <p className="text-xl text-white font-semibold">
-                                    {overview.total_studies}
-                                </p>
-                            </div>
-                        </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold mb-2">Active Studies</h3>
+                        <p className="text-2xl">{analytics.overview.active_studies}</p>
                     </div>
-                    <div className="bg-white/10 backdrop-blur-xl overflow-hidden rounded-xl border border-white/10 transition hover:scale-[1.01] hover:shadow-lg">
-                        <div className="p-5 flex items-center">
-                            <Clock className="h-6 w-6 text-blue-400" />
-                            <div className="ml-4">
-                                <p className="text-sm text-gray-300">Avg. Quality Hours</p>
-                                <p className="text-xl text-white font-semibold">
-                                    {overview.average_quality_hours.toFixed(1)}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="bg-white/10 backdrop-blur-xl overflow-hidden rounded-xl border border-white/10 transition hover:scale-[1.01] hover:shadow-lg">
-                        <div className="p-5 flex items-center">
-                            <AlertTriangle className="h-6 w-6 text-yellow-400" />
-                            <div className="ml-4">
-                                <p className="text-sm text-gray-300">Recent Alerts</p>
-                                <p className="text-xl text-white font-semibold">
-                                    {overview.recent_alerts?.length ?? 0}
-                                </p>
-                            </div>
-                        </div>
+                    <div className="bg-white p-4 rounded-lg shadow">
+                        <h3 className="text-lg font-semibold mb-2">Average Quality Hours</h3>
+                        <p className="text-2xl">{analytics.overview.average_quality_hours.toFixed(1)}</p>
                     </div>
                 </div>
             )}
 
-            {/* Quality Trends */}
-            <div className="flex flex-wrap gap-4">
-                {weeklyQualityData.length > 0 && (
-                    <SimpleBarChart
-                        data={weeklyQualityData}
-                        xKey="week_start"
-                        yKey="value"
-                        label="Weekly Average Quality"
-                        color="#f59e0b"
-                    />
-                )}
-                {monthlyQualityData.length > 0 && (
-                    <SimpleBarChart
-                        data={monthlyQualityData}
-                        xKey="month_start"
-                        yKey="value"
-                        label="Monthly Average Quality"
-                        color="#84cc16"
-                    />
-                )}
-            </div>
-
-            {/* Study Trends */}
-            <div className="flex flex-wrap gap-4">
-                {weeklyStudiesData.length > 0 && (
-                    <SimpleBarChart
-                        data={weeklyStudiesData}
-                        xKey="week_start"
-                        yKey="value"
-                        label="Weekly Open Studies"
-                        color="#3b82f6"
-                    />
-                )}
-                {monthlyStudiesData.length > 0 && (
-                    <SimpleBarChart
-                        data={monthlyStudiesData}
-                        xKey="month_start"
-                        yKey="value"
-                        label="Monthly Open Studies"
-                        color="#22d3ee"
-                    />
-                )}
-            </div>
-
-            {/* Status Breakdown */}
-            {statusBreakdown && statusBreakdown.length > 0 && (
-                <div className="bg-white/10 border border-white/10 rounded-xl p-4">
-                    <h3 className="text-lg text-white font-semibold mb-3">Status Breakdown</h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm text-gray-300">
-                            <thead className="border-b border-white/20">
+            {/* Quality Breakdown Table */}
+            {analytics.qualityBreakdown && analytics.qualityBreakdown.length > 0 && (
+                <div className="mb-6">
+                    <h2 className="text-xl font-semibold mb-4">Quality Breakdown</h2>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-3 py-2 text-left">Total</th>
-                                    <th className="px-3 py-2 text-left">Open</th>
-                                    <th className="px-3 py-2 text-left">Intervene</th>
-                                    <th className="px-3 py-2 text-left">Monitor</th>
-                                    <th className="px-3 py-2 text-left">On Target</th>
-                                    <th className="px-3 py-2 text-left">24h Completion</th>
-                                    <th className="px-3 py-2 text-left">Needs Ext</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Quality
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Count
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Average Quality
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {statusBreakdown.map((row, idx) => (
-                                    <tr key={idx} className="border-b border-white/5">
-                                        <td className="px-3 py-2">{row.total_studies}</td>
-                                        <td className="px-3 py-2">{row.open_studies}</td>
-                                        <td className="px-3 py-2">{row.intervene_count}</td>
-                                        <td className="px-3 py-2">{row.monitor_count}</td>
-                                        <td className="px-3 py-2">{row.on_target_count}</td>
-                                        <td className="px-3 py-2">{row.near_completion_count}</td>
-                                        <td className="px-3 py-2">{row.needs_extension_count}</td>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {analytics.qualityBreakdown.map((row, index) => (
+                                    <tr key={index}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.clinic_name}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.total_studies}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {(row.average_quality * 100).toFixed(1)}%
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -199,33 +149,49 @@ export default function ClinicDetail() {
                 </div>
             )}
 
-            {/* Quality Breakdown */}
-            {qualityBreakdown && qualityBreakdown.length > 0 && (
-                <div className="bg-white/10 border border-white/10 rounded-xl p-4">
-                    <h3 className="text-lg text-white font-semibold mb-3">Quality Breakdown</h3>
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full text-sm text-gray-300">
-                            <thead className="border-b border-white/20">
+            {/* Status Breakdown Table */}
+            {analytics.statusBreakdown && analytics.statusBreakdown.length > 0 && (
+                <div className="mb-6">
+                    <h2 className="text-xl font-semibold mb-4">Status Breakdown</h2>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="w-full">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-3 py-2 text-left">Total</th>
-                                    <th className="px-3 py-2 text-left">Open</th>
-                                    <th className="px-3 py-2 text-left">Avg Quality</th>
-                                    <th className="px-3 py-2 text-left">Good</th>
-                                    <th className="px-3 py-2 text-left">So-so</th>
-                                    <th className="px-3 py-2 text-left">Bad</th>
-                                    <th className="px-3 py-2 text-left">Critical</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Total Studies
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Open Studies
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Intervene
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Monitor
+                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        On Target
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {qualityBreakdown.map((row, idx) => (
-                                    <tr key={idx} className="border-b border-white/5">
-                                        <td className="px-3 py-2">{row.total_studies}</td>
-                                        <td className="px-3 py-2">{row.open_studies}</td>
-                                        <td className="px-3 py-2">{(row.average_quality * 100).toFixed(1)}%</td>
-                                        <td className="px-3 py-2">{row.good_count}</td>
-                                        <td className="px-3 py-2">{row.soso_count}</td>
-                                        <td className="px-3 py-2">{row.bad_count}</td>
-                                        <td className="px-3 py-2">{row.critical_count}</td>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {analytics.statusBreakdown.map((row, index) => (
+                                    <tr key={index}>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.total_studies}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.open_studies}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.intervene_count}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.monitor_count}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {row.on_target_count}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -233,6 +199,9 @@ export default function ClinicDetail() {
                     </div>
                 </div>
             )}
+
+            {/* TODO: Add charts for weekly/monthly trends using analytics.weeklyQuality, 
+                      analytics.monthlyQuality, analytics.weeklyStudies, and analytics.monthlyStudies */}
         </div>
-    )
+    );
 }

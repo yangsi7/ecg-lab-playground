@@ -5,122 +5,103 @@
  * via RPC functions
  */
 
-import { useState, useEffect } from 'react'
-import { logger } from '@/lib/logger'
-import { callRPC } from '@/hooks/api/core/utils'
-import type { Database } from '@/types/database.types'
-import type {
-  ClinicAnalyticsResult,
-  ClinicOverview,
-  ClinicStatusBreakdown,
-  ClinicQualityBreakdown,
-  WeeklyMonthlyQuality,
-  WeeklyMonthlyStudies,
-  WeeklyHistogramPoint,
-  ClinicStatsRow
-} from '@/types/domain/clinic'
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from './supabase';
+import type { Database } from '@/types/database.types';
+import { logger } from '@/lib/logger';
 
-// Hook: useClinicAnalytics
-// Allows an optional clinicId argument. If omitted => fetch data for all clinics.
-export function useClinicAnalytics(clinicId: string | null): ClinicAnalyticsResult {
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [overview, setOverview] = useState<ClinicOverview | null>(null)
-  const [statusBreakdown, setStatusBreakdown] = useState<ClinicStatusBreakdown[] | null>(null)
-  const [qualityBreakdown, setQualityBreakdown] = useState<ClinicQualityBreakdown[] | null>(null)
-  const [weeklyQuality, setWeeklyQuality] = useState<WeeklyMonthlyQuality[]>([])
-  const [monthlyQuality, setMonthlyQuality] = useState<WeeklyMonthlyQuality[]>([])
-  const [weeklyStudies, setWeeklyStudies] = useState<WeeklyMonthlyStudies[]>([])
-  const [monthlyStudies, setMonthlyStudies] = useState<WeeklyMonthlyStudies[]>([])
-  const [weeklyActiveStudies, setWeeklyActiveStudies] = useState<WeeklyHistogramPoint[]>([])
-  const [weeklyAvgQuality, setWeeklyAvgQuality] = useState<WeeklyHistogramPoint[]>([])
-  const [clinicBreakdown, setClinicBreakdown] = useState<ClinicStatsRow[]>([])
-  const [newStudiesLast3mo, setNewStudiesLast3mo] = useState(0)
-  const [growthPercent, setGrowthPercent] = useState(0)
+// Get the RPC function return types directly from database.types.ts
+type ClinicOverviewRow = Database['public']['Functions']['get_clinic_overview']['Returns'][0];
+type ClinicQualityBreakdownRow = Database['public']['Functions']['get_clinic_quality_breakdown']['Returns'][0];
+type ClinicStatusBreakdownRow = Database['public']['Functions']['get_clinic_status_breakdown']['Returns'][0];
+type ClinicWeeklyQualityRow = Database['public']['Functions']['get_clinic_weekly_quality']['Returns'][0];
+type ClinicMonthlyQualityRow = Database['public']['Functions']['get_clinic_monthly_quality']['Returns'][0];
+type ClinicWeeklyStudiesRow = Database['public']['Functions']['get_clinic_weekly_studies']['Returns'][0];
+type ClinicMonthlyStudiesRow = Database['public']['Functions']['get_clinic_monthly_studies']['Returns'][0];
 
-  useEffect(() => {
-    let canceled = false
+export interface ClinicAnalyticsResult {
+    overview: ClinicOverviewRow | null;
+    qualityBreakdown: ClinicQualityBreakdownRow[] | null;
+    statusBreakdown: ClinicStatusBreakdownRow[] | null;
+    weeklyQuality: ClinicWeeklyQualityRow[];
+    monthlyQuality: ClinicMonthlyQualityRow[];
+    weeklyStudies: ClinicWeeklyStudiesRow[];
+    monthlyStudies: ClinicMonthlyStudiesRow[];
+}
 
-    async function fetchAnalytics() {
-      if (!clinicId) {
-        setOverview(null)
-        setStatusBreakdown(null)
-        setQualityBreakdown(null)
-        setWeeklyQuality([])
-        setMonthlyQuality([])
-        setWeeklyStudies([])
-        setMonthlyStudies([])
-        setWeeklyActiveStudies([])
-        setWeeklyAvgQuality([])
-        setClinicBreakdown([])
-        setNewStudiesLast3mo(0)
-        setGrowthPercent(0)
-        setLoading(false)
-        return
-      }
+export function useClinicAnalytics(clinicId: string | null) {
+    const { data, isLoading, error } = useQuery({
+        queryKey: ['clinic-analytics', clinicId],
+        queryFn: async (): Promise<ClinicAnalyticsResult> => {
+            if (!clinicId) {
+                return {
+                    overview: null,
+                    qualityBreakdown: null,
+                    statusBreakdown: null,
+                    weeklyQuality: [],
+                    monthlyQuality: [],
+                    weeklyStudies: [],
+                    monthlyStudies: []
+                };
+            }
 
-      setLoading(true)
-      setError(null)
+            try {
+                // Fetch overview
+                const { data: overviewData, error: overviewError } = await supabase
+                    .rpc('get_clinic_overview', { _clinic_id: clinicId });
+                if (overviewError) throw overviewError;
 
-      try {
-        logger.debug('Fetching clinic analytics', { clinicId })
-        const result = await callRPC('get_clinic_analytics', { clinic_id: clinicId })
-        
-        if (!canceled && result) {
-          // Transform the result into the expected shape
-          const analytics = result[0] as { totalpatients: number; activepatients: number; totalstudies: number; activestudies: number }
-          setOverview({
-            active_studies: analytics.activestudies,
-            total_studies: analytics.totalstudies,
-            average_quality_hours: 0, // Not available in the current response
-            recent_alerts: null // Not available in the current response
-          })
-          // Other fields are not available in the current response
-          setStatusBreakdown(null)
-          setQualityBreakdown(null)
-          setWeeklyQuality([])
-          setMonthlyQuality([])
-          setWeeklyStudies([])
-          setMonthlyStudies([])
-          setWeeklyActiveStudies([])
-          setWeeklyAvgQuality([])
-          setClinicBreakdown([])
-          setNewStudiesLast3mo(0)
-          setGrowthPercent(0)
-        }
-      } catch (err: any) {
-        if (!canceled) {
-          logger.error('Failed to fetch clinic analytics', { error: err.message })
-          setError(err.message)
-        }
-      } finally {
-        if (!canceled) {
-          setLoading(false)
-        }
-      }
-    }
+                // Fetch quality breakdown
+                const { data: qualityData, error: qualityError } = await supabase
+                    .rpc('get_clinic_quality_breakdown', { _clinic_id: clinicId });
+                if (qualityError) throw qualityError;
 
-    fetchAnalytics()
+                // Fetch status breakdown
+                const { data: statusData, error: statusError } = await supabase
+                    .rpc('get_clinic_status_breakdown', { _clinic_id: clinicId });
+                if (statusError) throw statusError;
 
-    return () => {
-      canceled = true
-    }
-  }, [clinicId])
+                // Fetch weekly quality
+                const { data: weeklyQualityData, error: weeklyQualityError } = await supabase
+                    .rpc('get_clinic_weekly_quality', { _clinic_id: clinicId });
+                if (weeklyQualityError) throw weeklyQualityError;
 
-  return {
-    loading,
-    error,
-    overview,
-    statusBreakdown,
-    qualityBreakdown,
-    weeklyQuality,
-    monthlyQuality,
-    weeklyStudies,
-    monthlyStudies,
-    weeklyActiveStudies,
-    weeklyAvgQuality,
-    clinicBreakdown,
-    newStudiesLast3mo,
-    growthPercent
-  }
+                // Fetch monthly quality
+                const { data: monthlyQualityData, error: monthlyQualityError } = await supabase
+                    .rpc('get_clinic_monthly_quality', { _clinic_id: clinicId });
+                if (monthlyQualityError) throw monthlyQualityError;
+
+                // Fetch weekly studies
+                const { data: weeklyStudiesData, error: weeklyStudiesError } = await supabase
+                    .rpc('get_clinic_weekly_studies', { _clinic_id: clinicId });
+                if (weeklyStudiesError) throw weeklyStudiesError;
+
+                // Fetch monthly studies
+                const { data: monthlyStudiesData, error: monthlyStudiesError } = await supabase
+                    .rpc('get_clinic_monthly_studies', { _clinic_id: clinicId });
+                if (monthlyStudiesError) throw monthlyStudiesError;
+
+                return {
+                    overview: overviewData?.[0] ?? null,
+                    qualityBreakdown: qualityData ?? null,
+                    statusBreakdown: statusData ?? null,
+                    weeklyQuality: weeklyQualityData ?? [],
+                    monthlyQuality: monthlyQualityData ?? [],
+                    weeklyStudies: weeklyStudiesData ?? [],
+                    monthlyStudies: monthlyStudiesData ?? []
+                };
+            } catch (err) {
+                logger.error('Failed to fetch clinic analytics', { error: err, clinicId });
+                throw err;
+            }
+        },
+        enabled: true, // Always enabled, handle null clinicId in the query function
+        staleTime: 30000, // Consider data fresh for 30 seconds
+    });
+
+    return {
+        data,
+        isLoading,
+        error: error instanceof Error ? error.message : 'An error occurred'
+    };
 }

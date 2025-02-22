@@ -3,7 +3,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/supabase';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics, SystemMetrics } from '@/types/utils';
 import { logger } from '@/lib/logger';
 
@@ -12,28 +12,50 @@ interface DiagnosticsResult {
   databaseStats: DatabaseStatsRPC[];
   rpcMetrics: RPCMetrics[];
   systemMetrics: SystemMetrics | null;
+  lastRPCCalls: RPCCall[];
+  connectionErrors: ConnectionError[];
   isLoading: boolean;
   error: Error | null;
 }
 
-function extractTableName(query: string | null): string {
-  if (!query) return 'unknown';
+interface ConnectionError {
+  message: string;
+  timestamp: string;
+  details?: string;
+}
+
+interface RPCCall {
+  function: string;
+  timestamp: string;
+  duration: number;
+  error?: string;
+  params?: Record<string, unknown>;
+}
+
+function extractTableName(query: string | null, index: number): string {
+  if (!query) return `unknown-${index}`;
   try {
+    // Remove any subqueries first
+    const cleanQuery = query.replace(/\(([^()]+|\(([^()]+|\([^()]*\))*\))*\)/g, '');
+    
     // Try to extract table name from SQL query
-    const words = query.split(' ');
+    const words = cleanQuery.split(' ');
     const fromIndex = words.findIndex(word => word.toLowerCase() === 'from');
     if (fromIndex >= 0 && words[fromIndex + 1]) {
-      return words[fromIndex + 1].replace(/[";]/g, '');
+      const tableName = words[fromIndex + 1].replace(/[";]/g, '').split('.').pop() || '';
+      return tableName.toLowerCase() === 'select' ? `complex-query-${index}` : tableName;
     }
-    return 'unknown';
+    return `unknown-${index}`;
   } catch (err) {
     logger.warn('Failed to extract table name from query', { query });
-    return 'unknown';
+    return `unknown-${index}`;
   }
 }
 
 export function useDiagnostics(): DiagnosticsResult {
   const queryClient = useQueryClient();
+  const [lastRPCCalls, setLastRPCCalls] = useState<RPCCall[]>([]);
+  const [connectionErrors, setConnectionErrors] = useState<ConnectionError[]>([]);
 
   // Set up realtime subscription for edge function stats
   useEffect(() => {
@@ -110,13 +132,14 @@ export function useDiagnostics(): DiagnosticsResult {
       }
 
       // Transform into our expected format
-      return data.map(row => ({
-        table_name: extractTableName(row.query),
+      return data.map((row, index) => ({
+        table_name: extractTableName(row.query, index),
         row_count: row.avg_rows || 0,
         last_vacuum: new Date().toISOString(), // Not available in stats
         size_bytes: 0, // Not available in stats
         index_size_bytes: 0, // Not available in stats
-        cache_hit_ratio: row.hit_rate || 0
+        cache_hit_ratio: row.hit_rate || 0,
+        query_id: `${row.query || 'unknown'}-${index}` // Add a unique identifier
       }));
     },
     staleTime: 60000, // Consider data fresh for 1 minute
@@ -213,6 +236,8 @@ export function useDiagnostics(): DiagnosticsResult {
     databaseStats: databaseQuery.data ?? [],
     rpcMetrics: rpcQuery.data ?? [],
     systemMetrics: systemQuery.data ?? null,
+    lastRPCCalls,
+    connectionErrors,
     isLoading: edgeFunctionQuery.isLoading || databaseQuery.isLoading || rpcQuery.isLoading || systemQuery.isLoading,
     error: edgeFunctionQuery.error || databaseQuery.error || rpcQuery.error || systemQuery.error,
   };

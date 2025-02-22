@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, Users, Heart, Box } from 'lucide-react';
+import { BarChart3, Users, Heart, Box, Activity } from 'lucide-react';
 
 const tabs = [
   { id: '/', name: 'Clinics', icon: Users },
+  { id: '/clinic/analytics', name: 'Clinic Analytics', icon: Activity },
   { id: '/holter', name: 'Holter Lab', icon: Heart },
   { id: '/pod', name: 'Pod Inventory', icon: Box },
   { id: '/datalab', name: 'Data Lab', icon: BarChart3 },
