@@ -24,6 +24,7 @@
     "@tanstack/react-query": "^5.66.3",
     "@tanstack/react-query-devtools": "^5.66.5",
     "@types/loglevel": "^1.5.4",
+    "@types/uuid": "^10.0.0",
     "chart.js": "^4.4.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "date-fns": "^3.3.1",
@@ -38,6 +39,7 @@
     "sonner": "^1.4.0",
     "tailwind-merge": "^2.2.1",
     "type-fest": "^4.35.0",
+    "uuid": "^11.1.0",
     "zustand": "^4.5.1"
   },
   "devDependencies": {

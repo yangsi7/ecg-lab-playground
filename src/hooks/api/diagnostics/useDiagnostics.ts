@@ -54,8 +54,9 @@ function extractTableName(query: string | null, index: number): string {
 
 export function useDiagnostics(): DiagnosticsResult {
   const queryClient = useQueryClient();
-  const [lastRPCCalls, setLastRPCCalls] = useState<RPCCall[]>([]);
-  const [connectionErrors, setConnectionErrors] = useState<ConnectionError[]>([]);
+  // Use constants instead of state since we don't update these values
+  const lastRPCCalls: RPCCall[] = [];
+  const connectionErrors: ConnectionError[] = [];
 
   // Set up realtime subscription for edge function stats
   useEffect(() => {

@@ -1,15 +1,13 @@
-import React, { useMemo } from 'react';
-import { Building2, Plus, Download, Activity } from 'lucide-react';
+import { useMemo } from 'react';
+import { Building2, Plus, Download, Activity, Info } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useDataGrid } from '@/hooks/api/filters/useDataGrid';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/core/supabase';
-import type { Database } from '@/types/database.types';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
-
-// Get proper types from database.types.ts
-type ClinicQualityRow = Database['public']['Functions']['get_clinic_quality_breakdown']['Returns'][0];
+import { useClinicAnalytics } from '@/hooks/api';
+import type { ClinicQualityBreakdown } from '@/types/domain/clinic';
 
 export default function ClinicTable() {
     const navigate = useNavigate();
@@ -23,7 +21,10 @@ export default function ClinicTable() {
         onSortChange,
         onFilterChange,
         onFilterError
-    } = useDataGrid<ClinicQualityRow>();
+    } = useDataGrid<ClinicQualityBreakdown>();
+
+    // Fetch overview for all clinics
+    const { data: analytics } = useClinicAnalytics(null);
 
     // Fetch clinics data with proper typing
     const { data, isLoading, error } = useQuery({
@@ -39,9 +40,9 @@ export default function ClinicTable() {
                     throw error;
                 }
 
-                let filteredData = data as ClinicQualityRow[];
+                let filteredData = data as ClinicQualityBreakdown[];
                 const totalCount = filteredData.length;
-logger.info('Initial clinics count from RPC', { totalCount });
+                logger.info('Initial clinics count from RPC', { totalCount });
 
                 // Apply search filter if any
                 if (filterConfig.quickFilter?.length) {
@@ -49,13 +50,13 @@ logger.info('Initial clinics count from RPC', { totalCount });
                         clinic.clinic_name?.toLowerCase().includes(filterConfig.quickFilter!.toLowerCase())
                     );
                 }
-logger.info('After filtering, clinics count', { count: filteredData.length });
+                logger.info('After filtering, clinics count', { count: filteredData.length });
 
                 // Apply sorting if specified
                 if (sortConfig.key) {
                     filteredData.sort((a, b) => {
-                        const aVal = a[sortConfig.key as keyof ClinicQualityRow];
-                        const bVal = b[sortConfig.key as keyof ClinicQualityRow];
+                        const aVal = a[sortConfig.key as keyof ClinicQualityBreakdown];
+                        const bVal = b[sortConfig.key as keyof ClinicQualityBreakdown];
                         const multiplier = sortConfig.direction === 'asc' ? 1 : -1;
                         
                         if (typeof aVal === 'number' && typeof bVal === 'number') {
@@ -104,7 +105,7 @@ logger.info('After filtering, clinics count', { count: filteredData.length });
             const headers = columns.map(col => col.header).join(',');
             const rows = exportData.map(row => 
                 columns.map(col => {
-                    const value = row[col.key as keyof ClinicQualityRow];
+                    const value = row[col.key as keyof ClinicQualityBreakdown];
                     return value ? String(value).replace(/,/g, '') : '';
                 }).join(',')
             ).join('\n');
@@ -126,14 +127,14 @@ logger.info('After filtering, clinics count', { count: filteredData.length });
         }
     };
 
-    const columns = useMemo<Column<ClinicQualityRow>[]>(() => [
+    const columns = useMemo<Column<ClinicQualityBreakdown>[]>(() => [
         {
             key: 'clinic_id',
             header: 'ID',
             sortable: true,
             filterable: true,
             filterType: 'text',
-            render: (value: unknown, row: ClinicQualityRow) => (
+            render: (value: unknown, row: ClinicQualityBreakdown) => (
                 <button
                     onClick={() => navigate(`/clinic/${row.clinic_id}`)}
                     className="text-blue-400 hover:text-blue-300 font-medium"
@@ -279,6 +280,35 @@ logger.info('After filtering, clinics count', { count: filteredData.length });
                     </button>
                 </div>
             </div>
+
+            {/* Overview Stats Section */}
+            {analytics?.overview && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold text-white">Total Studies</h3>
+                            <Info className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <p className="text-3xl text-white">{analytics.overview.total_studies}</p>
+                    </div>
+                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold text-white">Active Studies</h3>
+                            <Activity className="h-5 w-5 text-green-400" />
+                        </div>
+                        <p className="text-3xl text-white">{analytics.overview.active_studies}</p>
+                    </div>
+                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
+                        <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-lg font-semibold text-white">Average Quality Hours</h3>
+                            <Building2 className="h-5 w-5 text-yellow-400" />
+                        </div>
+                        <p className="text-3xl text-white">
+                            {analytics.overview.average_quality_hours.toFixed(1)}
+                        </p>
+                    </div>
+                </div>
+            )}
 
             {/* Data Grid */}
             <DataGrid

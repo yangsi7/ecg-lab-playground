@@ -6,72 +6,39 @@
  * - Row click navigates to a "ClinicDetail" page for deeper analysis.
  */
 
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { useClinicAnalytics } from '@/hooks/api/clinic/useClinicAnalytics';
 import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SimpleBarChart } from '../../shared/charts/SimpleBarChart'
+import type { 
+    ClinicStatusBreakdown, 
+    ClinicQualityBreakdown
+} from '@/types/domain/clinic';
 
 interface ChartData {
     [key: string]: string | number | null | undefined;
 }
 
-interface StatusBreakdownRow {
-    clinic_id: string | null;
-    clinic_name: string | null;
-    total_studies: number;
-    open_studies: number;
-    intervene_count: number;
-    monitor_count: number;
-    on_target_count: number;
-    near_completion_count: number;
-    needs_extension_count: number;
-}
-
-interface QualityBreakdownRow {
-    clinic_id: string | null;
-    clinic_name: string | null;
-    total_studies: number;
-    open_studies: number;
-    average_quality: number;
-    good_count: number;
-    soso_count: number;
-    bad_count: number;
-    critical_count: number;
-}
-
-interface ChartDataPoint extends ChartData {
-    week_start?: string | null;
-    month_start?: string | null;
-    average_quality?: number;
-    open_studies?: number;
-}
-
 export default function ClinicLab() {
-    const [clinicId, setClinicId] = useState<string | undefined>(undefined)
+    const [clinicId, setClinicId] = useState<string | null>(null)
     const navigate = useNavigate()
 
     const {
-        loading,
-        error,
-        overview,
-        statusBreakdown,
-        qualityBreakdown,
-        weeklyQuality,
-        monthlyQuality,
-        weeklyStudies,
-        monthlyStudies
+        data: analytics,
+        isLoading: loading,
+        error
     } = useClinicAnalytics(clinicId)
 
     // We'll keep track of sorting for "statusBreakdown"
-    const [sortKey, setSortKey] = useState<keyof StatusBreakdownRow | null>(null)
+    const [sortKey, setSortKey] = useState<keyof ClinicStatusBreakdown | null>(null)
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
 
     // handle sorting
     const sortedStatusData = (() => {
-        if (!statusBreakdown) return []
-        if (!sortKey) return statusBreakdown
-        const arrayCopy = [...statusBreakdown]
+        if (!analytics?.statusBreakdown) return []
+        if (!sortKey) return analytics.statusBreakdown
+        const arrayCopy = [...analytics.statusBreakdown]
         arrayCopy.sort((a, b) => {
             const av = a[sortKey] ?? 0
             const bv = b[sortKey] ?? 0
@@ -82,7 +49,7 @@ export default function ClinicLab() {
         return arrayCopy
     })()
 
-    const handleSort = (key: keyof StatusBreakdownRow) => {
+    const handleSort = (key: keyof ClinicStatusBreakdown) => {
         if (sortKey === key) {
             setSortDir(d => d === 'asc' ? 'desc' : 'asc')
         } else {
@@ -91,7 +58,7 @@ export default function ClinicLab() {
         }
     }
 
-    function handleRowClick(row: StatusBreakdownRow | QualityBreakdownRow) {
+    function handleRowClick(row: ClinicStatusBreakdown | ClinicQualityBreakdown) {
         if (row.clinic_id) {
             navigate(`/clinic/${row.clinic_id}`);
         }
@@ -109,7 +76,7 @@ export default function ClinicLab() {
                     type="text"
                     placeholder="e.g. d4f7d9f2-..."
                     value={clinicId || ''}
-                    onChange={(e) => setClinicId(e.target.value || undefined)}
+                    onChange={(e) => setClinicId(e.target.value || null)}
                     className="bg-white/10 border border-white/20 rounded-md px-3 py-1 text-white text-sm 
                                focus:outline-none focus:border-blue-400 transition w-72"
                 />
@@ -128,7 +95,7 @@ export default function ClinicLab() {
             )}
 
             {/* Overview cards */}
-            {!loading && !error && overview && (
+            {!loading && !error && analytics?.overview && (
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                     <div className="bg-white/10 backdrop-blur-xl overflow-hidden rounded-xl border border-white/10 transition hover:scale-[1.01] hover:shadow-lg">
                         <div className="p-5 flex items-center">
@@ -136,7 +103,7 @@ export default function ClinicLab() {
                             <div className="ml-4">
                                 <p className="text-sm text-gray-300">Active Studies</p>
                                 <p className="text-xl text-white font-semibold">
-                                    {overview.active_studies}
+                                    {analytics.overview.active_studies}
                                 </p>
                             </div>
                         </div>
@@ -147,7 +114,7 @@ export default function ClinicLab() {
                             <div className="ml-4">
                                 <p className="text-sm text-gray-300">Total Studies</p>
                                 <p className="text-xl text-white font-semibold">
-                                    {overview.total_studies}
+                                    {analytics.overview.total_studies}
                                 </p>
                             </div>
                         </div>
@@ -158,7 +125,7 @@ export default function ClinicLab() {
                             <div className="ml-4">
                                 <p className="text-sm text-gray-300">Avg. Quality Hours</p>
                                 <p className="text-xl text-white font-semibold">
-                                    {overview.average_quality_hours.toFixed(1)}
+                                    {analytics.overview.average_quality_hours.toFixed(1)}
                                 </p>
                             </div>
                         </div>
@@ -169,7 +136,7 @@ export default function ClinicLab() {
                             <div className="ml-4">
                                 <p className="text-sm text-gray-300">Recent Alerts</p>
                                 <p className="text-xl text-white font-semibold">
-                                    {overview.recent_alerts?.length ?? 0}
+                                    {analytics.overview.recent_alerts?.length ?? 0}
                                 </p>
                             </div>
                         </div>
@@ -198,7 +165,7 @@ export default function ClinicLab() {
                                         <th
                                             key={col.key}
                                             className="px-3 py-2 text-left cursor-pointer hover:bg-white/5"
-                                            onClick={() => handleSort(col.key as any)}
+                                            onClick={() => handleSort(col.key as keyof ClinicStatusBreakdown)}
                                         >
                                             {col.label}
                                             {sortKey === col.key && (
@@ -211,7 +178,7 @@ export default function ClinicLab() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {sortedStatusData.map((row: StatusBreakdownRow, idx: number) => (
+                                {sortedStatusData.map((row, idx) => (
                                     <tr
                                         key={`${row.clinic_id}-${idx}`}
                                         className="border-b border-white/5 hover:bg-white/5 transition cursor-pointer"
@@ -236,7 +203,7 @@ export default function ClinicLab() {
             )}
 
             {/* Quality Breakdown */}
-            {!loading && !error && qualityBreakdown && qualityBreakdown.length > 0 && (
+            {!loading && !error && analytics?.qualityBreakdown && analytics.qualityBreakdown.length > 0 && (
                 <div className="bg-white/10 border border-white/10 rounded-xl p-4 mt-6">
                     <h3 className="text-lg text-white font-semibold mb-3">Quality Breakdown</h3>
                     <div className="overflow-x-auto">
@@ -248,26 +215,36 @@ export default function ClinicLab() {
                                     <th className="px-3 py-2 text-left">Open</th>
                                     <th className="px-3 py-2 text-left">Avg Quality</th>
                                     <th className="px-3 py-2 text-left">Good</th>
-                                    <th className="px-3 py-2 text-left">So-so</th>
-                                    <th className="px-3 py-2 text-left">Bad</th>
+                                    <th className="px-3 py-2 text-left">Average</th>
+                                    <th className="px-3 py-2 text-left">Poor</th>
                                     <th className="px-3 py-2 text-left">Critical</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {qualityBreakdown.map((row: QualityBreakdownRow, idx: number) => (
+                                {analytics.qualityBreakdown.map((row, idx) => (
                                     <tr
                                         key={`${row.clinic_id}-${idx}`}
                                         className="border-b border-white/5 hover:bg-white/5 transition cursor-pointer"
                                         onClick={() => handleRowClick(row)}
                                     >
-                                        <td className="px-3 py-2">{row.clinic_name ?? 'All Clinics'}</td>
+                                        <td className="px-3 py-2">
+                                            {row.clinic_name ?? 'All Clinics'}
+                                        </td>
                                         <td className="px-3 py-2">{row.total_studies}</td>
                                         <td className="px-3 py-2">{row.open_studies}</td>
-                                        <td className="px-3 py-2">{(row.average_quality * 100).toFixed(1)}%</td>
-                                        <td className="px-3 py-2">{row.good_count}</td>
-                                        <td className="px-3 py-2">{row.soso_count}</td>
-                                        <td className="px-3 py-2">{row.bad_count}</td>
-                                        <td className="px-3 py-2">{row.critical_count}</td>
+                                        <td className="px-3 py-2">
+                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                row.average_quality > 0.7 ? 'bg-green-100 text-green-800' : 
+                                                row.average_quality > 0.5 ? 'bg-yellow-100 text-yellow-800' :
+                                                'bg-red-100 text-red-800'
+                                            }`}>
+                                                {(row.average_quality * 100).toFixed(1)}%
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-green-400">{row.good_count}</td>
+                                        <td className="px-3 py-2 text-yellow-400">{row.soso_count}</td>
+                                        <td className="px-3 py-2 text-orange-400">{row.bad_count}</td>
+                                        <td className="px-3 py-2 text-red-400">{row.critical_count}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -276,49 +253,83 @@ export default function ClinicLab() {
                 </div>
             )}
 
-            {/* WEEKLY/MONTHLY QUALITY charts */}
-            <div className="flex flex-wrap gap-4">
-                {!loading && !error && weeklyQuality?.length > 0 && (
-                    <SimpleBarChart
-                        data={weeklyQuality.map(q => ({ ...q } as ChartDataPoint))}
-                        xKey="week_start"
-                        yKey="average_quality"
-                        label="Weekly Average Quality"
-                        color="#f59e0b"
-                    />
-                )}
-                {!loading && !error && monthlyQuality?.length > 0 && (
-                    <SimpleBarChart
-                        data={monthlyQuality.map(q => ({ ...q } as ChartDataPoint))}
-                        xKey="month_start"
-                        yKey="average_quality"
-                        label="Monthly Average Quality"
-                        color="#84cc16"
-                    />
-                )}
-            </div>
+            {/* Weekly/Monthly Quality Charts */}
+            {!loading && !error && analytics?.weeklyQuality && analytics.weeklyQuality.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div className="bg-white/10 border border-white/10 rounded-xl p-4">
+                        <h3 className="text-lg text-white font-semibold mb-3">Weekly Quality</h3>
+                        <SimpleBarChart
+                            data={analytics.weeklyQuality.map(q => {
+                                return {
+                                    name: q.week_start ? new Date(q.week_start).toLocaleDateString() : 'Unknown',
+                                    value: parseFloat((q.average_quality * 100).toFixed(1))
+                                };
+                            })}
+                            xKey="name"
+                            yKey="value"
+                            label="Weekly Quality Percentage"
+                            color="#4ade80"
+                            height={250}
+                        />
+                    </div>
 
-            {/* WEEKLY/MONTHLY STUDIES charts */}
-            <div className="flex flex-wrap gap-4">
-                {!loading && !error && weeklyStudies?.length > 0 && (
-                    <SimpleBarChart
-                        data={weeklyStudies.map(s => ({ ...s } as ChartDataPoint))}
-                        xKey="week_start"
-                        yKey="open_studies"
-                        label="Weekly Open Studies"
-                        color="#3b82f6"
-                    />
-                )}
-                {!loading && !error && monthlyStudies?.length > 0 && (
-                    <SimpleBarChart
-                        data={monthlyStudies.map(s => ({ ...s } as ChartDataPoint))}
-                        xKey="month_start"
-                        yKey="open_studies"
-                        label="Monthly Open Studies"
-                        color="#22d3ee"
-                    />
-                )}
-            </div>
+                    <div className="bg-white/10 border border-white/10 rounded-xl p-4">
+                        <h3 className="text-lg text-white font-semibold mb-3">Monthly Quality</h3>
+                        <SimpleBarChart
+                            data={analytics.monthlyQuality.map(q => {
+                                return {
+                                    name: q.month_start ? new Date(q.month_start).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Unknown',
+                                    value: parseFloat((q.average_quality * 100).toFixed(1))
+                                };
+                            })}
+                            xKey="name"
+                            yKey="value"
+                            label="Monthly Quality Percentage" 
+                            color="#facc15"
+                            height={250}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Weekly/Monthly Studies Charts */}
+            {!loading && !error && analytics?.weeklyStudies && analytics.weeklyStudies.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <div className="bg-white/10 border border-white/10 rounded-xl p-4">
+                        <h3 className="text-lg text-white font-semibold mb-3">Weekly Active Studies</h3>
+                        <SimpleBarChart
+                            data={analytics.weeklyStudies.map(s => {
+                                return {
+                                    name: s.week_start ? new Date(s.week_start).toLocaleDateString() : 'Unknown',
+                                    value: s.open_studies
+                                };
+                            })}
+                            xKey="name"
+                            yKey="value"
+                            label="Weekly Active Studies"
+                            color="#60a5fa"
+                            height={250}
+                        />
+                    </div>
+
+                    <div className="bg-white/10 border border-white/10 rounded-xl p-4">
+                        <h3 className="text-lg text-white font-semibold mb-3">Monthly Active Studies</h3>
+                        <SimpleBarChart
+                            data={analytics.monthlyStudies.map(s => {
+                                return {
+                                    name: s.month_start ? new Date(s.month_start).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }) : 'Unknown',
+                                    value: s.open_studies
+                                };
+                            })}
+                            xKey="name"
+                            yKey="value"
+                            label="Monthly Active Studies"
+                            color="#60a5fa"
+                            height={250}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
-    )
+    );
 }

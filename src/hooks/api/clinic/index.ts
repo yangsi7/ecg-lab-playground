@@ -1,2 +1,2 @@
 export { useClinicAnalytics } from './useClinicAnalytics';
-export type { ClinicAnalyticsResult } from './useClinicAnalytics'; 
+export { useClinicDetails } from './useClinicDetails'; 

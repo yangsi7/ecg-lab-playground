@@ -13,11 +13,10 @@ import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi } from 'lucide-react'
 import { supabase } from '@/hooks';
 import { useDiagnostics } from '@/hooks/api/diagnostics/useDiagnostics';
 import type { 
-  DiagnosticsResult, 
   ConnectionError,
   RPCCall
 } from '@/hooks/api/diagnostics/useDiagnostics';
-import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics, SystemMetrics } from '@/types';
+import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics } from '@/types';
 import { useEffect, useState } from 'react';
 
 /**

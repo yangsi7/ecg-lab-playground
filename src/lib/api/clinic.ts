@@ -2,11 +2,11 @@
  * Domain-specific wrappers for clinic operations
  * Includes runtime validation and type safety
  */
-import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/hooks/api/useSupabase'
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/hooks/api/core/useSupabase'
 import { toClinic } from '@/types/domain/clinic'
 import type { Clinic, ClinicRow } from '@/types/domain/clinic'
-import { isClinic } from '@/types/domain/clinic'
 import { logger } from '@/lib/logger'
+import { v4 as uuidv4 } from 'uuid'
 
 interface ClinicQueryParams {
   page?: number
@@ -37,8 +37,9 @@ export function useClinicInsert() {
           throw new Error('Clinic name is required')
         }
 
-        // Transform to database format
-        const dbClinic: Partial<ClinicRow> = {
+        // Transform to database format with generated ID
+        const dbClinic = {
+          id: clinic.id || uuidv4(),
           name: clinic.name,
         }
 
