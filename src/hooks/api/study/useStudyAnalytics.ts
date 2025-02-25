@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { callRPC } from '../../core/utils';
-import type { UseQueryResult } from '../../core/types';
-import { QueryError } from '../../core/errors';
+import { callRPC } from '../core/utils';
+import type { UseQueryResult } from '@/types';
+import { QueryError } from '../core/errors';
 import type { Database } from '../../../types/database.types';
 
 type StudyDiagnostics = Database['public']['Functions']['get_study_diagnostics']['Returns'][number];

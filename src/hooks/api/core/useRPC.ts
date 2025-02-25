@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { supabase } from '@/hooks/api/core/supabase';
 import { RPCError } from './errors';
-import type { RPCFunctionName, RPCFunctionArgs, RPCFunctionReturns, RPCCallInfo, DiagnosticOptions } from '@types';
+import type { DiagnosticOptions }  from '@/types/supabase';
+import type { RPCFunctionName, RPCFunctionArgs, RPCFunctionReturns, RPCCallInfo }  from '@/types/utils';
+
 
 // Rate limiting configuration
 const RPC_RATE_LIMIT = {

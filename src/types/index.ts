@@ -6,8 +6,8 @@
 // Core utility types
 export * from './utils';
 
-// Database and Supabase types
 export * from './database.types';
+// Database and Supabase types
 export * from './supabase';
 
 // Domain-specific types

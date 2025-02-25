@@ -5,7 +5,7 @@
  */
 import { createContext, useContext, useMemo } from 'react'
 import { useSingleStudy } from '@/hooks/api/study/useSingleStudy'
-import { usePodDays } from '@/hooks/api/study/usePodDays'
+import { usePodDays } from '@/hooks/api/pod/usePodDays'
 import type { ReactNode } from 'react'
 
 interface StudyContextType {

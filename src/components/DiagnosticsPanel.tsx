@@ -109,26 +109,19 @@ interface DiagnosticsPanelProps {
 export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelProps) {
   // Destructure the query objects from the hook
   const {
-    studyDiagnosticsQuery,
-    edgeFunctionStatsQuery,
-    databaseStatsQuery
+    edgeFunctionStats,
+    databaseStats,
+    rpcMetrics,
+    systemMetrics,
+    lastRPCCalls,
+    connectionErrors,
+    isLoading,
+    error
   } = useDiagnostics();
 
-  // We can combine their states into a single isLoading/error if desired:
-  const isLoading =
-    studyDiagnosticsQuery.isLoading ||
-    edgeFunctionStatsQuery.isLoading ||
-    databaseStatsQuery.isLoading;
-
-  const error =
-    studyDiagnosticsQuery.error ??
-    edgeFunctionStatsQuery.error ??
-    databaseStatsQuery.error ??
-    null;
-
-  // Retrieve data from the query objects or set defaults
-  const edgeFunctionStats = edgeFunctionStatsQuery.data ?? [];
-  const databaseStats = databaseStatsQuery.data ?? [];
+  // Use direct values from hook
+  const isLoading = isLoading;
+  const error = error;
 
   // For demonstration, define a mock systemMetrics object to avoid TS "never" errors
   // In a real scenario, you'd fetch real system metrics from another query or context.

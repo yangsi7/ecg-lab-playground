@@ -9,3 +9,4 @@ export type { UseStudyDiagnosticsResult } from './useStudyDiagnostics';
 export { useStudiesWithTimes } from './useStudiesWithTimes';
 export { useStudyAnalytics } from './useStudyAnalytics';
 export type { UseStudyAnalyticsResult, StudyAnalytics } from './useStudyAnalytics'; 
+export * from './useHolterFilters';

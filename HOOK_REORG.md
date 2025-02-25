@@ -1,6 +1,7 @@
 # Hook Reorganization Plan
 
 ## Current Issues
+
 ```ts
 // Example type errors from hooks
 import { SupabaseRow } from '../../types/utils' // Error: Not exported
@@ -8,6 +9,7 @@ import { RPCCallInfo } from '../../../types/utils' // Error: Missing type
 ```
 
 ## Proposed Structure
+
 ```diff
  hooks/
 +├── data/
@@ -26,7 +28,9 @@ import { RPCCallInfo } from '../../../types/utils' // Error: Missing type
 ```
 
 ## Type Fixes Needed
+
 1. Update `types/utils.ts`:
+
 ```typescript
 // Add missing types
 export type SupabaseRow<T extends keyof Database['public']['Tables']> = 
@@ -39,15 +43,19 @@ export interface RPCCallInfo {
 }
 ```
 
-2. Update hook imports:
+2.Update hook imports:
+
 ```diff
+
 -import { SupabaseRow } from '../../types/utils'
 +import type { SupabaseRow } from '../../types/database.types'
 ```
 
 ## Migration Steps
+
 1. Create new directory structure
 2. Move existing hooks to appropriate categories
 3. Update import paths throughout application
 4. Add type extensions to `types/utils.ts`
 5. Validate type fixes with `tsc --noEmit`
+A

@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
-import type { QuickFilterId } from '../hooks/useHolterFilters';
+import type { QuickFilterId } from '../../../../hooks/api/study/useHolterFilters';
 
 export interface QuickFilter {
   id: 'all' | 'recent' | 'low-quality' | 'high-quality';

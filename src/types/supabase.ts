@@ -14,9 +14,7 @@ import type {
   QueryParams,
   QueryMetadata,
   QueryResponse,
-  RPCOptions,
-  SupabaseError,
-  RPCError
+  RPCOptions
 } from './utils';
 
 // Re-export common types

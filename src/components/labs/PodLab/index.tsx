@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '@/hooks/useDataGrid';
+import { useDataGrid } from '@/hooks';
 import { supabase } from '@/hooks/api/core/supabase';
 import type { Database } from '@/types/database.types';
 import { logger } from '@/lib/logger';

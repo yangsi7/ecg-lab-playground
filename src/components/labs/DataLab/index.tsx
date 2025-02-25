@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Database, Download, Heart, Clock, Calendar, User, Building2, Activity } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '@/hooks/useDataGrid';
-import { useStudiesWithTimes } from '@/hooks/api/useStudiesWithTimes';
+import { useDataGrid } from '@/hooks';
+import { useStudiesWithTimes } from '@/hooks';
 import { supabase } from '@/hooks/api/core/supabase';
 import type { StudiesWithTimesRow, StudyListRow } from '@/types/domain/study';
 import { logger } from '@/lib/logger';

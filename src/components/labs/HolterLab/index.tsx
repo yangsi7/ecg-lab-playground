@@ -9,12 +9,12 @@ import {
     Star,
     MoreHorizontal,
 } from 'lucide-react'
-import { useHolterFilters } from './hooks/useHolterFilters';
+import { useHolterFilters } from '../../../hooks/api/study/useHolterFilters';
 import { useHolterStudies } from '@/hooks/api/study/useHolterStudies';
 import { DataGrid, type Column } from '@/components/shared/DataGrid';
 import { QuickFilters, type QuickFilter } from './components/QuickFilters';
 import { AdvancedFilter } from './components/AdvancedFilter';
-import { useDataGrid } from '@/hooks/useDataGrid';
+import { useDataGrid } from '@/hooks';
 import type { HolterStudy } from '@/types/domain/holter';
 import { logger } from '@/lib/logger';
 

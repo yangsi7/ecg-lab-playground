@@ -3,7 +3,7 @@
  */
 import React, { useState, useCallback } from 'react';
 import { Filter, Save, Star, MoreHorizontal, X } from 'lucide-react';
-import { useAdvancedFilter } from '@/hooks/useAdvancedFilter';
+import { useAdvancedFilter } from '@/hooks/api/filters/useAdvancedFilter';
 import type { FilterConfig, FilterExpression } from '@/types/filter';
 
 export interface AdvancedFilterProps<T> {

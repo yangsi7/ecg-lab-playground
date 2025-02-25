@@ -11,8 +11,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/core/supabase';
 import MainECGViewer from '../../shared/ecg/MainECGViewer';
 import { HolterHeader } from './components/HolterHeader';
-import { HolterHistogram24h } from './components/HolterHistogram24h';
-import { CalendarSelectorPodDays } from './components/CalendarSelectorPodDays';
+import { HolterHistogram24h } from './components';
+import { CalendarSelector } from '../../shared/CalendarSelector';
 import { useECGAggregates } from '../../../hooks/api/ecg/useECGAggregates';
 
 // Add type definitions at the top of the file
