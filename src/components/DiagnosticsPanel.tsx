@@ -13,6 +13,7 @@ import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi } from 'lucide-react'
 import { supabase,useDiagnostics } from '@/hooks';
 import { useEffect, useState } from 'react';
 
+
 /**
  * Local types for debugging panel
  */
