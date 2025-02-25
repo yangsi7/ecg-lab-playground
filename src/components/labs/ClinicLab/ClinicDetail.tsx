@@ -1,226 +1,323 @@
 /**
- * src/components/labs/ClinicLab/ClinicDetail.tsx
- *
- * This is a new page to show a single clinic's stats in more depth,
- * accessible via route "/clinic/:clinicId".
- *
- * We'll reuse the "useClinicAnalytics" hook with the given clinicId,
- * then display the same or expanded charts/time-series specifically for that clinic.
+ * src/components/clinics/ClinicDetail.tsx
+ * 
+ * Displays detailed information about a single clinic
+ * including study management and analytics charts
  */
 
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useClinicDetails } from '@/hooks/api/clinic/useClinicDetails';
-import { useClinicAnalytics } from '@/hooks/api';
-import { ChevronLeft, Building2, Activity, BarChart2, Users } from 'lucide-react';
+import { useClinicDetails, useClinicAnalytics } from '@/hooks/api/clinic';
+import { ChevronLeft, Building2, Activity, BarChart2, Users, Download } from 'lucide-react';
+import StudyManagementTable from './StudyManagementTable';
+import SparklineChart from './components/SparklineChart';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import type { ClinicOverview, ClinicQualityBreakdown, ClinicStatusBreakdown } from '@/types/domain/clinic';
 
 export default function ClinicDetail() {
-    const { clinicId } = useParams<{ clinicId: string }>();
-    const navigate = useNavigate();
+  const { clinicId } = useParams<{ clinicId: string }>();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'overview' | 'studies'>('overview');
 
-    const {
-        data: clinic,
-        isLoading: isLoadingClinic,
-        error: clinicError
-    } = useClinicDetails(clinicId ?? null);
+  // Fetch clinic details and analytics
+  const {
+    data: clinic,
+    isLoading: isLoadingClinic,
+    error: clinicError
+  } = useClinicDetails(clinicId ?? null);
 
-    const {
-        data: analytics,
-        isLoading: isLoadingAnalytics,
-        error: analyticsError
-    } = useClinicAnalytics(clinicId ?? null);
+  const {
+    data: analyticsData,
+    isLoading: isLoadingAnalytics,
+    error: analyticsError
+  } = useClinicAnalytics(clinicId ?? null);
 
-    if (isLoadingClinic || isLoadingAnalytics) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <LoadingSpinner />
-            </div>
-        );
+  // Safe access to analytics with fallbacks
+  const analytics = analyticsData || {
+    overview: null,
+    statusBreakdown: null,
+    weeklyActiveStudies: [],
+    weeklyAvgQuality: [],
+    growthPercent: 0
+  };
+
+  // Handle export button click
+  const handleExport = async () => {
+    try {
+      const response = await fetch('https://your-app.supabase.co/functions/v1/clinic-report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
+        },
+        body: JSON.stringify({
+          clinic_id: clinicId,
+          format: 'csv',
+          include_studies: true,
+          include_quality_metrics: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      // Get the blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link and trigger the download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `clinic_report_${clinicId}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Failed to export report. Please try again.');
     }
+  };
 
-    if (clinicError || analyticsError) {
-        return (
-            <div className="p-4">
-                <button 
-                    onClick={() => navigate('/clinic')} 
-                    className="mb-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Back to Clinics
-                </button>
-                <div className="text-red-500">
-                    {clinicError ? (typeof clinicError === 'string' ? clinicError : 'Error loading clinic details') : ''}
-                    {analyticsError ? (typeof analyticsError === 'string' ? analyticsError : 'Error loading analytics') : ''}
-                </div>
-            </div>
-        );
-    }
+  const handleBack = () => {
+    navigate('/clinics');
+  };
 
-    if (!clinic || !analytics) {
-        return (
-            <div className="p-4">
-                <button 
-                    onClick={() => navigate('/clinic')} 
-                    className="mb-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Back to Clinics
-                </button>
-                <div>Clinic not found</div>
-            </div>
-        );
-    }
-
+  if (isLoadingClinic || isLoadingAnalytics) {
     return (
-        <div className="p-4">
-            <div className="flex items-center mb-6">
-                <button 
-                    onClick={() => navigate('/clinic')} 
-                    className="mr-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Back to Clinics
-                </button>
-                <div className="flex items-center gap-2">
-                    <Building2 className="h-8 w-8 text-blue-400" />
-                    <h1 className="text-2xl font-bold text-white">
-                        {clinic.name || 'Unnamed Clinic'}
-                    </h1>
-                </div>
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (clinicError || analyticsError) {
+    return (
+      <div className="p-4">
+        <button 
+          onClick={handleBack}
+          className="flex items-center mb-4 text-blue-600 hover:text-blue-800"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
+        </button>
+        <div className="bg-red-50 p-4 rounded-md text-red-500">
+          {clinicError ? clinicError.toString() : analyticsError?.toString()}
+        </div>
+      </div>
+    );
+  }
+
+  if (!clinic) {
+    return (
+      <div className="p-4">
+        <button 
+          onClick={handleBack}
+          className="flex items-center mb-4 text-blue-600 hover:text-blue-800"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
+        </button>
+        <div className="bg-yellow-50 p-4 rounded-md text-yellow-700">
+          Clinic not found
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="bg-white border-b p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleBack}
+              className="text-gray-600 hover:text-gray-800"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-2xl font-bold flex items-center">
+              <Building2 className="h-6 w-6 mr-2 text-blue-600" />
+              {clinic.name}
+              {clinic.vip_status && (
+                <span className="ml-2 px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded">
+                  VIP
+                </span>
+              )}
+            </h1>
+          </div>
+          <button 
+            onClick={handleExport}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors"
+          >
+            <Download size={18} />
+            Export Report
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-gray-100 border-b">
+        <div className="flex">
+          <button
+            className={`px-6 py-3 font-medium ${
+              activeTab === 'overview' ? 'bg-white border-t-2 border-blue-500' : 'text-gray-600'
+            }`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`px-6 py-3 font-medium ${
+              activeTab === 'studies' ? 'bg-white border-t-2 border-blue-500' : 'text-gray-600'
+            }`}
+            onClick={() => setActiveTab('studies')}
+          >
+            Studies
+          </button>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 bg-gray-50 p-6 overflow-auto">
+        {activeTab === 'overview' ? (
+          <div className="space-y-6">
+            {/* Stats cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <StatCard 
+                title="Active Studies" 
+                value={analytics?.overview?.active_studies || 0} 
+                icon={<Activity className="text-green-500" />} 
+              />
+              <StatCard 
+                title="Total Studies" 
+                value={analytics?.overview?.total_studies || 0} 
+                icon={<BarChart2 className="text-blue-500" />} 
+              />
+              <StatCard 
+                title="Quality Hours" 
+                value={analytics?.overview?.average_quality_hours || 0} 
+                suffix="hrs"
+                icon={<Activity className="text-purple-500" />} 
+              />
+              <StatCard 
+                title="Growth" 
+                value={analytics?.growthPercent || 0} 
+                suffix="%"
+                icon={<Activity className="text-amber-500" />} 
+              />
             </div>
 
-            {/* Overview Section */}
-            {analytics.overview && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-lg font-semibold text-white">Total Studies</h3>
-                            <Users className="h-5 w-5 text-blue-400" />
-                        </div>
-                        <p className="text-3xl text-white">{analytics.overview.total_studies}</p>
-                    </div>
-                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-lg font-semibold text-white">Active Studies</h3>
-                            <Activity className="h-5 w-5 text-green-400" />
-                        </div>
-                        <p className="text-3xl text-white">{analytics.overview.active_studies}</p>
-                    </div>
-                    <div className="bg-gray-800 p-4 rounded-lg shadow border border-gray-700">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-lg font-semibold text-white">Average Quality Hours</h3>
-                            <BarChart2 className="h-5 w-5 text-yellow-400" />
-                        </div>
-                        <p className="text-3xl text-white">{analytics.overview.average_quality_hours.toFixed(1)}</p>
-                    </div>
-                </div>
-            )}
+            {/* Charts */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-lg font-medium mb-4">Weekly Active Studies</h3>
+                <SparklineChart 
+                  data={analytics?.weeklyActiveStudies || []} 
+                  xKey="week_start"
+                  yKey="value"
+                  color="#22c55e"
+                />
+              </div>
+              <div className="bg-white p-4 rounded-lg shadow">
+                <h3 className="text-lg font-medium mb-4">Quality Metrics</h3>
+                <SparklineChart 
+                  data={analytics?.weeklyAvgQuality || []} 
+                  xKey="week_start"
+                  yKey="value"
+                  color="#3b82f6"
+                />
+              </div>
+            </div>
 
-            {/* Quality Breakdown Table */}
-            {analytics.qualityBreakdown && analytics.qualityBreakdown.length > 0 && (
-                <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-4 text-white">Quality Breakdown</h2>
-                    <div className="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
-                        <table className="w-full">
-                            <thead className="bg-gray-900">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Quality
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Count
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Average Quality
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                {analytics.qualityBreakdown.map((row, index) => (
-                                    <tr key={index} className="hover:bg-gray-700">
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                            {row.clinic_name}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                            {row.total_studies}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                                row.average_quality > 0.7 ? 'bg-green-100 text-green-800' : 
-                                                row.average_quality > 0.5 ? 'bg-yellow-100 text-yellow-800' :
-                                                'bg-red-100 text-red-800'
-                                            }`}>
-                                                {(row.average_quality * 100).toFixed(1)}%
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+            {/* Status breakdown */}
+            <div className="bg-white p-4 rounded-lg shadow">
+              <h3 className="text-lg font-medium mb-4">Status Breakdown</h3>
+              {analytics?.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
+                <div className="flex justify-between items-center">
+                  <ProgressBar 
+                    label="Intervention Needed" 
+                    value={analytics.statusBreakdown[0].intervene_count} 
+                    total={analytics.statusBreakdown[0].open_studies} 
+                    color="bg-red-500"
+                  />
+                  <ProgressBar 
+                    label="Monitor" 
+                    value={analytics.statusBreakdown[0].monitor_count} 
+                    total={analytics.statusBreakdown[0].open_studies} 
+                    color="bg-yellow-500"
+                  />
+                  <ProgressBar 
+                    label="On Target" 
+                    value={analytics.statusBreakdown[0].on_target_count} 
+                    total={analytics.statusBreakdown[0].open_studies} 
+                    color="bg-green-500"
+                  />
+                  <ProgressBar 
+                    label="Near Completion" 
+                    value={analytics.statusBreakdown[0].near_completion_count} 
+                    total={analytics.statusBreakdown[0].open_studies} 
+                    color="bg-blue-500"
+                  />
                 </div>
-            )}
-
-            {/* Status Breakdown Table */}
-            {analytics.statusBreakdown && analytics.statusBreakdown.length > 0 && (
-                <div className="mb-6">
-                    <h2 className="text-xl font-semibold mb-4 text-white">Status Breakdown</h2>
-                    <div className="bg-gray-800 rounded-lg shadow overflow-hidden border border-gray-700">
-                        <table className="w-full">
-                            <thead className="bg-gray-900">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Total Studies
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Open Studies
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Intervene
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        Monitor
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                        On Target
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-gray-800 divide-y divide-gray-700">
-                                {analytics.statusBreakdown.map((row, index) => (
-                                    <tr key={index} className="hover:bg-gray-700">
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                            {row.total_studies}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                                            {row.open_studies}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                                                {row.intervene_count}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                                {row.monitor_count}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                                {row.on_target_count}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
-
-            {/* TODO: Add charts for weekly/monthly trends using analytics.weeklyQuality, 
-                      analytics.monthlyQuality, analytics.weeklyStudies, and analytics.monthlyStudies */}
-        </div>
-    );
+              ) : (
+                <p className="text-gray-500">No status data available</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <StudyManagementTable clinicId={clinicId || ''} />
+        )}
+      </div>
+    </div>
+  );
 }
+
+// Helper components
+
+interface StatCardProps {
+  title: string;
+  value: number;
+  suffix?: string;
+  icon: React.ReactNode;
+}
+
+function StatCard({ title, value, suffix = '', icon }: StatCardProps) {
+  return (
+    <div className="bg-white p-4 rounded-lg shadow">
+      <div className="flex items-center justify-between">
+        <h3 className="text-gray-500 font-medium">{title}</h3>
+        {icon}
+      </div>
+      <p className="text-3xl font-semibold mt-2">
+        {value.toLocaleString()}{suffix && <span className="text-lg ml-1">{suffix}</span>}
+      </p>
+    </div>
+  );
+}
+
+interface ProgressBarProps {
+  label: string;
+  value: number;
+  total: number;
+  color: string;
+}
+
+function ProgressBar({ label, value, total, color }: ProgressBarProps) {
+  const percentage = total > 0 ? (value / total) * 100 : 0;
+  
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-20 h-20 rounded-full border-8 flex items-center justify-center relative">
+        <div 
+          className={`absolute inset-0 rounded-full ${color}`}
+          style={{ 
+            clipPath: percentage > 0 ? `polygon(50% 50%, 50% 0%, ${percentage >= 25 ? '100% 0%' : `${50 + 2 * percentage}% ${50 - 2 * percentage}%`}, ${percentage >= 50 ? '100% 100%' : `${50 + 2 * Math.min(percentage - 25, 0)}% ${50 + 2 * Math.min(percentage - 25, 0)}%`}, ${percentage >= 75 ? '0% 100%' : `${50 - 2 * Math.min(percentage - 50, 0)}% ${50 + 2 * Math.min(percentage - 50, 0)}%`}, ${percentage >= 100 ? '0% 0%' : `${50 - 2 * Math.min(percentage - 75, 0)}% ${50 - 2 * Math.min(percentage - 75, 0)}%`}, 50% 0%)` : 'none'
+          }}
+        />
+        <span className="text-lg font-semibold">{value}</span>
+      </div>
+      <span className="mt-2 text-sm text-gray-600">{label}</span>
+    </div>
+  );
+} 

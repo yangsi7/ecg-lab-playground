@@ -17,7 +17,7 @@ import { CalendarSelector } from '../CalendarSelector'
 import { EcgAggregatorView } from './EcgAggregatorView'
 import MainECGViewer from './MainECGViewer'
 import { usePodDays } from '@/hooks/api/pod/usePodDays'
-import { useStudyDetails } from '@/hooks/api/useStudyDetails'
+import { useStudyDetails } from '@/hooks/api/study/useStudyDetails'
 import { useLatestECGTimestamp } from '@/hooks/api/ecg/useLatestECGTimestamp'
 import type { Database } from '@/types/database.types'
 
@@ -161,7 +161,7 @@ export default function ECGViewerPage() {
                         <div>
                             <h3 className="text-sm text-gray-400 mb-2">Select Day</h3>
                             <CalendarSelector
-                                availableDays={podDays?.map((d: PodDay) => d.day_value) || []}
+                                availableDays={podDays || []}
                                 onSelectDay={(date) => {
                                     setSelectedDay(date)
                                     updateTimeRangeForDay(date)

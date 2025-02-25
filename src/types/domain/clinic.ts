@@ -23,6 +23,7 @@ export type ClinicAnalyticsRow = Database['public']['Functions']['get_clinic_ana
 export interface Clinic {
     id: string;
     name: string;
+    vip_status?: boolean;
 }
 
 // Type guard to check if a value is a Clinic
@@ -32,7 +33,8 @@ export const isClinic: TypeGuard<Clinic> = (value): value is Clinic => {
     const clinic = value as Partial<Clinic>;
     return typeof clinic.id === 'string' &&
            typeof clinic.name === 'string' &&
-           clinic.name.length > 0;
+           clinic.name.length > 0 &&
+           (clinic.vip_status === undefined || typeof clinic.vip_status === 'boolean');
 };
 
 // Transform database row to domain type
@@ -43,7 +45,8 @@ export const toClinic: Transform<ClinicRow, Clinic> = (row) => {
     
     return {
         id: row.id,
-        name: row.name
+        name: row.name,
+        vip_status: row.vip_status || false
     };
 };
 

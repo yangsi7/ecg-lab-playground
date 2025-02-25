@@ -75,21 +75,9 @@ export function useDiagnostics(): DiagnosticsResult {
   // Fetch edge function stats
   const edgeFunctionQuery = useQuery({
     queryKey: ['diagnostics', 'edge-functions'],
-/*************  ✨ Codeium Command ⭐  *************/
-  /**
-   * Fetches the latest edge function stats from the database,
-   * groups the data by function name, and calculates the
-   * total invocations, average duration, success rate, and
-   * last invocation time for each function.
-   * @returns An array of EdgeFunctionStats objects, each
-   * representing a distinct edge function.
-   */
-/******  8b7e3efc-9eaf-4610-94a5-8484f2ccdb90  *******/    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('edge_function_stats')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
+    queryFn: async () => {
+      // Use the RPC function instead of directly querying the table
+      const { data, error } = await supabase.rpc('get_edge_function_stats');
 
       if (error) throw error;
 
@@ -99,31 +87,18 @@ export function useDiagnostics(): DiagnosticsResult {
         return [];
       }
 
-      // Group by function name and calculate stats
-      const functionStats = new Map<string, EdgeFunctionStats>();
-      data.forEach(row => {
-        const stats = functionStats.get(row.function_name) || {
-          function_name: row.function_name,
-          total_invocations: 0,
-          average_duration_ms: 0,
-          last_invocation: row.created_at,
-          success_rate: 0,
-          error_count: 0
-        };
-
-        stats.total_invocations++;
-        if (row.execution_duration) {
-          stats.average_duration_ms = (stats.average_duration_ms * (stats.total_invocations - 1) + Number(row.execution_duration)) / stats.total_invocations;
-        }
-        if (!row.success) {
-          stats.error_count++;
-        }
-        stats.success_rate = ((stats.total_invocations - stats.error_count) / stats.total_invocations) * 100;
-
-        functionStats.set(row.function_name, stats);
-      });
-
-      return Array.from(functionStats.values());
+      // The RPC function already provides aggregated stats, so we can use it directly
+      return data.map(stat => ({
+        function_name: stat.function_name,
+        total_invocations: stat.total_invocations,
+        average_duration_ms: stat.average_duration_ms,
+        last_invocation: stat.last_invocation,
+        success_rate: stat.success_rate,
+        error_count: Math.round(stat.total_invocations * (1 - (stat.success_rate / 100))),
+        memory_usage: stat.memory_usage,
+        cpu_time: stat.cpu_time,
+        peak_concurrent_executions: stat.peak_concurrent_executions
+      }));
     },
     staleTime: 30000, // Consider data fresh for 30 seconds
   });

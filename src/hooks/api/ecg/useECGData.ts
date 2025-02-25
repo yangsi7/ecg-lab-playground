@@ -4,6 +4,7 @@ import { supabase } from '@/hooks/api/core/supabase';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/types/database.types';
 import { ECGData, ECGQueryOptions, toECGData } from '@/types/domain/ecg';
+import { trackECGQuery } from '../diagnostics/useECGQueryTracker';
 
 type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
 
@@ -51,6 +52,8 @@ export function useECGData(options: ECGQueryOptions) {
     }
     abortRef.current = new AbortController();
 
+    const startTime = performance.now();
+
     try {
       logger.info("useECGData: requesting ECG data from downsample-ecg function", requestBody);
 
@@ -72,6 +75,25 @@ export function useECGData(options: ECGQueryOptions) {
       );
 
       logger.info(`useECGData: loaded ${ecgData.length} points.`, { pod_id, timeRange: [time_start, time_end] });
+
+      // Track this query for diagnostics
+      const duration = performance.now() - startTime;
+      trackECGQuery({
+        functionName: 'downsample-ecg',
+        timestamp: new Date().toISOString(),
+        day: new Date(time_start).toLocaleDateString(),
+        timeRange: {
+          start: new Date(time_start).toLocaleTimeString(),
+          end: new Date(time_end).toLocaleTimeString()
+        },
+        timestamps: {
+          start: time_start,
+          end: time_end
+        },
+        points: ecgData.length,
+        duration: Math.round(duration),
+        podId: pod_id
+      });
 
       setData(ecgData);
     } catch (err: any) {

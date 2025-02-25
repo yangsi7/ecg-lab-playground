@@ -1,9 +1,32 @@
 /**
  * Expression parser for advanced filtering
  */
-import type { FilterExpression, FilterField, FilterOperator } from '@/types/filter';
-import { jsep, Expression } from 'jsep';
+import type { FilterField, FilterCondition } from '@/types/filter';
+// @ts-ignore - Ignoring type issues with jsep import
+import jsep from 'jsep';
 import { logger } from '@/lib/logger';
+
+// Define Expression type
+type Expression = ReturnType<typeof jsep>;
+
+// Define our own FilterOperator to match the ones used in this file
+export type FilterOperator = 
+  | '=' 
+  | '!=' 
+  | '>' 
+  | '<' 
+  | '>=' 
+  | '<=' 
+  | 'contains' 
+  | 'startsWith' 
+  | 'endsWith';
+
+// Custom FilterExpression that uses our local FilterOperator
+export interface FilterExpression {
+  field: string;
+  operator: FilterOperator;
+  value: unknown;
+}
 
 export class ExpressionEvaluationError extends Error {
   constructor(message: string) {
@@ -128,19 +151,22 @@ export function parseExpression(expression: string): Expression {
   try {
     return jsep(expression);
   } catch (error) {
-    logger.error('Failed to parse expression:', error);
+    logger.error('Failed to parse expression:', { error });
     throw error;
   }
 }
 
-export function evaluateExpression(node: Expression, context: Record<string, unknown>): unknown {
+/**
+ * Evaluates a JSEP expression node against a context object
+ */
+export function evaluateJsepExpression(node: Expression, context: Record<string, unknown>): unknown {
   if (!node) return null;
 
   try {
     switch (node.type) {
       case 'BinaryExpression': {
-        const left = evaluateExpression((node as any).left, context);
-        const right = evaluateExpression((node as any).right, context);
+        const left = evaluateJsepExpression((node as any).left, context);
+        const right = evaluateJsepExpression((node as any).right, context);
         const operator = (node as any).operator;
 
         switch (operator) {
@@ -164,7 +190,7 @@ export function evaluateExpression(node: Expression, context: Record<string, unk
       }
 
       case 'UnaryExpression': {
-        const argument = evaluateExpression((node as any).argument, context);
+        const argument = evaluateJsepExpression((node as any).argument, context);
         const operator = (node as any).operator;
 
         switch (operator) {
@@ -189,7 +215,7 @@ export function evaluateExpression(node: Expression, context: Record<string, unk
         }
 
         const args = (node as any).arguments.map((arg: Expression) => 
-          evaluateExpression(arg, context)
+          evaluateJsepExpression(arg, context)
         );
 
         const fn = context[callee.name];
@@ -204,7 +230,7 @@ export function evaluateExpression(node: Expression, context: Record<string, unk
         throw new Error(`Unsupported expression type: ${node.type}`);
     }
   } catch (error) {
-    logger.error('Failed to evaluate expression:', error);
+    logger.error('Failed to evaluate expression:', { error });
     throw error;
   }
 } 

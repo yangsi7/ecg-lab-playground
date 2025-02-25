@@ -1,58 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
-import { callRPC } from '../../core/utils';
-import type { UseQueryResult } from '../../core/types';
-import { QueryError } from '../../core/errors';
-import type { Database } from '../../../types/database.types';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/hooks/api/core/supabase';
+import type { Database } from '@/types/database.types';
 
 type StudyDiagnostics = Database['public']['Functions']['get_study_diagnostics']['Returns'][number];
 
-export type UseStudyDiagnosticsResult = UseQueryResult<StudyDiagnostics>;
+export type UseStudyDiagnosticsResult = {
+  data: StudyDiagnostics | null;
+  error: Error | null;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => void;
+};
 
 export function useStudyDiagnostics(studyId?: string): UseStudyDiagnosticsResult {
-  const [data, setData] = useState<StudyDiagnostics | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchDiagnostics = useCallback(async () => {
-    if (!studyId) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const diagnostics = await callRPC('get_study_diagnostics', {
-        p_study_id: studyId
-      });
-
-      if (!diagnostics || diagnostics.length === 0) {
-        setData(null);
-        setError(new QueryError(`No diagnostics found for study ${studyId}`));
-      } else {
-        setData(diagnostics[0]);
-        setError(null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err : new QueryError('Failed to fetch study diagnostics'));
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [studyId]);
-
-  useEffect(() => {
-    fetchDiagnostics();
-  }, [fetchDiagnostics]);
-
-  return {
+  const {
     data,
     error,
     isLoading,
-    isError: error !== null,
-    refetch: fetchDiagnostics
+    isError,
+    refetch
+  } = useQuery({
+    queryKey: ['studyDiagnostics', studyId],
+    queryFn: async () => {
+      if (!studyId) {
+        return null;
+      }
+
+      const { data, error } = await supabase.rpc('get_study_diagnostics', {
+        p_study_id: studyId
+      });
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error(`No diagnostics found for study ${studyId}`);
+      }
+
+      return data[0] as StudyDiagnostics;
+    },
+    enabled: !!studyId
+  });
+
+  return {
+    data: data || null,
+    error: error instanceof Error ? error : null,
+    isLoading,
+    isError,
+    refetch
   };
 } 

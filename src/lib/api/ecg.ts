@@ -2,7 +2,7 @@
  * Domain-specific wrappers for ECG operations
  * Includes runtime validation and type safety
  */
-import { useSupabaseQuery, useSupabaseRPC } from '@/hooks/api/useSupabase'
+import { useSupabaseQuery, useSupabaseRPC } from '@/hooks/api/core/useSupabase'
 import { toECGData } from '@/types/domain/ecg'
 import type { ECGData, ECGSampleRow, ECGQueryOptions, AggregatedLeadData } from '@/types/domain/ecg'
 import { isECGData } from '@/types/domain/ecg'

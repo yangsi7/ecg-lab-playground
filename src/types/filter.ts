@@ -2,7 +2,16 @@
  * Shared types for advanced filtering functionality
  */
 
-export type FilterOperator = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'contains' | 'startsWith' | 'endsWith';
+export type FilterOperator = 
+  | 'equals' 
+  | 'contains' 
+  | 'gt' 
+  | 'lt' 
+  | 'gte' 
+  | 'lte' 
+  | 'between'
+  | 'isTrue'
+  | 'isFalse';
 
 export interface FilterField {
   key: string;

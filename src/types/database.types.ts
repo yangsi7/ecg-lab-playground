@@ -13,14 +13,17 @@ export type Database = {
         Row: {
           id: string
           name: string | null
+          vip_status: boolean | null
         }
         Insert: {
           id: string
           name?: string | null
+          vip_status?: boolean | null
         }
         Update: {
           id?: string
           name?: string | null
+          vip_status?: boolean | null
         }
         Relationships: []
       }
@@ -1616,6 +1619,13 @@ export type Database = {
       timescaledb_pre_restore: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      update_clinic_vip_status: {
+        Args: {
+          p_clinic_id: string
+          p_vip_status: boolean
+        }
+        Returns: Json
       }
     }
     Enums: {

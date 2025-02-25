@@ -2,7 +2,7 @@
  * Domain-specific wrappers for study operations
  * Includes runtime validation and type safety
  */
-import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/hooks/api/useSupabase'
+import { useSupabaseQuery, useSupabaseInsert, useSupabaseUpdate, useSupabaseDelete } from '@/hooks/api/core/useSupabase'
 import { toStudy } from '@/types/domain/study'
 import type { Study, StudyRow } from '@/types/domain/study'
 import { isStudy } from '@/types/domain/study'

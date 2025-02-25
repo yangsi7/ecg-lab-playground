@@ -12,6 +12,7 @@
 import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi } from 'lucide-react';
 import { supabase } from '@/hooks';
 import { useDiagnostics } from '@/hooks/api/diagnostics/useDiagnostics';
+import { useECGQueryTracker } from '@/hooks/api/diagnostics/useECGQueryTracker';
 import type { 
   ConnectionError,
   RPCCall
@@ -56,6 +57,9 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
     isLoading,
     error
   } = useDiagnostics();
+
+  // Get ECG query tracking data
+  const { queries: ecgQueries } = useECGQueryTracker();
 
   // Connection status state
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
@@ -427,6 +431,65 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
             </div>
           </div>
         )}
+
+        {/* ECG Diagnostics */}
+        <div className="bg-white/5 rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Activity className="h-5 w-5 text-blue-400" />
+            <h3 className="font-medium text-white">ECG Data Queries</h3>
+          </div>
+          
+          {/* Real ECG Query Info */}
+          <div className="space-y-3">
+            {ecgQueries.length > 0 ? (
+              ecgQueries.map((query, index) => (
+                <div key={index} className="bg-white/10 rounded-lg p-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">{query.functionName}</span>
+                    <span className="text-xs text-gray-400">
+                      {new Date(query.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                  
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Day:</span>
+                      <span className="text-gray-300">{query.day}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Time Range:</span>
+                      <span className="text-gray-300">
+                        {query.timeRange.start} - {query.timeRange.end}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Timestamps:</span>
+                      <span className="text-gray-300 truncate max-w-[200px]">
+                        {query.timestamps.start} - {query.timestamps.end}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Points:</span>
+                      <span className="text-gray-300">{query.points}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Duration:</span>
+                      <span className="text-gray-300">{query.duration}ms</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">Pod ID:</span>
+                      <span className="text-gray-300 truncate max-w-[150px]">{query.podId}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-sm text-gray-400 bg-white/5 rounded-lg p-3 text-center">
+                No ECG queries tracked yet
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </aside>
   );
