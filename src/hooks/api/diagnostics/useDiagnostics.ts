@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics, SystemMetrics } from '@/types'
 import { logger } from '@/lib/logger';
 
-interface DiagnosticsResult {
+export interface DiagnosticsResult {
   edgeFunctionStats: EdgeFunctionStats[];
   databaseStats: DatabaseStatsRPC[];
   rpcMetrics: RPCMetrics[];
@@ -18,13 +18,13 @@ interface DiagnosticsResult {
   error: Error | null;
 }
 
-interface ConnectionError {
+export interface ConnectionError {
   message: string;
   timestamp: string;
   details?: string;
 }
 
-interface RPCCall {
+export interface RPCCall {
   function: string;
   timestamp: string;
   duration: number;
@@ -74,7 +74,16 @@ export function useDiagnostics(): DiagnosticsResult {
   // Fetch edge function stats
   const edgeFunctionQuery = useQuery({
     queryKey: ['diagnostics', 'edge-functions'],
-    queryFn: async () => {
+/*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Fetches the latest edge function stats from the database,
+   * groups the data by function name, and calculates the
+   * total invocations, average duration, success rate, and
+   * last invocation time for each function.
+   * @returns An array of EdgeFunctionStats objects, each
+   * representing a distinct edge function.
+   */
+/******  8b7e3efc-9eaf-4610-94a5-8484f2ccdb90  *******/    queryFn: async () => {
       const { data, error } = await supabase
         .from('edge_function_stats')
         .select('*')
@@ -241,4 +250,4 @@ export function useDiagnostics(): DiagnosticsResult {
     isLoading: edgeFunctionQuery.isLoading || databaseQuery.isLoading || rpcQuery.isLoading || systemQuery.isLoading,
     error: edgeFunctionQuery.error || databaseQuery.error || rpcQuery.error || systemQuery.error,
   };
-} 
+}
