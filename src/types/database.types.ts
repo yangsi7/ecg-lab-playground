@@ -1629,6 +1629,16 @@ export type Database = {
 
 type PublicSchema = Database[Extract<keyof Database, "public">]
 
+
+export type SupabaseRow<T extends keyof Database['public']['Tables']> = 
+  Database['public']['Tables'][T]['Row']
+
+export interface RPCCallInfo {
+  function_name: string
+  execution_time: number
+  status: 'success' | 'error'
+}
+
 export type Tables<
   PublicTableNameOrOptions extends
     | keyof (PublicSchema["Tables"] & PublicSchema["Views"])

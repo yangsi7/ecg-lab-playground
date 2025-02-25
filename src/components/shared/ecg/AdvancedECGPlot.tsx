@@ -10,34 +10,41 @@
  *  - ARIA labels and roles for accessibility.
  *
  * Usage:
- *   <AdvancedECGPlot data={downsampleData} channel={1} />
+ *   <AdvancedECGPlot pod_id={downsampleData.pod_id} time_start={downsampleData.time_start} time_end={downsampleData.time_end} channel={1} />
  */
 
-import React, { useEffect, useCallback, useRef } from 'react'
-import { ZoomIn, ZoomOut, Crop, EyeOff, Move } from 'lucide-react'
-import type { ECGData } from '@/types/domain/ecg'
-import { useECGCanvas } from '@/hooks/api/ecg/useECGCanvas'
+import React from 'react';
+import { ZoomIn, ZoomOut, Crop, EyeOff, Move } from 'lucide-react';
+import { useAdvancedECG } from '@/hooks/api/ecg/useAdvancedECG';
 
 interface AdvancedECGPlotProps {
-    data: ECGData[]
-    channel: 1 | 2 | 3
-    width?: number
-    height?: number
-    label?: string
-    defaultYMin?: number
-    defaultYMax?: number
-    colorBlindMode?: boolean
+    pod_id: string;
+    time_start: string;
+    time_end: string;
+    channel: 1 | 2 | 3;
+    width?: number;
+    height?: number;
+    label?: string;
+    defaultYMin?: number;
+    defaultYMax?: number;
+    colorBlindMode?: boolean;
+    factor?: number;
+    chunk_minutes?: number;
 }
 
 export function AdvancedECGPlot({
-    data,
+    pod_id,
+    time_start,
+    time_end,
     channel,
     width = 800,
     height = 250,
     label = `Advanced Ch ${channel}`,
     defaultYMin = -50,
     defaultYMax = 50,
-    colorBlindMode = false
+    colorBlindMode = false,
+    factor = 4,
+    chunk_minutes = 5
 }: AdvancedECGPlotProps) {
     const {
         canvasRef,
@@ -55,191 +62,91 @@ export function AdvancedECGPlot({
         handleMouseDown,
         handleMouseMove,
         handleMouseUp,
-        handleMouseLeave,
+        handleMouseLeave: handleCanvasMouseLeave,
         zoomInRange,
         zoomOutRange,
         fitYRange,
-        toggleColorBlindMode
-    } = useECGCanvas({
-        data,
+        toggleColorBlindMode,
+        isLoading,
+        error,
+        hasMoreData,
+        isFetchingMore,
+        loadMoreData
+    } = useAdvancedECG({
+        pod_id,
+        time_start,
+        time_end,
         channel,
         width,
         height,
         defaultYMin,
         defaultYMax,
-        colorBlindMode
-    })
+        colorBlindMode,
+        factor,
+        chunk_minutes
+    });
 
-    // Touch event handlers with proper types
-    const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    // Touch event handlers
+    const handleTouchStart = React.useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
         if (e.touches.length === 1) {
-            const touch = e.touches[0]
-            const canvas = e.currentTarget
-            const rect = canvas.getBoundingClientRect()
-            const x = touch.clientX - rect.left
+            const touch = e.touches[0];
+            const canvas = e.currentTarget;
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
             handleMouseDown({ 
                 clientX: x,
                 currentTarget: canvas,
                 preventDefault: () => e.preventDefault()
-            } as React.MouseEvent<HTMLCanvasElement>)
+            } as React.MouseEvent<HTMLCanvasElement>);
         }
-    }, [handleMouseDown])
+    }, [handleMouseDown]);
 
-    const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    const handleTouchMove = React.useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
         if (e.touches.length === 1) {
-            const touch = e.touches[0]
-            const canvas = e.currentTarget
-            const rect = canvas.getBoundingClientRect()
-            const x = touch.clientX - rect.left
+            const touch = e.touches[0];
+            const canvas = e.currentTarget;
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
             handleMouseMove({
                 clientX: x,
                 currentTarget: canvas,
                 preventDefault: () => e.preventDefault()
-            } as React.MouseEvent<HTMLCanvasElement>)
+            } as React.MouseEvent<HTMLCanvasElement>);
         }
-    }, [handleMouseMove])
+    }, [handleMouseMove]);
 
-    const handleTouchEnd = useCallback(() => {
-        handleMouseUp()
-    }, [handleMouseUp])
+    const handleTouchEnd = React.useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+        e.preventDefault();
+        handleMouseUp(e as unknown as React.MouseEvent<HTMLCanvasElement>);
+    }, [handleMouseUp]);
 
-    // Keyboard navigation with proper types
-    const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLCanvasElement>) => {
-        const canvas = e.currentTarget
-        switch (e.key) {
-            case 'ArrowLeft':
-                handleMouseMove({
-                    clientX: -10,
-                    currentTarget: canvas,
-                    preventDefault: () => e.preventDefault()
-                } as React.MouseEvent<HTMLCanvasElement>)
-                break
-            case 'ArrowRight':
-                handleMouseMove({
-                    clientX: 10,
-                    currentTarget: canvas,
-                    preventDefault: () => e.preventDefault()
-                } as React.MouseEvent<HTMLCanvasElement>)
-                break
-            case '+':
-            case '=':
-                zoomInRange()
-                break
-            case '-':
-                zoomOutRange()
-                break
-            case 'f':
-                fitYRange()
-                break
-            case 'c':
-                toggleColorBlindMode()
-                break
-        }
-    }, [handleMouseMove, zoomInRange, zoomOutRange, fitYRange, toggleColorBlindMode])
+    // Container mouse leave handler
+    const handleContainerMouseLeave = React.useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        handleCanvasMouseLeave(e as unknown as React.MouseEvent<HTMLCanvasElement>);
+    }, [handleCanvasMouseLeave]);
 
-    // Drawing with proper canvas context handling
-    useEffect(() => {
-        const canvas = canvasRef.current
-        if (!canvas) return
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-[250px] bg-white/5 border border-white/10 rounded-md">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400" />
+            </div>
+        );
+    }
 
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-
-        // Clear and set background
-        ctx.clearRect(0, 0, width, height)
-        ctx.fillStyle = '#111111'
-        ctx.fillRect(0, 0, width, height)
-
-        // Draw grid
-        ctx.strokeStyle = 'rgba(255,255,255,0.05)'
-        for (let yy = 0; yy < height; yy += 25) {
-            ctx.beginPath()
-            ctx.moveTo(0, yy)
-            ctx.lineTo(width, yy)
-            ctx.stroke()
-        }
-        for (let xx = 0; xx < width; xx += 50) {
-            ctx.beginPath()
-            ctx.moveTo(xx, 0)
-            ctx.lineTo(xx, height)
-            ctx.stroke()
-        }
-
-        if (!data.length) {
-            ctx.fillStyle = 'gray'
-            ctx.fillText('No data', 10, height / 2)
-            return
-        }
-
-        // Calculate time range
-        const t0 = data[0]?.sample_time ? new Date(data[0].sample_time).getTime() : 0
-        const t1 = data[data.length - 1]?.sample_time ? new Date(data[data.length - 1].sample_time).getTime() : 0
-        const totalMs = Math.max(1, t1 - t0)
-        const yRange = yMax - yMin
-        const msInView = totalMs / scaleX
-        const panMsOffset = (-translateX / width) * msInView
-
-        // Draw waveform
-        ctx.beginPath()
-        ctx.lineWidth = 1.4
-        ctx.strokeStyle = waveColor
-
-        let firstValid = true
-        for (let i = 0; i < data.length; i++) {
-            const pt = data[i]
-            let waveVal = 0
-            let leadOn = false
-
-            switch (channel) {
-                case 1:
-                    waveVal = pt.downsampled_channel_1
-                    leadOn = pt.lead_on_p_1 && pt.lead_on_n_1
-                    break
-                case 2:
-                    waveVal = pt.downsampled_channel_2
-                    leadOn = pt.lead_on_p_2 && pt.lead_on_n_2
-                    break
-                case 3:
-                    waveVal = pt.downsampled_channel_3
-                    leadOn = pt.lead_on_p_3 && pt.lead_on_n_3
-                    break
-            }
-
-            const ptMs = new Date(pt.sample_time).getTime()
-            const localMs = ptMs - t0
-            const shiftedMs = localMs - panMsOffset
-            const xRatio = shiftedMs / msInView
-            const x = xRatio * width
-
-            if (x < 0 || x > width) continue
-
-            if (!leadOn) {
-                ctx.moveTo(x, height / 2)
-                continue
-            }
-
-            const yVal = (waveVal - yMin) / yRange
-            const scrY = height - (yVal * height)
-
-            if (firstValid) {
-                ctx.moveTo(x, scrY)
-                firstValid = false
-            } else {
-                ctx.lineTo(x, scrY)
-            }
-        }
-        ctx.stroke()
-
-        // Draw label
-        ctx.fillStyle = 'white'
-        ctx.font = '12px sans-serif'
-        ctx.fillText(`${label} (zoom x${scaleX.toFixed(1)})`, 8, 14)
-    }, [data, channel, width, height, yMin, yMax, translateX, scaleX, waveColor, label, canvasRef])
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-[250px] bg-red-500/10 border border-red-500/20 rounded-md">
+                <div className="text-red-400">Error loading ECG data: {error}</div>
+            </div>
+        );
+    }
 
     return (
         <div 
             className="relative bg-white/5 border border-white/10 rounded-md shadow-sm w-full p-2 select-none"
-            onMouseLeave={handleMouseLeave}
+            onMouseLeave={handleContainerMouseLeave}
             role="region"
             aria-label={`ECG plot for ${label}`}
         >
@@ -304,7 +211,6 @@ export function AdvancedECGPlot({
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    onKeyDown={handleKeyDown}
                     className="w-full h-auto touch-none"
                     tabIndex={0}
                     aria-label={isColorBlindMode ? "ECG wave (color-blind mode)" : "ECG wave chart"}
@@ -319,6 +225,23 @@ export function AdvancedECGPlot({
                     </div>
                 )}
             </div>
+
+            {/* Load more button */}
+            {hasMoreData && (
+                <div className="mt-2 flex justify-center">
+                    <button
+                        onClick={() => loadMoreData()}
+                        disabled={isFetchingMore}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isFetchingMore
+                                ? 'bg-blue-500/20 text-blue-300 cursor-not-allowed'
+                                : 'bg-blue-500 hover:bg-blue-600 text-white'
+                        }`}
+                    >
+                        {isFetchingMore ? 'Loading...' : 'Load More Data'}
+                    </button>
+                </div>
+            )}
         </div>
-    )
+    );
 }

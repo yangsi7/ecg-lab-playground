@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Building2, Plus, Download, Activity } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '@/hooks/useDataGrid';
+import { useDataGrid } from '@/hooks/ui/visualization/useDataGrid';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/supabase';
+import { supabase } from '@/hooks/data/studies/api/supabase';
 import type { Database } from '@/types/database.types';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
@@ -30,7 +30,8 @@ export default function ClinicTable() {
         queryKey: ['clinics', page, pageSize, sortConfig.key, sortConfig.direction, filterConfig.quickFilter],
         queryFn: async () => {
             try {
-                // Get all clinics with quality breakdown
+                // Get all clinics with quality breakdown - explicitly pass null clinic_id
+                // Explicitly pass undefined when no clinic_id is needed
                 const { data, error } = await supabase.rpc('get_clinic_quality_breakdown');
                 
                 if (error) {
@@ -40,6 +41,7 @@ export default function ClinicTable() {
 
                 let filteredData = data as ClinicQualityRow[];
                 const totalCount = filteredData.length;
+logger.info('Initial clinics count from RPC', { totalCount });
 
                 // Apply search filter if any
                 if (filterConfig.quickFilter?.length) {
@@ -47,6 +49,7 @@ export default function ClinicTable() {
                         clinic.clinic_name?.toLowerCase().includes(filterConfig.quickFilter!.toLowerCase())
                     );
                 }
+logger.info('After filtering, clinics count', { count: filteredData.length });
 
                 // Apply sorting if specified
                 if (sortConfig.key) {
@@ -91,7 +94,8 @@ export default function ClinicTable() {
     const handleExport = async () => {
         try {
             const { data: exportData, error: exportError } = await supabase
-                .rpc('get_clinic_quality_breakdown');
+                .rpc('get_clinic_quality_breakdown', {
+                });
 
             if (exportError) throw exportError;
             if (!exportData) return;
@@ -304,4 +308,4 @@ export default function ClinicTable() {
             />
         </div>
     );
-} 
+}

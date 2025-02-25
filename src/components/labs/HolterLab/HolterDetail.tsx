@@ -9,7 +9,7 @@ import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/supabase';
-import { ECGViewer } from '../../shared/ecg/ECGViewer';
+import MainECGViewer from '../../shared/ecg/MainECGViewer';
 import { HolterHeader } from './components/HolterHeader';
 import { HolterHistogram24h } from './components/HolterHistogram24h';
 import { CalendarSelectorPodDays } from './components/CalendarSelectorPodDays';
@@ -235,12 +235,10 @@ export default function HolterDetail() {
             )}
 
             {showECG && study && selectedDate && selectedHour !== null && (
-                <ECGViewer
-                    study={{
-                        pod_id: study.pod_id,
-                        start_timestamp: new Date(selectedDate.setHours(selectedHour, 0, 0)).toISOString(),
-                        end_timestamp: new Date(selectedDate.setHours(selectedHour, 59, 59)).toISOString()
-                    }}
+                <MainECGViewer
+                    podId={study.pod_id}
+                    timeStart={new Date(selectedDate.setHours(selectedHour, 0, 0)).toISOString()}
+                    timeEnd={new Date(selectedDate.setHours(selectedHour, 59, 59)).toISOString()}
                     onClose={() => setShowECG(false)}
                 />
             )}

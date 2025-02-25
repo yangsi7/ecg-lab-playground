@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '@/lib/logger';
 import { useRPC } from '../core/useRPC';
-import type { Database, Json } from '../../../types/database.types';
+import type { Database, Json } from '@/types/database.types';
 
 type RPCFunctionName = keyof Database['public']['Functions'];
 type RPCFunctionArgs<T extends RPCFunctionName> = Database['public']['Functions'][T]['Args'];

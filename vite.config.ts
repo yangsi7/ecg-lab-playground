@@ -16,6 +16,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      // 'hooks' alias removed to avoid conflicts
     },
   },
 });

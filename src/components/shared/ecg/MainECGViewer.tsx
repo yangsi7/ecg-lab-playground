@@ -6,9 +6,8 @@
  */
 import React, { useEffect, useRef, useMemo } from 'react'
 import { X, AlertTriangle, Heart, Activity, Zap, ChevronDown, ChevronUp } from 'lucide-react'
-import { useChunkedECG, useChunkedECGDiagnostics, type ECGSample } from '../../../hooks/api/useChunkedECG'
+import { useChunkedECG, useChunkedECGDiagnostics } from '../../../hooks/api/useChunkedECG'
 import { AdvancedECGPlot } from './AdvancedECGPlot'
-import type { ECGData } from '../../../types/domain/ecg'
 
 interface MainECGViewerProps {
     podId: string;
@@ -29,9 +28,6 @@ export default function MainECGViewer({
     // Load ECG data in chunks
     const {
         samples,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
         isLoading: dataLoading,
         error: dataError
     } = useChunkedECG({
@@ -51,24 +47,6 @@ export default function MainECGViewer({
         time_start: timeStart,
         time_end: timeEnd
     });
-
-    // Transform samples into ECGData format
-    const ecgData = useMemo<ECGData[]>(() => 
-        samples.map(sample => ({
-            sample_time: sample.time,
-            downsampled_channel_1: sample.channels[0],
-            downsampled_channel_2: sample.channels[1],
-            downsampled_channel_3: sample.channels[2],
-            lead_on_p_1: sample.lead_on_p[0],
-            lead_on_p_2: sample.lead_on_p[1],
-            lead_on_p_3: sample.lead_on_p[2],
-            lead_on_n_1: sample.lead_on_n[0],
-            lead_on_n_2: sample.lead_on_n[1],
-            lead_on_n_3: sample.lead_on_n[2],
-            quality_1: sample.quality[0],
-            quality_2: sample.quality[1],
-            quality_3: sample.quality[2]
-        })), [samples]);
 
     // Calculate quality metrics
     const qualityMetrics = useMemo(() => {
@@ -116,23 +94,6 @@ export default function MainECGViewer({
             }
         };
     }, [samples]);
-
-    // Handle infinite scroll
-    useEffect(() => {
-        const scrollElement = scrollRef.current;
-        if (!scrollElement) return;
-
-        const handleScroll = () => {
-            const { scrollHeight, scrollTop, clientHeight } = scrollElement;
-            // Load more when within 500px of bottom
-            if (scrollHeight - scrollTop - clientHeight < 500 && hasNextPage && !isFetchingNextPage) {
-                fetchNextPage();
-            }
-        };
-
-        scrollElement.addEventListener('scroll', handleScroll);
-        return () => scrollElement.removeEventListener('scroll', handleScroll);
-    }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
     // Show loading state
     if (dataLoading || diagLoading) {
@@ -229,33 +190,32 @@ export default function MainECGViewer({
                     {/* ECG Plots */}
                     <div className="flex-1 space-y-6">
                         <AdvancedECGPlot
-                            data={ecgData}
+                            pod_id={podId}
+                            time_start={timeStart}
+                            time_end={timeEnd}
                             channel={1}
                             label="Lead I"
                             width={800}
                             height={200}
                         />
                         <AdvancedECGPlot
-                            data={ecgData}
+                            pod_id={podId}
+                            time_start={timeStart}
+                            time_end={timeEnd}
                             channel={2}
                             label="Lead II"
                             width={800}
                             height={200}
                         />
                         <AdvancedECGPlot
-                            data={ecgData}
+                            pod_id={podId}
+                            time_start={timeStart}
+                            time_end={timeEnd}
                             channel={3}
                             label="Lead III"
                             width={800}
                             height={200}
                         />
-
-                        {/* Loading indicator for next chunk */}
-                        {isFetchingNextPage && (
-                            <div className="flex justify-center py-4">
-                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400" />
-                            </div>
-                        )}
                     </div>
 
                     {/* Diagnostics Panel */}

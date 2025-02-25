@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { useClinicAnalytics } from '../../../hooks/api/useClinicAnalytics'
+import { useClinicAnalytics } from '@/hooks/data/studies/api/clinic/useClinicAnalytics';
 import { AlertTriangle, TrendingUp, Clock, Activity } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { SimpleBarChart } from '../../shared/charts/SimpleBarChart'

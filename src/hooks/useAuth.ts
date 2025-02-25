@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '@/hooks/api/supabase';
+import { supabase } from '@/hooks/data/studies/api/supabase';
 import type { User, AuthError } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
 
