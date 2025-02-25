@@ -37,6 +37,7 @@
     "react-router-dom": "^6.21.1",
     "recharts": "^2.12.1",
     "sonner": "^1.4.0",
+    "swr": "^2.3.2",
     "tailwind-merge": "^2.2.1",
     "type-fest": "^4.35.0",
     "uuid": "^11.1.0",

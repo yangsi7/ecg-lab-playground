@@ -10,9 +10,7 @@
  *   />
  */
 import React, { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/hooks/api/core/supabase';
-import { logger } from '@/lib/logger';
 import type { HolterStudy } from '@/types/domain/holter';
 
 interface HourlyHistogramProps {
@@ -40,27 +38,18 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                 setLoading(true);
                 setError(null);
 
-                // Example approach: fetch study_readings for that date & group by hour
-                // For demonstration only
-                const dayStart = new Date(date);
-                dayStart.setHours(0,0,0,0);
-                const dayEnd = new Date(dayStart);
-                dayEnd.setHours(23,59,59,999);
+                // Call the RPC to get pre-aggregated hourly metrics for the entire study
+                const { data: metricRows, error: rpcErr } = await supabase
+                    .rpc('get_study_hourly_metrics', { p_study_id: studyId });
 
-                const { data: readData, error: readErr } = await supabase
-                    .from('study_readings')
-                    .select('timestamp, total_minutes, quality_minutes, status')
-                    .eq('study_id', studyId)
-                    .gte('timestamp', dayStart.toISOString())
-                    .lte('timestamp', dayEnd.toISOString())
-                    .order('timestamp', { ascending: true });
-
-                if (readErr) throw new Error(readErr.message);
-                if (!Array.isArray(readData)) {
-                    throw new Error('Invalid data from study_readings');
+                if (rpcErr) {
+                    throw new Error(rpcErr.message);
+                }
+                if (!Array.isArray(metricRows)) {
+                    throw new Error('No data returned from get_study_hourly_metrics');
                 }
 
-                // aggregate by hour
+                // Initialize 24-hour slots
                 const hours: HourData[] = Array.from({ length: 24 }, (_, i) => ({
                     hour: i,
                     total_minutes: 0,
@@ -68,14 +57,18 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                     hasInterruption: false
                 }));
 
-                readData.forEach((r) => {
-                    const ts = new Date(r.timestamp).getHours();
-                    hours[ts].total_minutes += r.total_minutes || 0;
-                    hours[ts].quality_minutes += r.quality_minutes || 0;
-                    if (r.status && r.status.toLowerCase() === 'interrupted') {
-                        hours[ts].hasInterruption = true;
+                // Populate from RPC results
+                metricRows.forEach((row) => {
+                    const h = row.hour_of_day;
+                    // Safety check in case hour_of_day is out of 0..23 range
+                    if (h >= 0 && h < 24) {
+                        hours[h].total_minutes += row.total_minutes;
+                        hours[h].quality_minutes += row.quality_minutes;
                     }
                 });
+
+                // Optional: If you still want to filter by a specific date, you can do it here
+                // with a local approach, e.g., ignoring rows that are not within 'date'.
 
                 if (!canceled) {
                     setData(hours);
@@ -85,7 +78,9 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                     setError(err.message || 'Failed to load hourly data');
                 }
             } finally {
-                if (!canceled) setLoading(false);
+                if (!canceled) {
+                    setLoading(false);
+                }
             }
         };
         fetchHourlyData();
@@ -106,7 +101,7 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                 const quality = d.quality_minutes;
                 const ratio = total > 0 ? (quality / total) : 0;
                 const barHeight = 100; // base pixel for 100% total
-                
+
                 const handleClick = () => onHourClick?.(d.hour);
 
                 return (
