@@ -1,32 +1,13 @@
 /**
  * Expression parser for advanced filtering
  */
-import type { FilterField, FilterCondition } from '@/types/filter';
+import type { FilterExpression, FilterField, FilterOperator } from '@/types/filter';
 // @ts-ignore - Ignoring type issues with jsep import
 import jsep from 'jsep';
 import { logger } from '@/lib/logger';
 
 // Define Expression type
 type Expression = ReturnType<typeof jsep>;
-
-// Define our own FilterOperator to match the ones used in this file
-export type FilterOperator = 
-  | '=' 
-  | '!=' 
-  | '>' 
-  | '<' 
-  | '>=' 
-  | '<=' 
-  | 'contains' 
-  | 'startsWith' 
-  | 'endsWith';
-
-// Custom FilterExpression that uses our local FilterOperator
-export interface FilterExpression {
-  field: string;
-  operator: FilterOperator;
-  value: unknown;
-}
 
 export class ExpressionEvaluationError extends Error {
   constructor(message: string) {

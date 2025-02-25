@@ -27,19 +27,10 @@ export default function ClinicDetail() {
   } = useClinicDetails(clinicId ?? null);
 
   const {
-    data: analyticsData,
+    data: analytics,
     isLoading: isLoadingAnalytics,
     error: analyticsError
   } = useClinicAnalytics(clinicId ?? null);
-
-  // Safe access to analytics with fallbacks
-  const analytics = analyticsData || {
-    overview: null,
-    statusBreakdown: null,
-    weeklyActiveStudies: [],
-    weeklyAvgQuality: [],
-    growthPercent: 0
-  };
 
   // Handle export button click
   const handleExport = async () => {
@@ -186,23 +177,23 @@ export default function ClinicDetail() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <StatCard 
                 title="Active Studies" 
-                value={analytics?.overview?.active_studies || 0} 
+                value={analytics.overview?.active_studies || 0} 
                 icon={<Activity className="text-green-500" />} 
               />
               <StatCard 
                 title="Total Studies" 
-                value={analytics?.overview?.total_studies || 0} 
+                value={analytics.overview?.total_studies || 0} 
                 icon={<BarChart2 className="text-blue-500" />} 
               />
               <StatCard 
                 title="Quality Hours" 
-                value={analytics?.overview?.average_quality_hours || 0} 
+                value={analytics.overview?.average_quality_hours || 0} 
                 suffix="hrs"
                 icon={<Activity className="text-purple-500" />} 
               />
               <StatCard 
                 title="Growth" 
-                value={analytics?.growthPercent || 0} 
+                value={analytics.growthPercent || 0} 
                 suffix="%"
                 icon={<Activity className="text-amber-500" />} 
               />
@@ -213,7 +204,7 @@ export default function ClinicDetail() {
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Weekly Active Studies</h3>
                 <SparklineChart 
-                  data={analytics?.weeklyActiveStudies || []} 
+                  data={analytics.weeklyActiveStudies || []} 
                   xKey="week_start"
                   yKey="value"
                   color="#22c55e"
@@ -222,7 +213,7 @@ export default function ClinicDetail() {
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Quality Metrics</h3>
                 <SparklineChart 
-                  data={analytics?.weeklyAvgQuality || []} 
+                  data={analytics.weeklyAvgQuality || []} 
                   xKey="week_start"
                   yKey="value"
                   color="#3b82f6"
@@ -233,7 +224,7 @@ export default function ClinicDetail() {
             {/* Status breakdown */}
             <div className="bg-white p-4 rounded-lg shadow">
               <h3 className="text-lg font-medium mb-4">Status Breakdown</h3>
-              {analytics?.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
+              {analytics.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
                 <div className="flex justify-between items-center">
                   <ProgressBar 
                     label="Intervention Needed" 
@@ -312,7 +303,7 @@ function ProgressBar({ label, value, total, color }: ProgressBarProps) {
         <div 
           className={`absolute inset-0 rounded-full ${color}`}
           style={{ 
-            clipPath: percentage > 0 ? `polygon(50% 50%, 50% 0%, ${percentage >= 25 ? '100% 0%' : `${50 + 2 * percentage}% ${50 - 2 * percentage}%`}, ${percentage >= 50 ? '100% 100%' : `${50 + 2 * Math.min(percentage - 25, 0)}% ${50 + 2 * Math.min(percentage - 25, 0)}%`}, ${percentage >= 75 ? '0% 100%' : `${50 - 2 * Math.min(percentage - 50, 0)}% ${50 + 2 * Math.min(percentage - 50, 0)}%`}, ${percentage >= 100 ? '0% 0%' : `${50 - 2 * Math.min(percentage - 75, 0)}% ${50 - 2 * Math.min(percentage - 75, 0)}%`}, 50% 0%)` : 'none'
+            clipPath: `polygon(50% 50%, 50% 0%, ${percentage > 25 ? '100% 0%' : `${50 + 2 * percentage}% ${50 - 2 * percentage}%`}, ${percentage > 50 ? '100% 100%' : `${50 + 2 * (percentage - 25)}% ${50 + 2 * (percentage - 25)}%`}, ${percentage > 75 ? '0% 100%' : `${50 - 2 * (percentage - 50)}% ${50 + 2 * (percentage - 50)}%`}, ${percentage > 99 ? '0% 0%' : `${50 - 2 * (percentage - 75)}% ${50 - 2 * (percentage - 75)}%`}, 50% 0%)`
           }}
         />
         <span className="text-lg font-semibold">{value}</span>

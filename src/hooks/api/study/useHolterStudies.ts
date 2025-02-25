@@ -3,7 +3,7 @@ import { supabase } from '@/hooks/api/core/supabase';
 import { logger } from '@/lib/logger';
 import type { HolterStudy } from '@/types/domain/holter';
 import { toHolterStudy, calculateHolterStatus } from '@/types/domain/holter';
-import { useHolterFilter } from '@/hooks/store/useHolterFilter';
+import { useHolterFilter } from '@/hooks/api/store/useHolterFilter';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 interface UseHolterStudiesResult {

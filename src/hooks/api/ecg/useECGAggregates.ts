@@ -70,6 +70,8 @@ export function useECGAggregates({
                 throw new Error('aggregate_leads did not return an array')
             }
 
+            // Store the total count before filtering
+            const totalCount = data.length;
             let filteredData = data as AggregatedLeadData[]
             
             // Apply filters if needed
@@ -92,7 +94,7 @@ export function useECGAggregates({
 
             return {
                 data: filteredData,
-                count: filteredData.length
+                count: totalCount
             }
         },
         enabled: enabled && !!podId && !!startTime && !!endTime,
