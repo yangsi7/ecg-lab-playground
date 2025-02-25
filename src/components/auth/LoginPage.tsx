@@ -2,8 +2,8 @@ import React from 'react';
 import { Auth } from '@supabase/auth-ui-react';
 import { ThemeSupa } from '@supabase/auth-ui-shared';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { supabase } from '@/hooks/data/studies/api/supabase';
-import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/hooks';
+import { useAuth } from '@/hooks/api/core/useAuth';
 import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { AlertTriangle } from 'lucide-react';
 

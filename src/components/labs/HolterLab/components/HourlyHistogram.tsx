@@ -11,7 +11,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/supabase';
+import { supabase } from '@/hooks/api/core/supabase';
 import { logger } from '@/lib/logger';
 import type { HolterStudy } from '@/types/domain/holter';
 

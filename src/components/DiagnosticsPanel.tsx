@@ -10,8 +10,7 @@
  * - Detailed error tracking
  */
 import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi } from 'lucide-react';
-import { useDiagnostics } from '@/hooks/data/studies/api/diagnostics/useDiagnostics';
-import { supabase } from '@/hooks/data/studies/api/supabase';
+import { supabase,useDiagnostics } from '@/hooks';
 import { useEffect, useState } from 'react';
 
 /**

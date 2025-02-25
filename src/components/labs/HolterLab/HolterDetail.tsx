@@ -8,12 +8,12 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/supabase';
+import { supabase } from '@/hooks/api/core/supabase';
 import MainECGViewer from '../../shared/ecg/MainECGViewer';
 import { HolterHeader } from './components/HolterHeader';
 import { HolterHistogram24h } from './components/HolterHistogram24h';
 import { CalendarSelectorPodDays } from './components/CalendarSelectorPodDays';
-import { useECGAggregates } from '../../../hooks/api/useECGAggregates';
+import { useECGAggregates } from '../../../hooks/api/ecg/useECGAggregates';
 
 // Add type definitions at the top of the file
 type StudyStatus = 'active' | 'error' | 'interrupted' | 'completed';

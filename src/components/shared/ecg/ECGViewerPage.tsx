@@ -16,9 +16,9 @@ import { useTimeRange } from '@/context/TimeRangeContext'
 import { CalendarSelector } from '../CalendarSelector'
 import { EcgAggregatorView } from './EcgAggregatorView'
 import MainECGViewer from './MainECGViewer'
-import { usePodDays } from '@/hooks/api/usePodDays'
+import { usePodDays } from '@/hooks/api/pod/usePodDays'
 import { useStudyDetails } from '@/hooks/api/useStudyDetails'
-import { useLatestECGTimestamp } from '@/hooks/api/useLatestECGTimestamp'
+import { useLatestECGTimestamp } from '@/hooks/api/ecg/useLatestECGTimestamp'
 import type { Database } from '@/types/database.types'
 
 // Time range presets

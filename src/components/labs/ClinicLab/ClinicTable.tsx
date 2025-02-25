@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Building2, Plus, Download, Activity } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '@/hooks/ui/visualization/useDataGrid';
+import { useDataGrid } from '@/hooks/api/filters/useDataGrid';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/data/studies/api/supabase';
+import { supabase } from '@/hooks/api/core/supabase';
 import type { Database } from '@/types/database.types';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';

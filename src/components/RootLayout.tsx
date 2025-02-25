@@ -3,7 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Navigation from './Navigation';
 import DiagnosticsPanel from './DiagnosticsPanel';
 import { GenericErrorBoundary } from './shared/GenericErrorBoundary';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/api/core/useAuth';
 
 const RootLayout: React.FC = () => {
   const { user } = useAuth();

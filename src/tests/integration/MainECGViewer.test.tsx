@@ -5,7 +5,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import MainECGViewer from '@/components/shared/ecg/MainECGViewer'
-import { supabase } from '@/hooks/api/supabase'
+import { supabase } from '@/hooks/api/core/supabase'
 import type { ReactNode } from 'react'
 
 // Mock supabase

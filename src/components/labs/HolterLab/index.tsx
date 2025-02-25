@@ -10,7 +10,7 @@ import {
     MoreHorizontal,
 } from 'lucide-react'
 import { useHolterFilters } from './hooks/useHolterFilters';
-import { useHolterStudies } from '@/hooks/api/useHolterStudies';
+import { useHolterStudies } from '@/hooks/api/study/useHolterStudies';
 import { DataGrid, type Column } from '@/components/shared/DataGrid';
 import { QuickFilters, type QuickFilter } from './components/QuickFilters';
 import { AdvancedFilter } from './components/AdvancedFilter';

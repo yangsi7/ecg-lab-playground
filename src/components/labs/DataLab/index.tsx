@@ -3,7 +3,7 @@ import { Database, Download, Heart, Clock, Calendar, User, Building2, Activity }
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useDataGrid } from '@/hooks/useDataGrid';
 import { useStudiesWithTimes } from '@/hooks/api/useStudiesWithTimes';
-import { supabase } from '@/hooks/api/supabase';
+import { supabase } from '@/hooks/api/core/supabase';
 import type { StudiesWithTimesRow, StudyListRow } from '@/types/domain/study';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';

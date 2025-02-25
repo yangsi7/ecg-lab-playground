@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useRef, useMemo } from 'react'
 import { X, AlertTriangle, Heart, Activity, Zap, ChevronDown, ChevronUp } from 'lucide-react'
-import { useChunkedECG, useChunkedECGDiagnostics } from '../../../hooks/api/useChunkedECG'
+import { useChunkedECG, useChunkedECGDiagnostics } from '../../../hooks/api/ecg/useChunkedECG'
 import { AdvancedECGPlot } from './AdvancedECGPlot'
 
 interface MainECGViewerProps {

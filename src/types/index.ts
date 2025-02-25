@@ -3,12 +3,15 @@
  * Central export point for all types
  */
 
-// Re-export all types from utils
+// Core utility types
 export * from './utils';
 
-// Re-export all types from supabase
+// Database and Supabase types
+export * from './database.types';
 export * from './supabase';
 
-// Re-export domain types
-export * from './domain/study';
-export * from './domain/holter';
+// Domain-specific types
+export * from './domain';
+
+// Filtering and query types
+export type { FilterConfig, FilterCondition, FilterOperator } from './filter';

@@ -10,8 +10,8 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useClinicDetails } from '@/hooks/api/useClinicDetails';
-import { useClinicAnalytics } from '@/hooks/api/useClinicAnalytics';
+import { useClinicDetails } from '@/hooks/api/clinic/useClinicDetails';
+import { useClinicAnalytics } from '@/hooks/api';
 import { ChevronLeft } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import type { Database } from '@/types/database.types';
