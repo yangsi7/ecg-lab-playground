@@ -1,4 +1,3 @@
-export * from './AdvancedFilter';
 export * from './QuickFilters';
 export * from './HourlyQualityHistogram';
 export * from './HourlyHistogram';

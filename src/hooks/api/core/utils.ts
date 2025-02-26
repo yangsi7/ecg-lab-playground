@@ -41,10 +41,10 @@ export async function queryTable<T extends keyof Database['public']['Tables']>(
 
     const { data, error, count } = await query;
 
-    if (error) throw new SupabaseError(error.message, error.code, error.details);
+    if (error) throw new SupabaseError(`${error.message} (Code: ${error.code})`);
 
     return {
-      data: data as TableRow<T>[],
+      data: data as unknown as TableRow<T>[],
       error: null,
       count: count ?? 0,
       metadata: {
@@ -62,6 +62,7 @@ export async function queryTable<T extends keyof Database['public']['Tables']>(
       count: 0,
       metadata: {
         executionTime: performance.now() - startTime,
+        cached: false,
       },
     };
   }
@@ -81,7 +82,7 @@ export async function callRPC<T extends keyof Database['public']['Functions']>(
   const { data, error } = await supabase.rpc(functionName, params);
 
   if (error) {
-    throw new SupabaseError(error.message, error.code, error.details);
+    throw new SupabaseError(`${error.message} (Code: ${error.code})`);
   }
 
   return data;

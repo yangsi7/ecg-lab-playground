@@ -13,10 +13,11 @@ import { useHolterFilters } from '../../../hooks/api/study/useHolterFilters';
 import { useHolterStudies } from '@/hooks/api/study/useHolterStudies';
 import { DataGrid, type Column } from '@/components/shared/DataGrid';
 import { QuickFilters, type QuickFilter } from './components/QuickFilters';
-import { AdvancedFilter } from './components/AdvancedFilter';
+import { AdvancedFilter } from '@/components/shared/AdvancedFilter';
 import { useDataGrid } from '@/hooks';
 import type { HolterStudy } from '@/types/domain/holter';
 import { logger } from '@/lib/logger';
+import type { FilterConfig } from '@/types/filter';
 
 const QUICK_FILTERS: QuickFilter[] = [
     { id: 'all', label: 'All', description: 'Show all studies' },
@@ -133,6 +134,27 @@ export default function HolterLab() {
         }
     ];
 
+    // Define advanced filter config
+    const advancedFilterConfig: FilterConfig<HolterStudy> = {
+        fields: [
+            { key: 'daysRemaining', type: 'number', description: 'Days left in study' },
+            { key: 'qualityFraction', type: 'number', description: 'Quality as fraction 0-1' },
+            { key: 'totalHours', type: 'number', description: 'Total recorded hours' },
+            { key: 'interruptions', type: 'number', description: 'Number of recording gaps' },
+            { key: 'qualityVariance', type: 'number', description: 'Variability of quality' }
+        ],
+        parseExpression: (expr) => {
+            try {
+                // Simple implementation - would need proper parsing in production
+                return expr ? { field: expr.split(' ')[0], operator: '>' as any, value: parseFloat(expr.split(' ')[2]) } : null;
+            } catch {
+                return null;
+            }
+        },
+        placeholder: 'e.g. qualityFraction > 0.8 && daysRemaining < 5',
+        example: 'qualityFraction > 0.8 && daysRemaining < 5'
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -194,8 +216,8 @@ export default function HolterLab() {
 
             {/* Advanced Filter */}
             <AdvancedFilter
-                expression={advancedFilter}
-                onExpressionChange={setAdvancedFilter}
+                config={advancedFilterConfig}
+                onFilterChange={(expr) => setAdvancedFilter(expr ? String(expr.value) : '')}
                 className="mt-4"
             />
 

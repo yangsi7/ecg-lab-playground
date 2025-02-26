@@ -95,7 +95,11 @@ export function createStudyHook<T>(
   { 
     staleTime = 30000, 
     cacheTime = 5 * 60 * 1000,
-    refetchOnWindowFocus = false
+    refetchOnWindowFocus = false,
+    defaultPageSize = 10, // Reduce default page size to help with performance
+    maxPageSize = 100,    // Set a max limit to prevent excessive queries
+    retry = 2,            // Default retry count
+    retryDelay = 1000     // Base retry delay in ms
   } = {}
 ) {
   // Return a hook function that consumers can use
@@ -103,7 +107,7 @@ export function createStudyHook<T>(
     const {
       search = '',
       page = 0,
-      pageSize = 25,
+      pageSize: requestedPageSize = defaultPageSize,
       sortBy,
       sortDirection = 'asc',
       clinicId,
@@ -112,10 +116,51 @@ export function createStudyHook<T>(
       endDate
     } = filters;
 
+    // Enforce maximum page size to prevent timeouts
+    const pageSize = Math.min(requestedPageSize, maxPageSize);
+    
+    // If requested page size is larger than max, log a warning
+    if (requestedPageSize > maxPageSize) {
+      logger.warn(`Requested page size (${requestedPageSize}) exceeds maximum allowed (${maxPageSize}). Using ${maxPageSize} instead.`);
+    }
+
     // Calculate pagination parameters
     const offset = page * pageSize;
     
     const queryKey = [hookName, search, page, pageSize, sortBy, sortDirection, clinicId, status, startDate, endDate];
+    
+    // Create a query performance tracker
+    const startTime = Date.now();
+    const trackQueryPerformance = (success: boolean, error?: Error) => {
+      const duration = Date.now() - startTime;
+      logger.info(`Query Performance: ${hookName} ${success ? 'succeeded' : 'failed'} in ${duration}ms`, {
+        hook: hookName,
+        rpc: rpcFunctionName,
+        duration,
+        pageSize,
+        success,
+        errorMessage: error?.message
+      });
+      
+      // Save performance metrics to sessionStorage for diagnostics panel
+      try {
+        const metrics = JSON.parse(sessionStorage.getItem('queryPerformanceMetrics') || '[]');
+        metrics.push({
+          hook: hookName,
+          rpc: rpcFunctionName,
+          timestamp: new Date().toISOString(),
+          duration,
+          pageSize,
+          success,
+          error: error?.message
+        });
+        // Keep only last 20 metrics
+        if (metrics.length > 20) metrics.shift();
+        sessionStorage.setItem('queryPerformanceMetrics', JSON.stringify(metrics));
+      } catch (e) {
+        // Ignore storage errors
+      }
+    };
     
     const { 
       data, 
@@ -126,9 +171,11 @@ export function createStudyHook<T>(
       queryKey,
       queryFn: async () => {
         try {
-          logger.debug(`Fetching ${hookName} data`, {
+          // More detailed logging to help with troubleshooting
+          logger.debug(`Fetching ${hookName} data with parameters`, {
             rpcFunction: rpcFunctionName,
-            filters
+            filters,
+            pagination: { page, pageSize, offset }
           });
           
           // Build RPC parameters - only include defined values
@@ -139,10 +186,17 @@ export function createStudyHook<T>(
           
           // Add optional parameters only if they're defined
           if (search) rpcParams.p_search = search;
-          if (clinicId) rpcParams.p_clinic_id = clinicId;
-          if (status) rpcParams.p_status = status;
-          if (startDate) rpcParams.p_start_date = startDate;
-          if (endDate) rpcParams.p_end_date = endDate;
+          
+          // The following parameters aren't accepted by get_study_list_with_earliest_latest
+          // Keep them only for other RPC functions that might need them
+          if (rpcFunctionName !== 'get_study_list_with_earliest_latest') {
+            if (clinicId) rpcParams.p_clinic_id = clinicId;
+            if (status) rpcParams.p_status = status;
+            if (startDate) rpcParams.p_start_date = startDate;
+            if (endDate) rpcParams.p_end_date = endDate;
+          }
+          
+          logger.debug(`Executing RPC ${rpcFunctionName} with params`, { params: rpcParams });
           
           // Type-safe RPC call - using type assertion for the function name
           const { data: rpcData, error: rpcError } = await supabase.rpc(
@@ -152,13 +206,25 @@ export function createStudyHook<T>(
           
           // Handle errors
           if (rpcError) {
-            logger.error(`RPC ${rpcFunctionName} failed`, { error: rpcError });
-            throw new Error(`Failed to fetch ${hookName} data: ${rpcError.message}`);
+            // Special handling for timeout errors
+            if (rpcError.code === '57014') {
+              logger.error(`RPC ${rpcFunctionName} timed out. Consider reducing page size or adding more filters.`, { 
+                error: rpcError,
+                params: rpcParams
+              });
+              trackQueryPerformance(false, new Error(`Query timed out. Try reducing page size or adding search filters.`));
+              throw new Error(`Query timed out. Try reducing page size or adding search filters.`);
+            } else {
+              logger.error(`RPC ${rpcFunctionName} failed`, { error: rpcError });
+              trackQueryPerformance(false, new Error(`Failed to fetch ${hookName} data: ${rpcError.message}`));
+              throw new Error(`Failed to fetch ${hookName} data: ${rpcError.message}`);
+            }
           }
           
           // Handle missing data
           if (!rpcData) {
             logger.warn(`No data returned from ${rpcFunctionName}`);
+            trackQueryPerformance(true); // Success, just empty
             return { 
               rows: [],
               totalCount: 0
@@ -231,6 +297,9 @@ export function createStudyHook<T>(
             totalCount
           });
           
+          // Record successful query performance
+          trackQueryPerformance(true);
+          
           return {
             rows: typedData,
             totalCount
@@ -247,7 +316,18 @@ export function createStudyHook<T>(
       },
       staleTime,
       gcTime: cacheTime,
-      refetchOnWindowFocus
+      refetchOnWindowFocus,
+      retry: (failureCount, error) => {
+        // Don't retry for certain errors
+        if (error instanceof Error && error.message.includes("Query timed out")) {
+          return false; // Don't retry timeouts - they'll likely time out again
+        }
+        return failureCount < retry;
+      },
+      retryDelay: (attempt) => {
+        // Exponential backoff: 1s, 2s, 4s, 8s, etc.
+        return Math.min(retryDelay * Math.pow(2, attempt), 30000);
+      }
     });
     
     // Process the results - handle undefined/null data safely
@@ -306,7 +386,6 @@ export const useStudiesWithTimes = createStudyHook<StudiesWithTimesRow>(
         aggregated_total_minutes: row.aggregated_total_minutes || 0,
         created_by: row.created_by || '',
         status: row.status || 'unknown',
-        patient_id: row.patient_id || '',
         created_at: row.created_at || '',
         updated_at: row.updated_at || ''
       };
@@ -324,9 +403,11 @@ export const useStudiesWithTimes = createStudyHook<StudiesWithTimesRow>(
     return transformedData;
   },
   { 
-    staleTime: 30000, 
+    staleTime: 60000, // Increase stale time to reduce frequency of fetches
     cacheTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    refetchOnWindowFocus: false,
+    defaultPageSize: 3,    // Further reduce default page size
+    maxPageSize: 5         // More aggressive limit on max page size
   }
 );
 
@@ -371,7 +452,6 @@ export const useHolterStudies = createStudyHook<HolterStudy>(
         clinic_name: row.clinic_name || '',
         // Use toHolterStatus to ensure correct status value
         status: toHolterStatus(row.status),
-        patient_id: row.patient_id || '',
         created_at: row.created_at || '',
         updated_at: row.updated_at || '',
         start_timestamp: row.start_timestamp || '',

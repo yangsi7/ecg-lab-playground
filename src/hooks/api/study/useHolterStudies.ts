@@ -3,7 +3,7 @@ import { supabase } from '@/types/supabase'
 import { logger } from '@/lib/logger';
 import type { HolterStudy } from '@/types/domain/holter';
 import { toHolterStudy, calculateHolterStatus } from '@/types/domain/holter';
-import { useHolterFilter } from '@/hooks/api/store/useHolterFilter';
+import { useHolterFilters } from '@/hooks/api/study/useHolterFilters';
 import type { PostgrestError } from '@supabase/supabase-js';
 
 interface UseHolterStudiesResult {
@@ -14,7 +14,7 @@ interface UseHolterStudiesResult {
 }
 
 export function useHolterStudies() {
-    const { quickFilter, advancedFilter, applyFilters } = useHolterFilter();
+    const { quickFilter, advancedFilter, filterStudies } = useHolterFilters();
 
     const query = useQuery<HolterStudy[], Error>({
         queryKey: ['holter-studies', quickFilter, advancedFilter],
@@ -42,7 +42,7 @@ export function useHolterStudies() {
                     clinic_name: row.clinic_name ?? ''
                 }));
 
-                return applyFilters(studies);
+                return filterStudies(studies);
 
             } catch (error) {
                 const err = error instanceof Error ? error : new Error('Unknown error fetching holter studies');

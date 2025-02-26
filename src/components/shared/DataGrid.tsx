@@ -327,7 +327,7 @@ export function DataGrid<T extends Record<string, any>>({
   }
 
   // Update the filter UI component
-  function FilterUI<T>({
+  function _FilterUI<T>({
     column,
     onFilterChange,
     currentFilter
@@ -336,17 +336,15 @@ export function DataGrid<T extends Record<string, any>>({
     onFilterChange: (filter: ColumnFilter) => void;
     currentFilter?: ColumnFilter;
   }) {
-    const [operator, setOperator] = useState<FilterOperator>(
+    const [operator, _setOperator] = useState<FilterOperator>(
       currentFilter?.condition.operator ?? 'equals'
     );
-    const [value, setValue] = useState<string | number | boolean>(
+    const [value, _setValue] = useState<string | number | boolean | (string | number)[]>(
       currentFilter?.condition.value ?? ''
     );
-    const [value2, setValue2] = useState<string | number | undefined>(
+    const [value2, _setValue2] = useState<string | number | undefined>(
       currentFilter?.condition.value2
     );
-
-    const operators = getOperatorsByFilterType(column.filterType);
 
     const handleApplyFilter = () => {
       if (!operator) return;

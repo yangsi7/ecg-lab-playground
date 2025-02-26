@@ -12,7 +12,7 @@ import { supabase } from '@/types/supabase';
 import MainECGViewer from '../../shared/ecg/MainECGViewer';
 import { HolterHeader } from './components/HolterHeader';
 import HourlyHistogram from './components/HourlyHistogram';
-import { CalendarSelector } from '../../shared/CalendarSelector'; // <-- Updated import name
+import { CalendarSelector } from '@/components/shared/CalendarSelector/index';
 
 type StudyStatus = 'active' | 'error' | 'interrupted' | 'completed';
 

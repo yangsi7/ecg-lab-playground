@@ -261,11 +261,11 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                 </div>
                 
                 {/* Show errors if any */}
-                {query.error ? (
+                {!!query.error && (
                   <div className="mt-1 text-xs text-red-400 bg-red-500/10 p-1 rounded">
                     {getErrorMessage(query.error)}
                   </div>
-                ) : null}
+                )}
                 
                 {/* Result snippet if available */}
                 {query.result && (
