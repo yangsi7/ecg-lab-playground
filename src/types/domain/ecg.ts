@@ -3,7 +3,7 @@
  * These types extend or transform the database types with business logic
  */
 
-import type { Database } from '../database.types';
+import type { Database } from '@/types/database.types';
 import type { TypeGuard, Transform } from '../utils';
 
 // Raw database type from generated types

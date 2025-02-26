@@ -1,12 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
-import type { Database } from '@/types/database.types';
 import { ECGData, ECGQueryOptions, toECGData } from '@/types/domain/ecg';
 import { trackECGQuery } from '../diagnostics/useECGQueryTracker';
 
-type ECGSampleRow = Database['public']['Tables']['ecg_sample']['Row'];
 
 /**
  * useECGData

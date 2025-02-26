@@ -369,8 +369,8 @@ export const useHolterStudies = createStudyHook<HolterStudy>(
         pod_id: row.pod_id || '',
         clinic_id: row.clinic_id || '',
         clinic_name: row.clinic_name || '',
-        // TypeScript will use 'unknown' as the default for this field
-        status: (row.status as any) || 'unknown',
+        // Use toHolterStatus to ensure correct status value
+        status: toHolterStatus(row.status),
         patient_id: row.patient_id || '',
         created_at: row.created_at || '',
         updated_at: row.updated_at || '',

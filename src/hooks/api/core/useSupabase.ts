@@ -222,7 +222,7 @@ export function useSupabaseMutation<T>() {
       try {
         // Cast to any to bypass type checking for now due to complex types
         const { data: result, error } = await (supabase
-          .from(table as string)
+          .from(table as any)
           .insert(data as any)
           .select()
           .single() as any);
@@ -276,7 +276,7 @@ export function useSupabaseMutation<T>() {
       try {
         // Cast to any to bypass type checking for now due to complex types
         const { data: result, error } = await (supabase
-          .from(table as string)
+          .from(table as any)
           .update(data as any)
           .eq('id', id)
           .select()
@@ -331,7 +331,7 @@ export function useSupabaseMutation<T>() {
       try {
         // Cast to any to bypass type checking for now due to complex types
         const { error } = await (supabase
-          .from(table as string)
+          .from(table as any)
           .delete()
           .eq('id', id) as any);
 
@@ -398,6 +398,5 @@ export type {
   Tables,
   RPCName,
   RPCFunctions,
-  QueryParams,
-  QueryExecution
+  QueryParams
 } 

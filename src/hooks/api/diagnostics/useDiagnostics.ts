@@ -3,6 +3,7 @@
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/types/supabase';
+import { useRPC } from '@/hooks/api/core';
 
 import { useEffect, useState } from 'react';
 import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics, SystemMetrics } from '@/types'
@@ -55,6 +56,8 @@ function extractTableName(query: string | null, index: number): string {
 
 export function useDiagnostics(): DiagnosticsResult {
   const queryClient = useQueryClient();
+  const { callRPC } = useRPC();
+  
   // Use constants instead of state since we don't update these values
   const lastRPCCalls: RPCCall[] = [];
   const connectionErrors: ConnectionError[] = [];
@@ -77,29 +80,35 @@ export function useDiagnostics(): DiagnosticsResult {
   const edgeFunctionQuery = useQuery({
     queryKey: ['diagnostics', 'edge-functions'],
     queryFn: async () => {
-      // Use the RPC function instead of directly querying the table
-      const { data, error } = await supabase.rpc('get_edge_function_stats');
+      try {
+        // Use callRPC instead of supabase.rpc
+        const data = await callRPC('get_edge_function_stats', {}, {
+          component: 'useDiagnostics',
+          context: { query: 'edge-functions' }
+        });
 
-      if (error) throw error;
+        // Validate and transform data
+        if (!Array.isArray(data)) {
+          logger.error('Invalid edge function stats data', { data });
+          return [];
+        }
 
-      // Validate and transform data
-      if (!Array.isArray(data)) {
-        logger.error('Invalid edge function stats data', { data });
-        return [];
+        // The RPC function already provides aggregated stats, so we can use it directly
+        return data.map(stat => ({
+          function_name: stat.function_name,
+          total_invocations: stat.total_invocations,
+          average_duration_ms: stat.average_duration_ms,
+          last_invocation: stat.last_invocation,
+          success_rate: stat.success_rate,
+          error_count: Math.round(stat.total_invocations * (1 - (stat.success_rate / 100))),
+          memory_usage: stat.memory_usage,
+          cpu_time: stat.cpu_time,
+          peak_concurrent_executions: stat.peak_concurrent_executions
+        }));
+      } catch (error) {
+        logger.error('Failed to fetch edge function stats', { error });
+        throw error;
       }
-
-      // The RPC function already provides aggregated stats, so we can use it directly
-      return data.map(stat => ({
-        function_name: stat.function_name,
-        total_invocations: stat.total_invocations,
-        average_duration_ms: stat.average_duration_ms,
-        last_invocation: stat.last_invocation,
-        success_rate: stat.success_rate,
-        error_count: Math.round(stat.total_invocations * (1 - (stat.success_rate / 100))),
-        memory_usage: stat.memory_usage,
-        cpu_time: stat.cpu_time,
-        peak_concurrent_executions: stat.peak_concurrent_executions
-      }));
     },
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
@@ -108,25 +117,32 @@ export function useDiagnostics(): DiagnosticsResult {
   const databaseQuery = useQuery({
     queryKey: ['diagnostics', 'database'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_database_stats');
+      try {
+        // Use callRPC instead of supabase.rpc
+        const data = await callRPC('get_database_stats', {}, {
+          component: 'useDiagnostics',
+          context: { query: 'database' }
+        });
 
-      if (error) throw error;
+        if (!Array.isArray(data)) {
+          logger.error('Invalid database stats data', { data });
+          return [];
+        }
 
-      if (!Array.isArray(data)) {
-        logger.error('Invalid database stats data', { data });
-        return [];
+        // Transform into our expected format
+        return data.map((row, index) => ({
+          table_name: extractTableName(row.query, index),
+          row_count: row.avg_rows || 0,
+          last_vacuum: new Date().toISOString(), // Not available in stats
+          size_bytes: 0, // Not available in stats
+          index_size_bytes: 0, // Not available in stats
+          cache_hit_ratio: row.hit_rate || 0,
+          query_id: `${row.query || 'unknown'}-${index}` // Add a unique identifier
+        }));
+      } catch (error) {
+        logger.error('Failed to fetch database stats', { error });
+        throw error;
       }
-
-      // Transform into our expected format
-      return data.map((row, index) => ({
-        table_name: extractTableName(row.query, index),
-        row_count: row.avg_rows || 0,
-        last_vacuum: new Date().toISOString(), // Not available in stats
-        size_bytes: 0, // Not available in stats
-        index_size_bytes: 0, // Not available in stats
-        cache_hit_ratio: row.hit_rate || 0,
-        query_id: `${row.query || 'unknown'}-${index}` // Add a unique identifier
-      }));
     },
     staleTime: 60000, // Consider data fresh for 1 minute
   });
@@ -135,39 +151,44 @@ export function useDiagnostics(): DiagnosticsResult {
   const rpcQuery = useQuery({
     queryKey: ['diagnostics', 'rpc'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('rpc_call_info')
-        .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(100);
+      try {
+        const { data, error } = await supabase
+          .from('rpc_call_info')
+          .select('*')
+          .order('timestamp', { ascending: false })
+          .limit(100);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (!Array.isArray(data)) {
-        logger.error('Invalid RPC metrics data', { data });
-        return [];
-      }
-
-      // Group by function name and calculate stats
-      const rpcStats = new Map<string, RPCMetrics>();
-      data.forEach(row => {
-        const stats = rpcStats.get(row.function_name) || {
-          function_name: row.function_name,
-          total_calls: 0,
-          average_duration_ms: 0,
-          error_rate: 0,
-          cache_hit_ratio: 0
-        };
-
-        stats.total_calls++;
-        if (row.status === 'error') {
-          stats.error_rate = (stats.error_rate * (stats.total_calls - 1) + 100) / stats.total_calls;
+        if (!Array.isArray(data)) {
+          logger.error('Invalid RPC metrics data', { data });
+          return [];
         }
 
-        rpcStats.set(row.function_name, stats);
-      });
+        // Group by function name and calculate stats
+        const rpcStats = new Map<string, RPCMetrics>();
+        data.forEach(row => {
+          const stats = rpcStats.get(row.function_name) || {
+            function_name: row.function_name,
+            total_calls: 0,
+            average_duration_ms: 0,
+            error_rate: 0,
+            cache_hit_ratio: 0
+          };
 
-      return Array.from(rpcStats.values());
+          stats.total_calls++;
+          if (row.status === 'error') {
+            stats.error_rate = (stats.error_rate * (stats.total_calls - 1) + 100) / stats.total_calls;
+          }
+
+          rpcStats.set(row.function_name, stats);
+        });
+
+        return Array.from(rpcStats.values());
+      } catch (error) {
+        logger.error('Failed to fetch RPC metrics', { error });
+        throw error;
+      }
     },
     staleTime: 30000,
   });
@@ -176,42 +197,47 @@ export function useDiagnostics(): DiagnosticsResult {
   const systemQuery = useQuery({
     queryKey: ['diagnostics', 'system'],
     queryFn: async () => {
-      const { data: edgeFunctionData, error } = await supabase
-        .from('edge_function_stats')
-        .select('memory_usage,cpu_time')
-        .order('created_at', { ascending: false })
-        .limit(10);
+      try {
+        const { data: edgeFunctionData, error } = await supabase
+          .from('edge_function_stats')
+          .select('memory_usage,cpu_time')
+          .order('created_at', { ascending: false })
+          .limit(10);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (!Array.isArray(edgeFunctionData) || edgeFunctionData.length === 0) {
-        return null;
+        if (!Array.isArray(edgeFunctionData) || edgeFunctionData.length === 0) {
+          return null;
+        }
+
+        // Calculate averages
+        let totalMemory = 0;
+        let totalCpu = 0;
+        let validMemoryCount = 0;
+        let validCpuCount = 0;
+
+        edgeFunctionData.forEach(row => {
+          if (row.memory_usage !== null) {
+            totalMemory += row.memory_usage;
+            validMemoryCount++;
+          }
+          if (row.cpu_time !== null && typeof row.cpu_time === 'number') {
+            totalCpu += row.cpu_time;
+            validCpuCount++;
+          }
+        });
+
+        return {
+          cpu_usage: validCpuCount > 0 ? totalCpu / validCpuCount : 0,
+          memory_usage: validMemoryCount > 0 ? totalMemory / validMemoryCount : 0,
+          disk_usage: 0, // Not available
+          network_latency_ms: 0, // Not available
+          active_connections: 0 // Not available
+        };
+      } catch (error) {
+        logger.error('Failed to fetch system metrics', { error });
+        throw error;
       }
-
-      // Calculate averages
-      let totalMemory = 0;
-      let totalCpu = 0;
-      let validMemoryCount = 0;
-      let validCpuCount = 0;
-
-      edgeFunctionData.forEach(row => {
-        if (row.memory_usage !== null) {
-          totalMemory += row.memory_usage;
-          validMemoryCount++;
-        }
-        if (row.cpu_time !== null && typeof row.cpu_time === 'number') {
-          totalCpu += row.cpu_time;
-          validCpuCount++;
-        }
-      });
-
-      return {
-        cpu_usage: validCpuCount > 0 ? totalCpu / validCpuCount : 0,
-        memory_usage: validMemoryCount > 0 ? totalMemory / validMemoryCount : 0,
-        disk_usage: 0, // Not available
-        network_latency_ms: 0, // Not available
-        active_connections: 0 // Not available
-      };
     },
     staleTime: 10000, // Consider data fresh for 10 seconds
   });

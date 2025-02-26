@@ -62,7 +62,7 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
   } = useDiagnostics();
 
   // Get ECG query tracking data
-  const { queries: ecgQueries } = useECGQueryTracker();
+  useECGQueryTracker();
 
   // Get detailed query tracking data
   const { queries: dbQueries, stats: queryStats } = useQueryLogger();
@@ -264,7 +264,7 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                     <span>Result: </span>
                     <span className="text-gray-500">
                       {typeof query.result === 'object' 
-                        ? JSON.stringify(query.result).substring(0, 50) + (JSON.stringify(query.result).length > 50 ? '...' : '')
+                        ? JSON.stringify(query.result)?.substring(0, 50) + (JSON.stringify(query.result || {}).length > 50 ? '...' : '')
                         : String(query.result).substring(0, 50) + (String(query.result).length > 50 ? '...' : '')
                       }
                     </span>
@@ -525,7 +525,7 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                   />
                 </div>
               </div>
-
+              
               {/* Network Latency */}
               <div className="space-y-1">
                 <div className="flex justify-between text-sm">
@@ -552,25 +552,19 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                   />
                 </div>
               </div>
-
-              {/* Active Connections */}
-              <div className="flex justify-between text-sm text-gray-400">
-                <span>Active Connections</span>
-                <span>{systemMetrics.active_connections}</span>
-              </div>
             </div>
           </div>
         )}
-
+        
         {/* Study Diagnostics */}
         {studyIdParam && (
           <div className="bg-white/5 rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-2">
               <FileSignature className="h-5 w-5 text-blue-400" />
               <h3 className="font-medium text-white">Study Diagnostics</h3>
-              {studyDiagnosticsLoading ? (
+              {studyDiagnosticsLoading && (
                 <div className="ml-auto animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
-              ) : null}
+              )}
             </div>
             {studyDiagnostics ? (
               <div className="space-y-2">
@@ -579,95 +573,27 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                   <span className="text-gray-400 truncate max-w-[150px]">{studyDiagnostics.study_id}</span>
                 </div>
                 
-                {/* Quality Fraction Variability */}
-                <div className="space-y-1">
+                {/* Display additional study diagnostics information */}
+                <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Quality Variability</span>
                     <span className="text-gray-400">
                       {(studyDiagnostics.quality_fraction_variability * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        studyDiagnostics.quality_fraction_variability < 0.1
-                          ? 'bg-green-400'
-                          : studyDiagnostics.quality_fraction_variability < 0.3
-                          ? 'bg-yellow-400'
-                          : 'bg-red-400'
-                      }`}
-                      style={{
-                        width: `${Math.min(studyDiagnostics.quality_fraction_variability * 100 * 5, 100)}%`
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Minute Variability */}
-                <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Time Variability</span>
                     <span className="text-gray-400">
                       {(studyDiagnostics.total_minute_variability * 100).toFixed(1)}%
                     </span>
                   </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        studyDiagnostics.total_minute_variability < 0.1
-                          ? 'bg-green-400'
-                          : studyDiagnostics.total_minute_variability < 0.3
-                          ? 'bg-yellow-400'
-                          : 'bg-red-400'
-                      }`}
-                      style={{
-                        width: `${Math.min(studyDiagnostics.total_minute_variability * 100 * 5, 100)}%`
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Interruptions */}
-                <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Interruptions</span>
                     <span className="text-gray-400">{studyDiagnostics.interruptions}</span>
                   </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        studyDiagnostics.interruptions < 2
-                          ? 'bg-green-400'
-                          : studyDiagnostics.interruptions < 5
-                          ? 'bg-yellow-400'
-                          : 'bg-red-400'
-                      }`}
-                      style={{
-                        width: `${Math.min(studyDiagnostics.interruptions * 10, 100)}%`
-                      }}
-                    />
-                  </div>
-                </div>
-                
-                {/* Bad Hours */}
-                <div className="space-y-1">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-300">Bad Hours</span>
                     <span className="text-gray-400">{studyDiagnostics.bad_hours}</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all ${
-                        studyDiagnostics.bad_hours < 5
-                          ? 'bg-green-400'
-                          : studyDiagnostics.bad_hours < 12
-                          ? 'bg-yellow-400'
-                          : 'bg-red-400'
-                      }`}
-                      style={{
-                        width: `${Math.min(studyDiagnostics.bad_hours * 4, 100)}%`
-                      }}
-                    />
                   </div>
                 </div>
               </div>
@@ -680,67 +606,7 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
             )}
           </div>
         )}
-
-        {/* ECG Diagnostics */}
-        <div className="bg-white/5 rounded-xl p-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-blue-400" />
-            <h3 className="font-medium text-white">ECG Data Queries</h3>
-          </div>
-          
-          {/* Real ECG Query Info */}
-          <div className="space-y-3">
-            {ecgQueries.length > 0 ? (
-              ecgQueries.map((query, index) => (
-                <div key={index} className="bg-white/10 rounded-lg p-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-300">{query.functionName}</span>
-                    <span className="text-xs text-gray-400">
-                      {new Date(query.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  
-                  <div className="mt-2 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Day:</span>
-                      <span className="text-gray-300">{query.day}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Time Range:</span>
-                      <span className="text-gray-300">
-                        {query.timeRange.start} - {query.timeRange.end}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Timestamps:</span>
-                      <span className="text-gray-300 truncate max-w-[200px]">
-                        {query.timestamps.start} - {query.timestamps.end}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Points:</span>
-                      <span className="text-gray-300">{query.points}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Duration:</span>
-                      <span className="text-gray-300">{query.duration}ms</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Pod ID:</span>
-                      <span className="text-gray-300 truncate max-w-[150px]">{query.podId}</span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-sm text-gray-400 bg-white/5 rounded-lg p-3 text-center">
-                No ECG queries tracked yet
-              </div>
-            )}
-          </div>
-        </div>
       </div>
     </aside>
   );
 }
-

@@ -1,8 +1,9 @@
-import useSWR from 'swr'
-import { supabase } from '@/types/supabase'
+import { useQuery } from '@tanstack/react-query'
+import { useRPC } from '@/hooks/api/core'
 import type { Database } from '@/types/database.types'
 import { toClinicStatsRow } from '@/types/domain/clinic'
 import { useMemo } from 'react'
+import { logger } from '@/lib/logger'
 
 // Define the return type from get_clinic_table_stats RPC function
 export type ClinicTableStat = Database['public']['Functions']['get_clinic_table_stats']['Returns'][0]
@@ -20,18 +21,26 @@ export type ClinicTableFilter = {
  * Supports filtering of results based on filter criteria.
  */
 export const useClinicTableStats = (filter?: ClinicTableFilter) => {
-  const { data, error, isLoading, mutate } = useSWR(
-    'clinic-table-stats',
-    async () => {
-      const { data, error } = await supabase.rpc('get_clinic_table_stats')
-      if (error) throw new Error(error.message)
-      return data as ClinicTableStat[]
+  const { callRPC } = useRPC();
+  
+  const { data, error, isLoading, refetch } = useQuery({
+    queryKey: ['clinic-table-stats'],
+    queryFn: async () => {
+      logger.debug('Fetching clinic table stats');
+      
+      try {
+        const data = await callRPC('get_clinic_table_stats', {}, {
+          component: 'useClinicTableStats'
+        });
+        
+        return data as ClinicTableStat[];
+      } catch (error) {
+        logger.error('Failed to fetch clinic table stats', { error });
+        throw error instanceof Error ? error : new Error(String(error));
+      }
     },
-    {
-      revalidateOnFocus: false,
-      dedupingInterval: 60_000
-    }
-  )
+    staleTime: 60_000 // 1 minute
+  });
 
   // Apply client-side filtering based on filter criteria
   const filteredData = useMemo(() => {
@@ -83,7 +92,7 @@ export const useClinicTableStats = (filter?: ClinicTableFilter) => {
     rawData: filteredData,
     isLoading, 
     error,
-    mutate
+    mutate: refetch
   }
 }
 
@@ -119,33 +128,61 @@ export const useClinicDetails = (clinicId: string | null) => {
  * Hook to fetch weekly and monthly time series data for clinic charts
  */
 export const useClinicTimeSeriesData = (clinicId: string | null) => {
+  const { callRPC } = useRPC();
+  
   // Type definitions for the RPC function returns
   type WeeklyQualityMetric = Database['public']['Functions']['get_clinic_weekly_quality']['Returns'][0]
   type WeeklyStudyCount = Database['public']['Functions']['get_clinic_weekly_studies']['Returns'][0]
 
   // Weekly quality data
-  const weeklyQuality = useSWR(
-    clinicId ? `clinic-weekly-quality-${clinicId}` : null,
-    async () => {
-      const { data, error } = await supabase.rpc('get_clinic_weekly_quality', {
-        _clinic_id: clinicId!
-      })
-      if (error) throw new Error(error.message)
-      return data as WeeklyQualityMetric[]
-    }
-  )
+  const weeklyQuality = useQuery({
+    queryKey: ['clinic-weekly-quality', clinicId],
+    queryFn: async () => {
+      if (!clinicId) return [];
+      
+      logger.debug('Fetching clinic weekly quality', { clinicId });
+      
+      try {
+        const data = await callRPC(
+          'get_clinic_weekly_quality', 
+          { _clinic_id: clinicId },
+          { component: 'useClinicTimeSeriesData', context: { metric: 'quality', clinicId } }
+        );
+        
+        return data as WeeklyQualityMetric[];
+      } catch (error) {
+        logger.error('Failed to fetch clinic weekly quality', { error, clinicId });
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+    },
+    enabled: !!clinicId,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
   
   // Weekly studies data
-  const weeklyStudies = useSWR(
-    clinicId ? `clinic-weekly-studies-${clinicId}` : null,
-    async () => {
-      const { data, error } = await supabase.rpc('get_clinic_weekly_studies', {
-        _clinic_id: clinicId!
-      })
-      if (error) throw new Error(error.message)
-      return data as WeeklyStudyCount[]
-    }
-  )
+  const weeklyStudies = useQuery({
+    queryKey: ['clinic-weekly-studies', clinicId],
+    queryFn: async () => {
+      if (!clinicId) return [];
+      
+      logger.debug('Fetching clinic weekly studies', { clinicId });
+      
+      try {
+        const data = await callRPC(
+          'get_clinic_weekly_studies', 
+          { _clinic_id: clinicId },
+          { component: 'useClinicTimeSeriesData', context: { metric: 'studies', clinicId } }
+        );
+        
+        return data as WeeklyStudyCount[];
+      } catch (error) {
+        logger.error('Failed to fetch clinic weekly studies', { error, clinicId });
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+    },
+    enabled: !!clinicId,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
   
   return {
     weeklyQuality: {

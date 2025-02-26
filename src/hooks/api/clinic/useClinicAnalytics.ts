@@ -7,7 +7,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/types/supabase';
-import { toClinicStatsRow } from '@/types/domain/clinic';
 import type { ClinicTableStat } from '@/hooks/api/clinic/useClinicData';
 import { logger } from '@/lib/logger';
 

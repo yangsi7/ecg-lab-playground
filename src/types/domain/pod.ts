@@ -1,7 +1,7 @@
 /**
  * Domain types for pods
  */
-import type { Database } from '../database.types';
+import type { Database } from '@/types/database.types';
 
 // Raw database type from generated types
 export type PodRow = Database['public']['Tables']['pod']['Row'];

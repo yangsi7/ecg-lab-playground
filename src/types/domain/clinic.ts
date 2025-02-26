@@ -3,8 +3,9 @@
  * These types extend or transform the database types with business logic
  */
 
-import type { Database, ClinicTableStat } from '../database.types';
-import type { TypeGuard, Transform } from '../utils';
+import type { Database } from '@/types/database.types';
+import type { ClinicTableStat } from '@/hooks/api/clinic/useClinicData';
+import type { TypeGuard, Transform } from '@/types/utils';
 
 // Raw database types from generated types
 export type ClinicRow = Database['public']['Tables']['clinics']['Row'];
@@ -153,7 +154,7 @@ export const toClinicStatsRow = (stat: ClinicTableStat): ClinicStatsRow => {
         badCount: stat.bad_count,
         criticalCount: stat.critical_count,
         averageQualityHours: stat.average_quality_hours,
-        recentAlerts: stat.recent_alerts,
+        recentAlerts: Array.isArray(stat.recent_alerts) ? stat.recent_alerts : null,
         interveneCount: stat.intervene_count,
         monitorCount: stat.monitor_count,
         onTargetCount: stat.on_target_count,

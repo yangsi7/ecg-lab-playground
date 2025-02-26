@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { supabase, handleSupabaseError } from '@/types/supabase';
+import { useRPC } from '@/hooks/api/core';
 
 import { logger } from '@/lib/logger'
 import type { AggregatedLeadData, ECGAggregateFilter } from '@/types/domain/ecg'
@@ -42,6 +42,8 @@ export function useECGAggregates({
     filter,
     enabled = true
 }: UseECGAggregatesProps) {
+    const { callRPC } = useRPC();
+    
     return useQuery<AggregateResponse>({
         queryKey: ['ecg-aggregates', podId, startTime, endTime, bucketSize, filter],
         queryFn: async () => {
@@ -60,42 +62,45 @@ export function useECGAggregates({
                 p_bucket_seconds: bucketSize
             }
 
-            const { data, error } = await supabase.rpc('aggregate_leads', params)
+            try {
+                const data = await callRPC('aggregate_leads', params, {
+                    component: 'useECGAggregates',
+                    context: { podId, timeRange: [startTime, endTime] }
+                });
 
-            if (error) {
-                logger.error('Failed to fetch ECG aggregates', { error })
-                throw handleSupabaseError(error)
-            }
-
-            if (!Array.isArray(data)) {
-                throw new Error('aggregate_leads did not return an array')
-            }
-
-            // Store the total count before filtering
-            const totalCount = data.length;
-            let filteredData = data as AggregatedLeadData[]
-            
-            // Apply filters if needed
-            if (filter) {
-                if (filter.quality_threshold) {
-                    filteredData = filteredData.filter(row => 
-                        ((row.quality_1_percent ?? 0) + 
-                         (row.quality_2_percent ?? 0) + 
-                         (row.quality_3_percent ?? 0)) / 3 >= filter.quality_threshold!
-                    )
+                if (!Array.isArray(data)) {
+                    throw new Error('aggregate_leads did not return an array');
                 }
-                if (filter.lead_on_threshold) {
-                    filteredData = filteredData.filter(row =>
-                        ((row.lead_on_p_1 ?? 0) + 
-                         (row.lead_on_p_2 ?? 0) + 
-                         (row.lead_on_p_3 ?? 0)) / 3 >= filter.lead_on_threshold!
-                    )
-                }
-            }
 
-            return {
-                data: filteredData,
-                count: totalCount
+                // Store the total count before filtering
+                const totalCount = data.length;
+                let filteredData = data as AggregatedLeadData[]
+                
+                // Apply filters if needed
+                if (filter) {
+                    if (filter.quality_threshold) {
+                        filteredData = filteredData.filter(row => 
+                            ((row.quality_1_percent ?? 0) + 
+                             (row.quality_2_percent ?? 0) + 
+                             (row.quality_3_percent ?? 0)) / 3 >= filter.quality_threshold!
+                        )
+                    }
+                    if (filter.lead_on_threshold) {
+                        filteredData = filteredData.filter(row =>
+                            ((row.lead_on_p_1 ?? 0) + 
+                             (row.lead_on_p_2 ?? 0) + 
+                             (row.lead_on_p_3 ?? 0)) / 3 >= filter.lead_on_threshold!
+                        )
+                    }
+                }
+
+                return {
+                    data: filteredData,
+                    count: totalCount
+                }
+            } catch (error) {
+                logger.error('Failed to fetch ECG aggregates', { error });
+                throw error instanceof Error ? error : new Error(String(error));
             }
         },
         enabled: enabled && !!podId && !!startTime && !!endTime,
