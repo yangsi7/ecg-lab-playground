@@ -26,6 +26,13 @@ interface HourData {
     hasInterruption: boolean;
 }
 
+interface StudyHourlyMetric {
+    hour_of_day: number;
+    reading_count: number;
+    total_minutes: number;
+    quality_minutes: number;
+}
+
 export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHistogramProps) {
     const [data, setData] = useState<HourData[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -38,16 +45,18 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                 setLoading(true);
                 setError(null);
 
-                // Call the RPC to get pre-aggregated hourly metrics for the entire study
-                const { data: metricRows, error: rpcErr } = await supabase
-                    .rpc('get_study_hourly_metrics', { p_study_id: studyId });
+                // Create date boundaries for filtering - ensure UTC consistency
+                const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
+                const dayStart = new Date(`${dateStr}T00:00:00.000Z`);
+                const dayEnd = new Date(`${dateStr}T23:59:59.999Z`);
 
-                if (rpcErr) {
-                    throw new Error(rpcErr.message);
-                }
-                if (!Array.isArray(metricRows)) {
-                    throw new Error('No data returned from get_study_hourly_metrics');
-                }
+                // Approach 1: Try to fetch data directly from study_readings for the specific date
+                const { data: readingsData, error: readingsError } = await supabase
+                    .from('study_readings')
+                    .select('timestamp, hour_of_day, total_minutes, quality_minutes, status')
+                    .eq('study_id', studyId)
+                    .gte('timestamp', dayStart.toISOString())
+                    .lte('timestamp', dayEnd.toISOString());
 
                 // Initialize 24-hour slots
                 const hours: HourData[] = Array.from({ length: 24 }, (_, i) => ({
@@ -57,18 +66,59 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
                     hasInterruption: false
                 }));
 
-                // Populate from RPC results
-                metricRows.forEach((row) => {
-                    const h = row.hour_of_day;
-                    // Safety check in case hour_of_day is out of 0..23 range
-                    if (h >= 0 && h < 24) {
-                        hours[h].total_minutes += row.total_minutes;
-                        hours[h].quality_minutes += row.quality_minutes;
-                    }
-                });
+                if (readingsError) {
+                    console.warn('Failed to fetch study_readings:', readingsError.message);
+                    // Fallback to aggregated data from the RPC if direct table access fails
+                    
+                    // Call the RPC to get pre-aggregated hourly metrics for the entire study
+                    const { data: metricRows, error: rpcErr } = await supabase
+                        .rpc('get_study_hourly_metrics', { p_study_id: studyId });
 
-                // Optional: If you still want to filter by a specific date, you can do it here
-                // with a local approach, e.g., ignoring rows that are not within 'date'.
+                    if (rpcErr) {
+                        throw new Error(rpcErr.message);
+                    }
+                    if (!Array.isArray(metricRows)) {
+                        throw new Error('No data returned from get_study_hourly_metrics');
+                    }
+
+                    // Since we can't filter by date in the RPC, log a warning about using all data
+                    console.warn('Using aggregated hourly data for the entire study - date filtering unavailable');
+                    
+                    // Populate from RPC results (unfiltered by date)
+                    metricRows.forEach((row) => {
+                        const h = row.hour_of_day;
+                        // Safety check in case hour_of_day is out of 0..23 range
+                        if (h >= 0 && h < 24) {
+                            hours[h].total_minutes += row.total_minutes;
+                            hours[h].quality_minutes += row.quality_minutes;
+                        }
+                    });
+                } else if (readingsData && readingsData.length > 0) {
+                    // Successfully fetched date-specific readings
+                    readingsData.forEach((row) => {
+                        // Use hour_of_day if available, otherwise calculate from timestamp
+                        // Ensure timestamp is treated as UTC to match database convention
+                        let hourOfDay = row.hour_of_day;
+                        if (hourOfDay === undefined || hourOfDay === null) {
+                            const rowTimestamp = new Date(row.timestamp);
+                            // Use UTC hour to ensure consistency with database time
+                            hourOfDay = rowTimestamp.getUTCHours();
+                        }
+                        
+                        if (hourOfDay >= 0 && hourOfDay < 24) {
+                            hours[hourOfDay].total_minutes += row.total_minutes || 0;
+                            hours[hourOfDay].quality_minutes += row.quality_minutes || 0;
+                            
+                            // Check if any reading has an 'interrupted' status
+                            if (row.status && row.status.toLowerCase() === 'interrupted') {
+                                hours[hourOfDay].hasInterruption = true;
+                            }
+                        }
+                    });
+                } else {
+                    // No readings found for this specific date
+                    console.info(`No readings found for date: ${date.toLocaleDateString()}`);
+                }
 
                 if (!canceled) {
                     setData(hours);
@@ -92,6 +142,12 @@ export default function HourlyHistogram({ date, studyId, onHourClick }: HourlyHi
     }
     if (error) {
         return <div className="text-sm text-red-400">{error}</div>;
+    }
+
+    // Add a message if no data is available for this date
+    const hasData = data.some(hour => hour.total_minutes > 0);
+    if (!hasData) {
+        return <div className="text-sm text-gray-400">No data available for {date.toLocaleDateString()}</div>;
     }
 
     return (

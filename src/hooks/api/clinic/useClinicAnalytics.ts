@@ -17,7 +17,8 @@ import type {
     ClinicQualityBreakdown,
     WeeklyMonthlyQuality,
     WeeklyMonthlyStudies,
-    ClinicAnalyticsResult
+    ClinicAnalyticsResult,
+    WeeklyHistogramPoint
 } from '@/types/domain/clinic';
 
 // Database types for conversion
@@ -38,7 +39,7 @@ function convertToClinicOverview(data: ClinicOverviewRow | null): ClinicOverview
     
     // Safely process the alerts JSON data
     if (data.recent_alerts && Array.isArray(data.recent_alerts)) {
-        alerts = data.recent_alerts.map(alert => {
+        alerts = data.recent_alerts.map((alert: any) => {
             // Type guard to ensure alert is an object with the expected properties
             if (alert && typeof alert === 'object' && !Array.isArray(alert)) {
                 // Access properties using type assertion after validation
@@ -97,45 +98,93 @@ function convertToWeeklyMonthlyStudies(data: (ClinicWeeklyStudiesRow | ClinicMon
     }));
 }
 
+// Helper function to convert weekly studies data to the format needed for charts
+function convertToWeeklyHistogramPoints(data: WeeklyMonthlyStudies[]): WeeklyHistogramPoint[] {
+    return data
+        .filter(item => item.week_start !== null)
+        .map(item => ({
+            week_start: item.week_start as string,
+            value: item.open_studies
+        }));
+}
+
+// Helper function to convert weekly quality data to the format needed for charts
+function convertToWeeklyQualityHistogramPoints(data: WeeklyMonthlyQuality[]): WeeklyHistogramPoint[] {
+    return data
+        .filter(item => item.week_start !== null)
+        .map(item => ({
+            week_start: item.week_start as string,
+            value: item.average_quality
+        }));
+}
+
 export function useClinicAnalytics(clinicId: string | null) {
     const { data, isLoading, error } = useQuery({
         queryKey: ['clinic-analytics', clinicId],
         queryFn: async (): Promise<ClinicAnalyticsResult> => {
+            // If clinicId is null, return default values without making API calls
+            if (clinicId === null) {
+                logger.warn('useClinicAnalytics called with null clinicId, skipping API calls');
+                return {
+                    loading: false,
+                    error: null,
+                    overview: null,
+                    qualityBreakdown: null,
+                    statusBreakdown: null,
+                    weeklyQuality: [],
+                    monthlyQuality: [],
+                    weeklyStudies: [],
+                    monthlyStudies: [],
+                    weeklyActiveStudies: [],
+                    weeklyAvgQuality: [],
+                    clinicBreakdown: [],
+                    newStudiesLast3mo: 0,
+                    growthPercent: 0
+                };
+            }
+
             try {
+                // Now clinicId is guaranteed to be a string (not null)
+                // No need for `clinicId || ''` since we've handled the null case
+                
                 // Fetch overview - requires _clinic_id
                 const { data: overviewData, error: overviewError } = await supabase
-                    .rpc('get_clinic_overview', { _clinic_id: clinicId || '' });
+                    .rpc('get_clinic_overview', { _clinic_id: clinicId });
                 if (overviewError) throw overviewError;
 
                 // Fetch quality breakdown - has an overload with optional _clinic_id
                 const { data: qualityData, error: qualityError } = await supabase
-                    .rpc('get_clinic_quality_breakdown', clinicId ? { _clinic_id: clinicId } : {});
+                    .rpc('get_clinic_quality_breakdown', { _clinic_id: clinicId });
                 if (qualityError) throw qualityError;
 
                 // Fetch status breakdown - has an overload with optional _clinic_id
                 const { data: statusData, error: statusError } = await supabase
-                    .rpc('get_clinic_status_breakdown', clinicId ? { _clinic_id: clinicId } : {});
+                    .rpc('get_clinic_status_breakdown', { _clinic_id: clinicId });
                 if (statusError) throw statusError;
 
                 // Fetch weekly quality - has an overload without _clinic_id
                 const { data: weeklyQualityData, error: weeklyQualityError } = await supabase
-                    .rpc('get_clinic_weekly_quality', clinicId ? { _clinic_id: clinicId } : {});
+                    .rpc('get_clinic_weekly_quality', { _clinic_id: clinicId });
                 if (weeklyQualityError) throw weeklyQualityError;
 
                 // Fetch monthly quality - requires _clinic_id
                 const { data: monthlyQualityData, error: monthlyQualityError } = await supabase
-                    .rpc('get_clinic_monthly_quality', { _clinic_id: clinicId || '' });
+                    .rpc('get_clinic_monthly_quality', { _clinic_id: clinicId });
                 if (monthlyQualityError) throw monthlyQualityError;
 
                 // Fetch weekly studies - requires _clinic_id
                 const { data: weeklyStudiesData, error: weeklyStudiesError } = await supabase
-                    .rpc('get_clinic_weekly_studies', { _clinic_id: clinicId || '' });
+                    .rpc('get_clinic_weekly_studies', { _clinic_id: clinicId });
                 if (weeklyStudiesError) throw weeklyStudiesError;
 
                 // Fetch monthly studies - requires _clinic_id
                 const { data: monthlyStudiesData, error: monthlyStudiesError } = await supabase
-                    .rpc('get_clinic_monthly_studies', { _clinic_id: clinicId || '' });
+                    .rpc('get_clinic_monthly_studies', { _clinic_id: clinicId });
                 if (monthlyStudiesError) throw monthlyStudiesError;
+
+                // Convert the data to the appropriate formats
+                const weeklyQuality = convertToWeeklyMonthlyQuality(weeklyQualityData || []);
+                const weeklyStudies = convertToWeeklyMonthlyStudies(weeklyStudiesData || []);
 
                 return {
                     loading: false,
@@ -143,13 +192,14 @@ export function useClinicAnalytics(clinicId: string | null) {
                     overview: convertToClinicOverview(overviewData?.[0] || null),
                     qualityBreakdown: qualityData as ClinicQualityBreakdown[] || null,
                     statusBreakdown: convertToClinicStatusBreakdown(statusData),
-                    weeklyQuality: convertToWeeklyMonthlyQuality(weeklyQualityData || []),
+                    weeklyQuality: weeklyQuality,
                     monthlyQuality: convertToWeeklyMonthlyQuality(monthlyQualityData || []),
-                    weeklyStudies: convertToWeeklyMonthlyStudies(weeklyStudiesData || []),
+                    weeklyStudies: weeklyStudies,
                     monthlyStudies: convertToWeeklyMonthlyStudies(monthlyStudiesData || []),
-                    // Add empty arrays for the remaining properties from ClinicAnalyticsResult
-                    weeklyActiveStudies: [],
-                    weeklyAvgQuality: [],
+                    // Convert weekly studies to active studies format for charts
+                    weeklyActiveStudies: convertToWeeklyHistogramPoints(weeklyStudies),
+                    // Convert weekly quality to avg quality format for charts
+                    weeklyAvgQuality: convertToWeeklyQualityHistogramPoints(weeklyQuality),
                     clinicBreakdown: [],
                     newStudiesLast3mo: 0,
                     growthPercent: 0
@@ -175,6 +225,8 @@ export function useClinicAnalytics(clinicId: string | null) {
             }
         },
         staleTime: 60000, // Data is fresh for 1 minute
+        // Skip the query if clinicId is null
+        enabled: clinicId !== null,
     });
 
     return {

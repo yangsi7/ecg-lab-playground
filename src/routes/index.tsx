@@ -9,7 +9,7 @@ import RootLayout from '@/components/RootLayout';
 // Lazy load components
 const DataLab = lazy(() => import('@/components/labs/DataLab'));
 const ClinicLab = lazy(() => import('@/components/labs/ClinicLab'));
-const ClinicTable = lazy(() => import('@/components/labs/ClinicLab/ClinicTable'));
+const ClinicList = lazy(() => import('@/components/labs/ClinicLab/ClinicList').then(m => ({ default: m.ClinicList })));
 const ClinicDetail = lazy(() => import('@/components/labs/ClinicLab/ClinicDetail'));
 const HolterLab = lazy(() => import('@/components/labs/HolterLab'));
 const HolterDetail = lazy(() => import('@/components/labs/HolterLab/HolterDetail'));
@@ -34,13 +34,13 @@ const authRoutes: AppRoute[] = [
 const labRoutes: AppRoute[] = [
   {
     path: '/',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicTable /></AuthGuard></Suspense>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicList /></AuthGuard></Suspense>,
     label: 'Clinics',
     requiresAuth: true,
   },
   {
     path: '/clinic',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicTable /></AuthGuard></Suspense>,
+    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicList /></AuthGuard></Suspense>,
     label: 'Clinics',
     requiresAuth: true,
   },

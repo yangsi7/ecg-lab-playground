@@ -557,23 +557,43 @@ Signature:
 
 get_clinic_table_stats()
 
-Purpose:
-Returns extended metrics per clinic, including total/open studies, average quality, quality-hours, and alerts.
+Here’s the updated description for the `get_clinic_combined_stats()` function based on the request:
 
-Return Schema (table):
+---
 
-Column	Type	Description
-clinic_id	uuid	Clinic ID
-clinic_name	text	Clinic name
-total_studies	int	Total studies in the clinic
-open_studies	int	Number of ongoing studies
-average_quality	numeric	Overall average quality fraction
-good_count	int	Count of studies with quality ≥ 0.7
-soso_count	int	Count with quality in [0.5, 0.7)
-bad_count	int	Count with quality in [0.3, 0.5)
-critical_count	int	Count with quality < 0.3
-average_quality_hours	numeric	Average hours of good-quality data
-recent_alerts	json	JSON array of alerts or warnings
+### get_clinic_combined_stats()
+
+**Purpose**:  
+Returns extended metrics per clinic, including total and open studies, average quality, quality-hours, and alerts. This function provides a detailed overview of clinic performance, study progress, and data quality, enabling administrators to monitor and manage clinic activities effectively.
+
+**Return Schema (Table)**:
+
+| Column                  | Type    | Description                                                                 |
+|-------------------------|---------|-----------------------------------------------------------------------------|
+| `clinic_id`             | uuid    | Unique identifier of the clinic.                                            |
+| `clinic_name`           | text    | Name of the clinic.                                                         |
+| `total_studies`         | int     | Total number of studies associated with the clinic.                         |
+| `open_studies`          | int     | Number of ongoing studies (not yet completed).                              |
+| `average_quality`       | numeric | Overall average quality fraction across all studies in the clinic.          |
+| `good_count`            | int     | Count of studies with quality fraction ≥ 0.7.                               |
+| `soso_count`            | int     | Count of studies with quality fraction in [0.5, 0.7).                       |
+| `bad_count`             | int     | Count of studies with quality fraction in [0.3, 0.5).                       |
+| `critical_count`        | int     | Count of studies with quality fraction < 0.3.                               |
+| `average_quality_hours` | numeric | Average hours of good-quality data across all studies.                      |
+| `recent_alerts`         | json    | JSON array of alerts or warnings from the past 7 days.                      |
+| `intervene_count`       | int     | Number of open studies requiring intervention (quality fraction < 0.5).     |
+| `monitor_count`         | int     | Number of open studies to monitor (quality fraction in [0.5, 0.6]).         |
+| `on_target_count`       | int     | Number of open studies on target (quality fraction > 0.6).                  |
+| `near_completion_count` | int     | Number of open studies near completion (within 24 hours and quality ≥ 0.5). |
+| `needs_extension_count` | int     | Number of open studies needing extension (within 24 hours and quality < 0.5).|
+| `completed_count`       | int     | Number of studies completed on or after their expected end timestamp.       |
+| `extended_count`        | int     | Number of studies that ended after their expected end timestamp.            |
+
+**Notes**:  
+- The **quality fraction** is calculated as `aggregated_quality_minutes / aggregated_total_minutes`.  
+- Study statuses such as "completed" and "extended" are determined using a fixed reference date ('2024-12-18').  
+- The `recent_alerts` column aggregates alerts from the past 7 days, including details like study ID, status, and creation timestamp.  
+
 
 1.28 get_clinic_analytics()
 

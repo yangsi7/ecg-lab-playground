@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import type { HolterStudy } from '@/types/domain/holter';
 import { logger } from '@/lib/logger';
+import { parseExpression, evaluateJsepExpression } from '@/lib/utils/ExpressionParser';
 
 type QuickFilterId = 'all' | 'recent' | 'low-quality' | 'high-quality';
 
@@ -40,11 +41,9 @@ export function useHolterFilters() {
 
             // Apply advanced filter if present
             if (advancedFilter.trim()) {
-                // Simple expression evaluation for demonstration
-                // In production, use a proper expression parser
                 filtered = filtered.filter(study => {
                     try {
-                        // Create a safe evaluation context
+                        // Create a safe evaluation context with only the necessary properties
                         const context = {
                             daysRemaining: study.daysRemaining,
                             qualityFraction: study.qualityFraction,
@@ -53,9 +52,12 @@ export function useHolterFilters() {
                             qualityVariance: study.qualityVariance
                         };
                         
-                        // Basic expression evaluation
-                        // Note: In production, use a proper expression evaluator
-                        const result = new Function('context', `with(context) { return ${advancedFilter}; }`)(context);
+                        // Parse the expression using the safer ExpressionParser
+                        const parsedExpression = parseExpression(advancedFilter);
+                        
+                        // Evaluate the expression safely with the provided context
+                        const result = evaluateJsepExpression(parsedExpression, context);
+                        
                         return Boolean(result);
                     } catch (err) {
                         logger.warn('Failed to evaluate advanced filter', { 

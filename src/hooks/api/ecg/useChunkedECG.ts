@@ -10,11 +10,6 @@ import { supabase } from '@/hooks/api/core/supabase';
 import { logger } from '@/lib/logger';
 import type { ECGData } from '@/types/domain/ecg';
 import { toECGData } from '@/types/domain/ecg';
-import type { Database } from '@/types/database.types';
-
-type DownsampleECGChunkedFn = Database['public']['Functions']['downsample_ecg_chunked'];
-type DownsampleECGChunkedArgs = DownsampleECGChunkedFn['Args'];
-type DownsampleECGChunkedReturns = DownsampleECGChunkedFn['Returns'];
 
 export interface ECGSample {
   time: string;
@@ -113,10 +108,11 @@ export function useChunkedECG({
         samples: (chunk.samples as unknown as ECGSample[]) || []
       }));
     },
-    getNextPageParam: (lastPage: ECGChunk[]) => {
-      // If we got a full page, there might be more
+    getNextPageParam: (lastPage: ECGChunk[], allPages: ECGChunk[][]) => {
+      // If we got a full page, there might be more data
       if (lastPage.length === 5) {
-        return lastPage.length; // Next offset
+        // Calculate the next offset by using the total number of chunks fetched so far
+        return allPages.length * 5; // Since each page has a limit of 5
       }
       return undefined; // No more pages
     },
@@ -185,9 +181,10 @@ export function useChunkedECGDiagnostics({
       if (rpcError) throw new Error(rpcError.message);
       return chunks as ECGDiagnosticChunk[];
     },
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage, allPages) => {
       if (lastPage.length === 5) {
-        return lastPage.length;
+        // Calculate the cumulative offset based on all pages fetched so far
+        return allPages.length * 5; // Each page has a limit of 5
       }
       return undefined;
     },

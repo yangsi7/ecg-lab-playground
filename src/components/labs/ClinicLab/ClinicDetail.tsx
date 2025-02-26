@@ -35,11 +35,31 @@ export default function ClinicDetail() {
   // Handle export button click
   const handleExport = async () => {
     try {
-      const response = await fetch('https://your-app.supabase.co/functions/v1/clinic-report', {
+      // Use the proper environment variable for the Supabase URL
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      
+      // Correctly extract the access token from the stored session
+      let accessToken = '';
+      const sessionStr = localStorage.getItem('supabase.auth.token');
+      if (sessionStr) {
+        try {
+          const session = JSON.parse(sessionStr);
+          // Access token is typically found in session.access_token
+          accessToken = session.access_token || (session.currentSession?.access_token || '');
+        } catch (e) {
+          console.error('Error parsing auth session:', e);
+        }
+      }
+
+      if (!accessToken) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/clinic-report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('supabase.auth.token')}`
+          'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({
           clinic_id: clinicId,
@@ -78,7 +98,7 @@ export default function ClinicDetail() {
   if (isLoadingClinic || isLoadingAnalytics) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <LoadingSpinner size="lg" />
+        <LoadingSpinner />
       </div>
     );
   }
@@ -177,23 +197,23 @@ export default function ClinicDetail() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <StatCard 
                 title="Active Studies" 
-                value={analytics.overview?.active_studies || 0} 
+                value={analytics?.overview?.active_studies || 0} 
                 icon={<Activity className="text-green-500" />} 
               />
               <StatCard 
                 title="Total Studies" 
-                value={analytics.overview?.total_studies || 0} 
+                value={analytics?.overview?.total_studies || 0} 
                 icon={<BarChart2 className="text-blue-500" />} 
               />
               <StatCard 
                 title="Quality Hours" 
-                value={analytics.overview?.average_quality_hours || 0} 
+                value={analytics?.overview?.average_quality_hours || 0} 
                 suffix="hrs"
                 icon={<Activity className="text-purple-500" />} 
               />
               <StatCard 
                 title="Growth" 
-                value={analytics.growthPercent || 0} 
+                value={analytics?.growthPercent || 0} 
                 suffix="%"
                 icon={<Activity className="text-amber-500" />} 
               />
@@ -204,7 +224,7 @@ export default function ClinicDetail() {
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Weekly Active Studies</h3>
                 <SparklineChart 
-                  data={analytics.weeklyActiveStudies || []} 
+                  data={analytics?.weeklyActiveStudies || []} 
                   xKey="week_start"
                   yKey="value"
                   color="#22c55e"
@@ -213,7 +233,7 @@ export default function ClinicDetail() {
               <div className="bg-white p-4 rounded-lg shadow">
                 <h3 className="text-lg font-medium mb-4">Quality Metrics</h3>
                 <SparklineChart 
-                  data={analytics.weeklyAvgQuality || []} 
+                  data={analytics?.weeklyAvgQuality || []} 
                   xKey="week_start"
                   yKey="value"
                   color="#3b82f6"
@@ -224,7 +244,7 @@ export default function ClinicDetail() {
             {/* Status breakdown */}
             <div className="bg-white p-4 rounded-lg shadow">
               <h3 className="text-lg font-medium mb-4">Status Breakdown</h3>
-              {analytics.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
+              {analytics?.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
                 <div className="flex justify-between items-center">
                   <ProgressBar 
                     label="Intervention Needed" 
