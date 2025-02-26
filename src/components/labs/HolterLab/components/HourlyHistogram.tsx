@@ -10,7 +10,7 @@
  *   />
  */
 import React, { useEffect, useState } from 'react';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import type { HolterStudy } from '@/types/domain/holter';
 
 interface HourlyHistogramProps {

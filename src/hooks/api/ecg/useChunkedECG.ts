@@ -6,7 +6,8 @@
  * downsample_ecg_chunked function.
  */
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
+
 import { logger } from '@/lib/logger';
 import type { ECGData } from '@/types/domain/ecg';
 import { toECGData } from '@/types/domain/ecg';
@@ -173,7 +174,7 @@ export function useChunkedECGDiagnostics({
           p_time_start: time_start,
           p_time_end: time_end,
           p_chunk_minutes: chunk_minutes,
-          p_offset: pageParam,
+          p_offset: Number(pageParam || 0),
           p_limit: 5
         }
       );

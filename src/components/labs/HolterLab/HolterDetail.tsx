@@ -8,7 +8,7 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import MainECGViewer from '../../shared/ecg/MainECGViewer';
 import { HolterHeader } from './components/HolterHeader';
 import HourlyHistogram from './components/HourlyHistogram';

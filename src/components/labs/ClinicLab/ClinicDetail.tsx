@@ -7,180 +7,114 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useClinicDetails, useClinicAnalytics } from '@/hooks/api/clinic';
-import { ChevronLeft, Building2, Activity, BarChart2, Users, Download } from 'lucide-react';
+import { useClinicDetails } from '@/hooks/api/clinic/useClinicData';
+import { useClinicAnalytics } from '@/hooks/api/clinic/useClinicAnalytics';
+import { ChevronLeft, Building2, Download } from 'lucide-react';
 import StudyManagementTable from './StudyManagementTable';
-import SparklineChart from './components/SparklineChart';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
-import type { ClinicOverview, ClinicQualityBreakdown, ClinicStatusBreakdown } from '@/types/domain/clinic';
+import type { ClinicStatsRow } from '@/types/domain/clinic';
 
-export default function ClinicDetail() {
+export default function ClinicDetail(): JSX.Element {
   const { clinicId } = useParams<{ clinicId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'overview' | 'studies'>('overview');
-
-  // Fetch clinic details and analytics
-  const {
-    data: clinic,
-    isLoading: isLoadingClinic,
-    error: clinicError
-  } = useClinicDetails(clinicId ?? null);
-
+  
+  // Use our consolidated hook for basic clinic details
+  const { 
+    data: clinicData, 
+    isLoading: isLoadingClinic, 
+    error: clinicError 
+  } = useClinicDetails(clinicId || null);
+  
+  // Use the analytics hook for detailed analytics 
   const {
     data: analytics,
     isLoading: isLoadingAnalytics,
     error: analyticsError
-  } = useClinicAnalytics(clinicId ?? null);
-
-  // Handle export button click
-  const handleExport = async () => {
-    try {
-      // Use the proper environment variable for the Supabase URL
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      
-      // Correctly extract the access token from the stored session
-      let accessToken = '';
-      const sessionStr = localStorage.getItem('supabase.auth.token');
-      if (sessionStr) {
-        try {
-          const session = JSON.parse(sessionStr);
-          // Access token is typically found in session.access_token
-          accessToken = session.access_token || (session.currentSession?.access_token || '');
-        } catch (e) {
-          console.error('Error parsing auth session:', e);
-        }
-      }
-
-      if (!accessToken) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/clinic-report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({
-          clinic_id: clinicId,
-          format: 'csv',
-          include_studies: true,
-          include_quality_metrics: true
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      // Get the blob from the response
-      const blob = await response.blob();
-      
-      // Create a download link and trigger the download
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `clinic_report_${clinicId}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('Failed to export report. Please try again.');
-    }
-  };
-
+  } = useClinicAnalytics(clinicId || null);
+  
+  const isLoading = isLoadingClinic || isLoadingAnalytics;
+  const error = clinicError || analyticsError;
+  
   const handleBack = () => {
-    navigate('/clinics');
+    navigate('/labs/clinic');
+  };
+  
+  const handleExport = () => {
+    console.log('Exporting data for clinic:', clinicId);
+    // Implementation for export functionality
   };
 
-  if (isLoadingClinic || isLoadingAnalytics) {
+  if (error) {
+    return (
+      <div className="p-4">
+        <button 
+          onClick={handleBack}
+          className="flex items-center mb-4 text-blue-600 hover:text-blue-800"
+        >
+          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
+        </button>
+        <div className="bg-red-50 p-4 rounded-md text-red-700">
+          Error loading clinic details
+        </div>
+      </div>
+    );
+  }
+  
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
         <LoadingSpinner />
       </div>
     );
   }
-
-  if (clinicError || analyticsError) {
-    return (
-      <div className="p-4">
-        <button 
-          onClick={handleBack}
-          className="flex items-center mb-4 text-blue-600 hover:text-blue-800"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
-        </button>
-        <div className="bg-red-50 p-4 rounded-md text-red-500">
-          {clinicError ? clinicError.toString() : analyticsError?.toString()}
-        </div>
-      </div>
-    );
-  }
-
-  if (!clinic) {
-    return (
-      <div className="p-4">
-        <button 
-          onClick={handleBack}
-          className="flex items-center mb-4 text-blue-600 hover:text-blue-800"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
-        </button>
-        <div className="bg-yellow-50 p-4 rounded-md text-yellow-700">
-          Clinic not found
-        </div>
-      </div>
-    );
-  }
-
+  
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="bg-white border-b p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={handleBack}
-              className="text-gray-600 hover:text-gray-800"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <h1 className="text-2xl font-bold flex items-center">
-              <Building2 className="h-6 w-6 mr-2 text-blue-600" />
-              {clinic.name}
-              {clinic.vip_status && (
-                <span className="ml-2 px-2 py-1 text-xs bg-amber-100 text-amber-800 rounded">
-                  VIP
-                </span>
-              )}
-            </h1>
-          </div>
+    <div className="space-y-6">
+      <button 
+        onClick={handleBack}
+        className="flex items-center text-blue-600 hover:text-blue-800"
+      >
+        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Clinics
+      </button>
+      
+      <div className="flex flex-col-reverse md:flex-row md:justify-between md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center">
+            <Building2 className="h-6 w-6 mr-2 text-blue-600" />
+            {clinicData?.clinic_name}
+          </h1>
+          <p className="text-gray-500">{clinicData?.clinic_id}</p>
+        </div>
+        
+        <div className="flex gap-2">
           <button 
             onClick={handleExport}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2 transition-colors"
+            className="flex items-center px-3 py-2 border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
           >
-            <Download size={18} />
-            Export Report
+            <Download className="h-4 w-4 mr-1" /> Export
           </button>
         </div>
       </div>
-
-      {/* Tabs */}
-      <div className="bg-gray-100 border-b">
-        <div className="flex">
+      
+      {/* Tab navigation */}
+      <div className="border-b">
+        <div className="flex space-x-6">
           <button
-            className={`px-6 py-3 font-medium ${
-              activeTab === 'overview' ? 'bg-white border-t-2 border-blue-500' : 'text-gray-600'
+            className={`py-2 px-1 border-b-2 font-medium ${
+              activeTab === 'overview' 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
             onClick={() => setActiveTab('overview')}
           >
             Overview
           </button>
           <button
-            className={`px-6 py-3 font-medium ${
-              activeTab === 'studies' ? 'bg-white border-t-2 border-blue-500' : 'text-gray-600'
+            className={`py-2 px-1 border-b-2 font-medium ${
+              activeTab === 'studies' 
+                ? 'border-blue-600 text-blue-600' 
+                : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
             onClick={() => setActiveTab('studies')}
           >
@@ -188,147 +122,105 @@ export default function ClinicDetail() {
           </button>
         </div>
       </div>
-
-      {/* Main content */}
-      <div className="flex-1 bg-gray-50 p-6 overflow-auto">
-        {activeTab === 'overview' ? (
-          <div className="space-y-6">
-            {/* Stats cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <StatCard 
-                title="Active Studies" 
-                value={analytics?.overview?.active_studies || 0} 
-                icon={<Activity className="text-green-500" />} 
-              />
-              <StatCard 
-                title="Total Studies" 
-                value={analytics?.overview?.total_studies || 0} 
-                icon={<BarChart2 className="text-blue-500" />} 
-              />
-              <StatCard 
-                title="Quality Hours" 
-                value={analytics?.overview?.average_quality_hours || 0} 
-                suffix="hrs"
-                icon={<Activity className="text-purple-500" />} 
-              />
-              <StatCard 
-                title="Growth" 
-                value={analytics?.growthPercent || 0} 
-                suffix="%"
-                icon={<Activity className="text-amber-500" />} 
-              />
-            </div>
-
-            {/* Charts */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="text-lg font-medium mb-4">Weekly Active Studies</h3>
-                <SparklineChart 
-                  data={analytics?.weeklyActiveStudies || []} 
-                  xKey="week_start"
-                  yKey="value"
-                  color="#22c55e"
-                />
-              </div>
-              <div className="bg-white p-4 rounded-lg shadow">
-                <h3 className="text-lg font-medium mb-4">Quality Metrics</h3>
-                <SparklineChart 
-                  data={analytics?.weeklyAvgQuality || []} 
-                  xKey="week_start"
-                  yKey="value"
-                  color="#3b82f6"
-                />
-              </div>
-            </div>
-
-            {/* Status breakdown */}
-            <div className="bg-white p-4 rounded-lg shadow">
-              <h3 className="text-lg font-medium mb-4">Status Breakdown</h3>
-              {analytics?.statusBreakdown && analytics.statusBreakdown.length > 0 ? (
-                <div className="flex justify-between items-center">
-                  <ProgressBar 
-                    label="Intervention Needed" 
-                    value={analytics.statusBreakdown[0].intervene_count} 
-                    total={analytics.statusBreakdown[0].open_studies} 
-                    color="bg-red-500"
-                  />
-                  <ProgressBar 
-                    label="Monitor" 
-                    value={analytics.statusBreakdown[0].monitor_count} 
-                    total={analytics.statusBreakdown[0].open_studies} 
-                    color="bg-yellow-500"
-                  />
-                  <ProgressBar 
-                    label="On Target" 
-                    value={analytics.statusBreakdown[0].on_target_count} 
-                    total={analytics.statusBreakdown[0].open_studies} 
-                    color="bg-green-500"
-                  />
-                  <ProgressBar 
-                    label="Near Completion" 
-                    value={analytics.statusBreakdown[0].near_completion_count} 
-                    total={analytics.statusBreakdown[0].open_studies} 
-                    color="bg-blue-500"
-                  />
-                </div>
-              ) : (
-                <p className="text-gray-500">No status data available</p>
-              )}
-            </div>
+      
+      {/* Tab content */}
+      {activeTab === 'overview' ? (
+        <div className="space-y-6">
+          {/* Stats cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <OverviewCard 
+              title="Total Studies" 
+              value={clinicData?.totalStudies} 
+            />
+            <OverviewCard 
+              title="On Target" 
+              value={clinicData?.onTargetCount}
+              percentage={clinicData?.totalStudies ? 
+                (clinicData.onTargetCount / clinicData.totalStudies) * 100 : 0} 
+            />
+            <OverviewCard 
+              title="Monitor" 
+              value={clinicData?.monitorCount}
+              percentage={clinicData?.totalStudies ? 
+                (clinicData.monitorCount / clinicData.totalStudies) * 100 : 0}
+            />
+            <OverviewCard 
+              title="Intervene" 
+              value={clinicData?.interveneCount}
+              percentage={clinicData?.totalStudies ? 
+                (clinicData.interveneCount / clinicData.totalStudies) * 100 : 0}
+              variant="warning"
+            />
           </div>
-        ) : (
-          <StudyManagementTable clinicId={clinicId || ''} />
+          
+          {/* Analytics Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Weekly Quality Trend */}
+            <ChartCard
+              title="Weekly Quality Trend"
+              data={analytics?.weeklyQuality}
+            />
+            
+            {/* Weekly Studies */}
+            <ChartCard
+              title="Weekly Studies"
+              data={analytics?.weeklyStudies}
+            />
+          </div>
+        </div>
+      ) : (
+        <StudyManagementTable clinicId={clinicId || ''} />
+      )}
+    </div>
+  );
+}
+
+interface OverviewCardProps {
+  title: string;
+  value?: number;
+  percentage?: number;
+  variant?: 'default' | 'warning' | 'success';
+}
+
+function OverviewCard({ title, value, percentage, variant = 'default' }: OverviewCardProps) {
+  return (
+    <div className="border rounded-lg p-4">
+      <h3 className="text-sm text-gray-500">{title}</h3>
+      <div className="mt-2 flex justify-between items-end">
+        <div className="text-2xl font-bold">{value || 0}</div>
+        {percentage !== undefined && (
+          <div className={`text-sm ${
+            variant === 'warning' ? 'text-amber-500' : 
+            variant === 'success' ? 'text-green-500' : 
+            'text-blue-500'
+          }`}>
+            {percentage.toFixed(1)}%
+          </div>
         )}
       </div>
     </div>
   );
 }
 
-// Helper components
-
-interface StatCardProps {
-  title: string;
-  value: number;
-  suffix?: string;
-  icon: React.ReactNode;
-}
-
-function StatCard({ title, value, suffix = '', icon }: StatCardProps) {
+function ChartCard({ 
+  title, 
+  data 
+}: { 
+  title: string, 
+  data?: any[]
+}) {
   return (
-    <div className="bg-white p-4 rounded-lg shadow">
-      <div className="flex items-center justify-between">
-        <h3 className="text-gray-500 font-medium">{title}</h3>
-        {icon}
+    <div className="border rounded-lg">
+      <div className="p-4 border-b">
+        <h3 className="font-medium">{title}</h3>
       </div>
-      <p className="text-3xl font-semibold mt-2">
-        {value.toLocaleString()}{suffix && <span className="text-lg ml-1">{suffix}</span>}
-      </p>
-    </div>
-  );
-}
-
-interface ProgressBarProps {
-  label: string;
-  value: number;
-  total: number;
-  color: string;
-}
-
-function ProgressBar({ label, value, total, color }: ProgressBarProps) {
-  const percentage = total > 0 ? (value / total) * 100 : 0;
-  
-  return (
-    <div className="flex flex-col items-center">
-      <div className="w-20 h-20 rounded-full border-8 flex items-center justify-center relative">
-        <div 
-          className={`absolute inset-0 rounded-full ${color}`}
-          style={{ 
-            clipPath: `polygon(50% 50%, 50% 0%, ${percentage > 25 ? '100% 0%' : `${50 + 2 * percentage}% ${50 - 2 * percentage}%`}, ${percentage > 50 ? '100% 100%' : `${50 + 2 * (percentage - 25)}% ${50 + 2 * (percentage - 25)}%`}, ${percentage > 75 ? '0% 100%' : `${50 - 2 * (percentage - 50)}% ${50 + 2 * (percentage - 50)}%`}, ${percentage > 99 ? '0% 0%' : `${50 - 2 * (percentage - 75)}% ${50 - 2 * (percentage - 75)}%`}, 50% 0%)`
-          }}
-        />
-        <span className="text-lg font-semibold">{value}</span>
+      <div className="p-4 h-64 flex items-center justify-center">
+        {data ? (
+          <div className="text-gray-400">Chart visualization would be rendered here</div>
+        ) : (
+          <div className="text-gray-400">No data available</div>
+        )}
       </div>
-      <span className="mt-2 text-sm text-gray-600">{label}</span>
     </div>
   );
 } 

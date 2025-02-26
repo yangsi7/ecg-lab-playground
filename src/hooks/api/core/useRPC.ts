@@ -1,9 +1,37 @@
 import { useCallback } from 'react';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import { RPCError } from './errors';
-import type { DiagnosticOptions }  from '@/types/supabase';
-import type { RPCFunctionName, RPCFunctionArgs, RPCFunctionReturns, RPCCallInfo }  from '@/types/utils';
+import type { Database } from '@/types/database.types';
 
+// Define types based on Database type
+type RPCFunctionName = keyof Database['public']['Functions'];
+type RPCFunctionArgs<T extends RPCFunctionName> = Database['public']['Functions'][T]['Args'];
+type RPCFunctionReturns<T extends RPCFunctionName> = Database['public']['Functions'][T]['Returns'];
+
+// Types for diagnostics
+type DiagnosticOptions = {
+  component?: string;
+  context?: unknown;
+  retryConfig?: {
+    maxAttempts?: number;
+    timeWindow?: number;
+    backoffFactor?: number;
+  };
+};
+
+type RPCCallInfo = {
+  id: string;
+  functionName: string;
+  status: 'pending' | 'success' | 'error';
+  timestamp: Date;
+  params?: unknown;
+  component?: string;
+  context?: unknown;
+  attempt: number;
+  executionTime?: number;
+  duration: number;
+  error?: Error;
+};
 
 // Rate limiting configuration
 const RPC_RATE_LIMIT = {
@@ -87,7 +115,6 @@ export function useRPC() {
     };
 
     let attempt = 1;
-    let lastError: Error | null = null;
 
     while (attempt <= config.maxAttempts) {
       const callId = Math.random().toString(36).substring(7);
@@ -128,8 +155,6 @@ export function useRPC() {
         callInfo.executionTime = performance.now() - startTime;
         callInfo.duration = callInfo.executionTime;
         trackRPCCall(callInfo);
-
-        lastError = error instanceof Error ? error : new Error(String(error));
 
         // If this is not the last attempt, wait before retrying
         if (attempt < config.maxAttempts) {

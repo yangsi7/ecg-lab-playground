@@ -1,6 +1,6 @@
 // src/hooks/usePodEarliestLatest.ts
 import { useState, useEffect } from 'react';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import type { PodEarliestLatest } from '@/types/domain/pod'
 
@@ -46,5 +46,5 @@ export function usePodEarliestLatest(podId: string): PodEarliestLatest {
         })();
     }, [podId]);
 
-    return { earliest, latest_time, loading, error };
+    return { earliest_time, latest_time, loading, error };
 }

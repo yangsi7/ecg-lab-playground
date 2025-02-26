@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../core/supabase';
+import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/types/database.types';
-
-type StudyDetailsWithTimes = Database['public']['Functions']['get_study_details_with_earliest_latest']['Returns'][0];
 
 export function useLatestECGTimestamp(studyId: string | null) {
     return useQuery({

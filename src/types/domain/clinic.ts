@@ -3,7 +3,7 @@
  * These types extend or transform the database types with business logic
  */
 
-import type { Database } from '../database.types';
+import type { Database, ClinicTableStat } from '../database.types';
 import type { TypeGuard, Transform } from '../utils';
 
 // Raw database types from generated types
@@ -103,11 +103,22 @@ export interface WeeklyHistogramPoint {
 export interface ClinicStatsRow {
     clinic_id: string;
     clinic_name: string;
-    totalActiveStudies: number;
+    totalStudies: number;
+    openStudies: number;
+    averageQuality: number;
+    goodCount: number;
+    sosoCount: number;
+    badCount: number;
+    criticalCount: number;
+    averageQualityHours: number;
+    recentAlerts: any[] | null;
     interveneCount: number;
     monitorCount: number;
     onTargetCount: number;
-    averageQuality: number;
+    nearCompletionCount: number;
+    needsExtensionCount: number;
+    completedCount: number;
+    extendedCount: number;
 }
 
 export interface ClinicAnalyticsResult {
@@ -125,4 +136,30 @@ export interface ClinicAnalyticsResult {
     clinicBreakdown: ClinicStatsRow[];
     newStudiesLast3mo: number;
     growthPercent: number;
-} 
+}
+
+/**
+ * Converts a database ClinicTableStat to a domain ClinicStatsRow
+ */
+export const toClinicStatsRow = (stat: ClinicTableStat): ClinicStatsRow => {
+    return {
+        clinic_id: stat.clinic_id,
+        clinic_name: stat.clinic_name,
+        totalStudies: stat.total_studies,
+        openStudies: stat.open_studies,
+        averageQuality: stat.average_quality,
+        goodCount: stat.good_count,
+        sosoCount: stat.soso_count,
+        badCount: stat.bad_count,
+        criticalCount: stat.critical_count,
+        averageQualityHours: stat.average_quality_hours,
+        recentAlerts: stat.recent_alerts,
+        interveneCount: stat.intervene_count,
+        monitorCount: stat.monitor_count,
+        onTargetCount: stat.on_target_count,
+        nearCompletionCount: stat.near_completion_count,
+        needsExtensionCount: stat.needs_extension_count,
+        completedCount: stat.completed_count,
+        extendedCount: stat.extended_count
+    };
+}; 

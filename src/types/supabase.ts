@@ -1,81 +1,76 @@
 /**
- * Central type definitions for Supabase
- * Re-exports and utility types for working with the database
+ * Supabase client configuration and type exports
+ * Single source of truth for Supabase initialization
  */
-import type {
-  Database,
-  Tables,
-  TableName,
-  TableRow,
-  TableInsert,
-  TableUpdate,
-  RPCFunctions,
-  RPCName,
-  QueryParams,
-  QueryMetadata,
-  QueryResponse,
-  RPCOptions
-} from './utils';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database.types';
+import { SupabaseError } from '@/types';
+import { logger } from '@/lib/logger';
 
-// Re-export common types
-export type {
-  Database,
-  Tables,
-  TableName,
-  TableRow,
-  TableInsert,
-  TableUpdate,
-  RPCFunctions,
-  RPCName,
-  QueryParams,
-  QueryMetadata,
-  QueryResponse,
-  RPCOptions
-};
+// Environment variables with validation
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Additional RPC types
-export type RPCArgs<T extends RPCName> = RPCFunctions[T]['Args'];
-export type RPCReturns<T extends RPCName> = RPCFunctions[T]['Returns'];
+// Log environment status
+logger.info('Supabase initialization', {
+  hasUrl: !!supabaseUrl,
+  hasAnonKey: !!supabaseAnonKey,
+  nodeEnv: import.meta.env.MODE
+});
 
-// Type assertions
-export function assertTableRow<T extends TableName>(
-  tableName: T,
-  data: unknown
-): asserts data is TableRow<T> {
-  if (!data || typeof data !== 'object') {
-    throw new Error(`Invalid table row data for table ${tableName}`);
+if (!supabaseUrl || !supabaseAnonKey) {
+  logger.error('Missing Supabase environment variables', {
+    url: supabaseUrl ? '[SET]' : '[MISSING]',
+    anonKey: supabaseAnonKey ? '[SET]' : '[MISSING]'
+  });
+  
+  // In development, throw an error with helpful message
+  if (import.meta.env.DEV) {
+    throw new SupabaseError(
+      'Missing Supabase environment variables. Please check:\n' +
+      '1. .env file exists in project root\n' +
+      '2. Variables are properly formatted (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY)\n' +
+      '3. Environment variables are loaded (try restarting the dev server)\n'
+    );
   }
 }
 
-export function assertRPCResult<T extends RPCName>(
-  functionName: T,
-  data: unknown
-): asserts data is RPCReturns<T> {
-  if (data === undefined || data === null) {
-    throw new Error(`Invalid RPC result for function ${functionName}`);
+// Create client with proper types and interceptors
+export const supabase = createClient<Database>(
+  supabaseUrl ?? '',  // Fallback to empty string in production
+  supabaseAnonKey ?? '',  // Fallback to empty string in production
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    },
+    global: {
+      headers: {
+        'x-application-name': 'ecg-lab',
+      },
+    },
+    db: {
+      schema: 'public',
+    },
   }
-}
+);
 
-// Diagnostic types
-export interface DiagnosticOptions {
-  includeTimings?: boolean;
-  includeErrors?: boolean;
-  maxEntries?: number;
-}
+// Log initialization
+logger.debug('Supabase client initialized', {
+  url: supabaseUrl,
+  schema: 'public',
+});
 
-// Stat types (for DiagnosticsPanel)
-export const StatTypes = {
-  QUERY_COUNT: 'query_count',
-  CACHE_HIT_RATE: 'cache_hit_rate',
-  AVG_QUERY_TIME: 'avg_query_time',
-  ERROR_RATE: 'error_rate',
-  ACTIVE_CONNECTIONS: 'active_connections'
-} as const;
+// Export types
+export type { Database };
+export type SupabaseClient = typeof supabase;
 
-export type StatType = typeof StatTypes[keyof typeof StatTypes];
+// Re-export common hooks
+export { useQuery, useMutation } from '@tanstack/react-query';
 
-export interface DatabaseStat {
-  stat_type: StatType;
-  hit_rate: number | null;
-  timestamp: string;
+// Common error handling
+export function handleSupabaseError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  if (typeof error === 'string') return new Error(error);
+  return new Error('An unknown error occurred');
 } 

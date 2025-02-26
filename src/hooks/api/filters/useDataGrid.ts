@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import type { SortConfig, FilterConfig, FilterCondition, ColumnFilter } from '../components/shared/DataGrid';
+import type { SortConfig, FilterConfig, FilterCondition, ColumnFilter } from '@/components/shared/DataGrid';
 
 interface UseDataGridConfig<T> {
   defaultPage?: number;

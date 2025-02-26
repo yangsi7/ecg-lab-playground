@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
-import type { SupabaseRow } from '@/types/database.types';
+import { supabase } from '@/types/supabase';
+import type { Database } from '@/types/database.types';
 import { useTableStore } from '../store/tableStore';
-import { logger } from '@/lib/logger';
 
-export type PodData = SupabaseRow<'pod'>;
+export type PodData = Database['public']['Tables']['pod']['Row'];
 
 export async function getPodData(studyId: string): Promise<PodData[]> {
   const { data, error } = await supabase

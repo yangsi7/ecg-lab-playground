@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import type { Database } from '@/types/database.types';
 import { ECGData, ECGQueryOptions, toECGData } from '@/types/domain/ecg';

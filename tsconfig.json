@@ -20,6 +20,6 @@
       // Cleaned up path aliases
     }
   },
-  "include": ["src"],
+  "include": ["src", "src/types/supabase.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

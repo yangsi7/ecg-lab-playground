@@ -1,10 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { Database, Download, Heart, Clock, Calendar, User, Building2, Activity } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
-import { useDataGrid } from '@/hooks';
-import { useStudiesWithTimes } from '@/hooks';
-import { supabase } from '@/hooks/api/core/supabase';
+import { useStudiesWithTimes } from '@/hooks/api/study/useStudyHooks';
 import type { StudiesWithTimesRow, StudyListRow } from '@/types/domain/study';
+import { formatDate, formatDuration } from '@/lib/utils/formatters';
+import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,20 +14,6 @@ type DataGridColumn = Column<StudiesWithTimesRow> | {
     render: (value: unknown, row: StudiesWithTimesRow) => React.ReactNode;
 };
 
-function formatDuration(minutes: number): string {
-    const days = Math.floor(minutes / (24 * 60));
-    const hours = Math.floor((minutes % (24 * 60)) / 60);
-    const remainingMinutes = minutes % 60;
-
-    if (days > 0) {
-        return `${days}d ${hours}h`;
-    }
-    if (hours > 0) {
-        return `${hours}h ${remainingMinutes}m`;
-    }
-    return `${remainingMinutes}m`;
-}
-
 function formatQuality(quality: number, total: number): string {
     if (!total) return '0%';
     const percentage = (quality / total) * 100;
@@ -36,71 +22,25 @@ function formatQuality(quality: number, total: number): string {
 
 export default function DataLab() {
     const navigate = useNavigate();
-    const {
+    const [page, setPage] = useState(0);
+    const [pageSize, setPageSize] = useState(25);
+    const [search, setSearch] = useState('');
+    
+    // Use our new robust hook with proper error handling and pagination
+    const { 
+        data: studies, 
+        totalCount,
+        loading, 
+        error,
+        hasMore 
+    } = useStudiesWithTimes({
         page,
         pageSize,
-        sortConfig,
-        filterConfig,
-        onPageChange,
-        onPageSizeChange,
-        onSortChange,
-        onFilterChange,
-        onFilterError
-    } = useDataGrid<StudiesWithTimesRow>();
-
-    // Fetch data using the hook
-    const { data, isLoading, error } = useStudiesWithTimes({
-        search: filterConfig.quickFilter,
-        page,
-        pageSize,
-        sortBy: 'study_id',
-        sortDirection: sortConfig.direction
+        search: search.length > 2 ? search : undefined, // Only search with 3+ chars
     });
 
-    // Handle data export
-    const handleExport = async () => {
-        try {
-            // Fetch all data for export (no pagination)
-            const { data: exportData, error: rpcErr } = await supabase
-                .rpc('get_study_list_with_earliest_latest', {
-                    p_search: '',
-                    p_offset: 0,
-                    p_limit: 1000
-                });
-
-            if (rpcErr) {
-                logger.error('Export failed', { error: rpcErr });
-                return;
-            }
-            if (!exportData) return;
-
-            // Convert data to CSV
-            const headers = columns.map(col => col.header).join(',');
-            const rows = exportData.map((row: StudyListRow) => 
-                columns.map(col => {
-                    const value = row[col.key as keyof StudyListRow];
-                    return value ? String(value).replace(/,/g, '') : '';
-                }).join(',')
-            ).join('\n');
-
-            const csv = `${headers}\n${rows}`;
-            
-            // Create and download file
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `studies-export-${new Date().toISOString()}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        } catch (err) {
-            logger.error('Export failed', { error: err });
-        }
-    };
-
-    const columns = useMemo<DataGridColumn[]>(() => [
+    // Define columns for the data grid
+    const columns: Column<StudiesWithTimesRow>[] = [
         {
             key: 'study_id',
             header: 'Study ID',
@@ -278,7 +218,63 @@ export default function DataLab() {
                 );
             }
         }
-    ], [navigate]);
+    ];
+
+    // Handle search input
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearch(e.target.value);
+        setPage(0); // Reset to first page when search changes
+    };
+
+    // Handle data export
+    const handleExport = async () => {
+        try {
+            // Fetch all data for export (no pagination)
+            const { data: exportData, error: rpcErr } = await supabase
+                .rpc('get_study_list_with_earliest_latest', {
+                    p_search: search || undefined,
+                    p_offset: 0,
+                    p_limit: 1000
+                });
+
+            if (rpcErr) {
+                console.error('Export RPC Error:', rpcErr);
+                logger.error('Export failed', { error: rpcErr.message, details: rpcErr });
+                return;
+            }
+            
+            if (!exportData || exportData.length === 0) {
+                console.warn('No data to export - there are no studies matching your criteria');
+                return;
+            }
+
+            // Convert data to CSV
+            const headers = columns.map(col => col.header).join(',');
+            const rows = exportData.map((row: StudyListRow) => 
+                columns.map(col => {
+                    const value = row[col.key as keyof StudyListRow];
+                    return value !== null && value !== undefined 
+                        ? String(value).replace(/,/g, '') 
+                        : '';
+                }).join(',')
+            ).join('\n');
+
+            const csv = `${headers}\n${rows}`;
+            
+            // Create and download file
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `studies-export-${new Date().toISOString()}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            logger.error('Export failed', { error: err });
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -292,7 +288,7 @@ export default function DataLab() {
                     {/* Page Size Selector */}
                     <select
                         value={pageSize}
-                        onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                        onChange={(e) => setPageSize(Number(e.target.value))}
                         className="px-4 py-2 bg-white/5 border border-white/10 rounded text-white"
                     >
                         <option value="10">10 per page</option>
@@ -311,32 +307,57 @@ export default function DataLab() {
                 </div>
             </div>
 
+            {/* Search Input */}
+            <div className="flex justify-between items-center">
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={handleSearchChange}
+                        placeholder="Search studies..."
+                        className="pl-10 pr-4 py-2 bg-gray-800 rounded-md border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-white w-64"
+                    />
+                    <svg 
+                        className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 24 24" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        strokeWidth="2" 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round"
+                    >
+                        <circle cx="11" cy="11" r="8" />
+                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                </div>
+            </div>
+
             {/* Data Grid */}
-            <DataGrid
-                data={data?.data ?? []}
-                columns={columns as Column<StudiesWithTimesRow>[]}
-                loading={isLoading}
-                error={error?.message}
-                page={page}
-                pageSize={pageSize}
-                onPageChange={onPageChange}
-                hasMore={(data?.totalCount ?? 0) > page * pageSize}
-                totalCount={data?.totalCount}
-                
-                // Use server-side operations
-                paginationMode="server"
-                filterMode="server"
-                sortMode="server"
-                
-                // Callbacks
-                onSort={onSortChange}
-                onFilterChange={onFilterChange}
-                onFilterError={onFilterError}
-                
-                // Current state
-                quickFilter={filterConfig.quickFilter}
-                filterExpression={filterConfig.expression}
-            />
+            {error ? (
+                <div className="p-4 bg-red-900/30 border border-red-700 rounded-lg text-red-400">
+                    <h3 className="font-semibold mb-2">Error loading data</h3>
+                    <p className="text-sm">{error.message}</p>
+                </div>
+            ) : (
+                <DataGrid
+                    data={studies}
+                    columns={columns}
+                    loading={loading}
+                    page={page}
+                    pageSize={pageSize}
+                    onPageChange={setPage}
+                    onPageSizeChange={setPageSize}
+                    totalCount={totalCount}
+                    hasMore={hasMore}
+                    paginationMode="server"
+                    quickFilter={search}
+                />
+            )}
+            
+            <div className="text-sm text-gray-400">
+                {totalCount} total studies found
+            </div>
         </div>
     );
 }

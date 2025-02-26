@@ -3,7 +3,7 @@
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { supabase } from '@/hooks/api/core/supabase'
+import { supabase } from '@/hooks/api/study/supabase'
 import { useAuth } from '@/hooks/api/core/useAuth'
 import type { ReactNode } from 'react'
 import type { User, Session, AuthChangeEvent, Subscription } from '@supabase/supabase-js'

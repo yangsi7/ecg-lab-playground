@@ -2,7 +2,8 @@
  * Hook for fetching and managing diagnostic data
  */
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
+
 import { useEffect, useState } from 'react';
 import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics, SystemMetrics } from '@/types'
 import { logger } from '@/lib/logger';

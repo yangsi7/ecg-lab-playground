@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase'
 import { logger } from '@/lib/logger';
 import type { HolterStudy } from '@/types/domain/holter';
 import { toHolterStudy, calculateHolterStatus } from '@/types/domain/holter';

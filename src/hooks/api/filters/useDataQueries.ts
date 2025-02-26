@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { PostgrestError } from '@supabase/supabase-js';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import { useDebounce } from './useDebounce';
 

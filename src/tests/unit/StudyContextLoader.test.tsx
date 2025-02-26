@@ -14,7 +14,7 @@ import { setupServer, rest } from 'msw/node'
 import { HttpRequest, HttpResponse, Context } from 'msw'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StudyProvider } from '@/context/StudyContext'
-import { supabase } from '@/hooks/api/core/supabase'
+import { supabase } from '@/hooks/api/study/supabase'
 
 const server = setupServer(
   rest.post<any, any>('*/rest/v1/study', async (req: HttpRequest, res: HttpResponse<any>, ctx: Context) => {

@@ -4,7 +4,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useChunkedECG } from '@/hooks/api/ecg/useChunkedECG'
-import { supabase } from '@/hooks/api/core/supabase'
+import { supabase } from '@/hooks/api/study/supabase'
 import type { ReactNode } from 'react'
 
 // Mock supabase

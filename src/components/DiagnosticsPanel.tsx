@@ -9,10 +9,11 @@
  * - Connection status
  * - Detailed error tracking
  */
-import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi } from 'lucide-react';
+import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi, FileSignature } from 'lucide-react';
 import { supabase } from '@/hooks';
 import { useDiagnostics } from '@/hooks/api/diagnostics/useDiagnostics';
 import { useECGQueryTracker } from '@/hooks/api/diagnostics/useECGQueryTracker';
+import { useStudyDiagnostics } from '@/hooks/api/study/useStudyDiagnostics';
 import type { 
   ConnectionError,
   RPCCall
@@ -66,6 +67,12 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
     isConnected: false,
     lastChecked: new Date()
   });
+
+  // Add the study diagnostics hook - use the current study if available
+  // This would typically come from a route param or context
+  const urlParams = new URLSearchParams(window.location.search);
+  const studyIdParam = urlParams.get('studyId') || urlParams.get('study_id');
+  const { data: studyDiagnostics, isLoading: studyDiagnosticsLoading } = useStudyDiagnostics(studyIdParam || undefined);
 
   // Check Supabase connection status periodically
   useEffect(() => {
@@ -429,6 +436,125 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                 <span>{systemMetrics.active_connections}</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Study Diagnostics */}
+        {studyIdParam && (
+          <div className="bg-white/5 rounded-xl p-4 space-y-4">
+            <div className="flex items-center gap-2">
+              <FileSignature className="h-5 w-5 text-blue-400" />
+              <h3 className="font-medium text-white">Study Diagnostics</h3>
+              {studyDiagnosticsLoading ? (
+                <div className="ml-auto animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400" />
+              ) : null}
+            </div>
+            {studyDiagnostics ? (
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-300">Study ID</span>
+                  <span className="text-gray-400 truncate max-w-[150px]">{studyDiagnostics.study_id}</span>
+                </div>
+                
+                {/* Quality Fraction Variability */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Quality Variability</span>
+                    <span className="text-gray-400">
+                      {(studyDiagnostics.quality_fraction_variability * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        studyDiagnostics.quality_fraction_variability < 0.1
+                          ? 'bg-green-400'
+                          : studyDiagnostics.quality_fraction_variability < 0.3
+                          ? 'bg-yellow-400'
+                          : 'bg-red-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(studyDiagnostics.quality_fraction_variability * 100 * 5, 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Minute Variability */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Time Variability</span>
+                    <span className="text-gray-400">
+                      {(studyDiagnostics.total_minute_variability * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        studyDiagnostics.total_minute_variability < 0.1
+                          ? 'bg-green-400'
+                          : studyDiagnostics.total_minute_variability < 0.3
+                          ? 'bg-yellow-400'
+                          : 'bg-red-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(studyDiagnostics.total_minute_variability * 100 * 5, 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Interruptions */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Interruptions</span>
+                    <span className="text-gray-400">{studyDiagnostics.interruptions}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        studyDiagnostics.interruptions < 2
+                          ? 'bg-green-400'
+                          : studyDiagnostics.interruptions < 5
+                          ? 'bg-yellow-400'
+                          : 'bg-red-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(studyDiagnostics.interruptions * 10, 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+                
+                {/* Bad Hours */}
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-300">Bad Hours</span>
+                    <span className="text-gray-400">{studyDiagnostics.bad_hours}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        studyDiagnostics.bad_hours < 5
+                          ? 'bg-green-400'
+                          : studyDiagnostics.bad_hours < 12
+                          ? 'bg-yellow-400'
+                          : 'bg-red-400'
+                      }`}
+                      style={{
+                        width: `${Math.min(studyDiagnostics.bad_hours * 4, 100)}%`
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">
+                {studyIdParam 
+                  ? "No diagnostics available for this study"
+                  : "No study selected"}
+              </div>
+            )}
           </div>
         )}
 

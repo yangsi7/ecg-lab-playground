@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase'
 import type { Database } from '@/types/database.types';
 
 type StudyWithPodTimes = Database['public']['Functions']['get_studies_with_pod_times']['Returns'][number];

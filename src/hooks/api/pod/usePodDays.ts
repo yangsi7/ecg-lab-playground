@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase, handleSupabaseError } from '../core/supabase';
+import { supabase,handleSupabaseError } from '@/types/supabase'
 import { logger } from '@/lib/logger';
 
 interface PodDayResponse {

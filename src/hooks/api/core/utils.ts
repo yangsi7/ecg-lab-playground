@@ -1,4 +1,4 @@
-import { supabase } from '@/hooks/api/core/supabase';
+import { supabase } from '@/types/supabase';
 import type { QueryParams, QueryResponse } from '@/types/utils';
 import { QueryError, SupabaseError } from './errors';
 import type { Database } from '@/types/database.types';

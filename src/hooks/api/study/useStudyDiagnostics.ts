@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/hooks/api/core/supabase';
-import type { Database } from '@/types/database.types';
+import { supabase } from '@/types/supabase'
+import type { Database } from '@/types/index';
 
 type StudyDiagnostics = Database['public']['Functions']['get_study_diagnostics']['Returns'][number];
 

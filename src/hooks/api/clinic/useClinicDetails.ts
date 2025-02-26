@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../core/supabase';
+import { supabase } from '@/types/supabase';
 import type { Database } from '@/types/database.types';
 import { logger } from '@/lib/logger';
 

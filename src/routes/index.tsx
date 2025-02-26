@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, ComponentType } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { GenericErrorBoundary } from '@/components/shared/GenericErrorBoundary';
@@ -6,16 +6,24 @@ import { AuthGuard } from '@/components/shared/AuthGuard';
 import { TimeRangeProvider } from '@/context/TimeRangeContext';
 import RootLayout from '@/components/RootLayout';
 
-// Lazy load components
-const DataLab = lazy(() => import('@/components/labs/DataLab'));
-const ClinicLab = lazy(() => import('@/components/labs/ClinicLab'));
-const ClinicList = lazy(() => import('@/components/labs/ClinicLab/ClinicList').then(m => ({ default: m.ClinicList })));
-const ClinicDetail = lazy(() => import('@/components/labs/ClinicLab/ClinicDetail'));
-const HolterLab = lazy(() => import('@/components/labs/HolterLab'));
-const HolterDetail = lazy(() => import('@/components/labs/HolterLab/HolterDetail'));
-const PodLab = lazy(() => import('@/components/labs/PodLab'));
-const ECGViewerPage = lazy(() => import('@/components/shared/ecg/ECGViewerPage'));
-const LoginPage = lazy(() => import('@/components/auth/LoginPage'));
+// Type-safe lazy loading function that ensures default export compatibility
+const lazyLoad = (importFunc: () => Promise<{ default: ComponentType<any> }>) => lazy(importFunc);
+
+// Lazy load components with correct module imports
+const Dashboard = lazyLoad(() => import('@/components/Dashboard'));
+const DataLab = lazyLoad(() => import('@/components/labs/DataLab'));
+const ClinicLab = lazyLoad(() => import('@/components/labs/ClinicLab'));
+// For components that don't export default, use a different pattern
+const ClinicList = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicList'));
+const ClinicDetail = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicDetail'));
+// Use explicit file path for HolterLab to avoid confusion with index.ts
+const HolterLab = lazyLoad(() => import('@/components/labs/HolterLab'));
+const HolterDetail = lazyLoad(() => import('@/components/labs/HolterLab/HolterDetail'));
+const PodLab = lazyLoad(() => import('@/components/labs/PodLab'));
+const ECGViewerPage = lazyLoad(() => import('@/components/shared/ecg/ECGViewerPage'));
+const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
+// Create the ErrorPage component
+const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
 
 // Custom route type that extends RouteObject
 type AppRoute = RouteObject & {
@@ -31,64 +39,75 @@ const authRoutes: AppRoute[] = [
   }
 ];
 
+// Wrap component in suspense and auth guard if needed
+const wrapComponent = (Component: React.ReactNode, requiresAuth: boolean = true) => {
+  const wrapped = <Suspense fallback={<LoadingSpinner />}>{Component}</Suspense>;
+  return requiresAuth ? <AuthGuard>{wrapped}</AuthGuard> : wrapped;
+};
+
+// Lab routes with nested structure
 const labRoutes: AppRoute[] = [
+  // Dashboard home route
   {
     path: '/',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicList /></AuthGuard></Suspense>,
-    label: 'Clinics',
-    requiresAuth: true,
+    element: wrapComponent(<Dashboard />),
+    label: 'Home',
   },
+  
+  // Clinic routes
   {
     path: '/clinic',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicList /></AuthGuard></Suspense>,
-    label: 'Clinics',
-    requiresAuth: true,
+    children: [
+      {
+        index: true,
+        element: wrapComponent(<ClinicList />),
+      },
+      {
+        path: 'analytics',
+        element: wrapComponent(<ClinicLab />),
+      },
+      {
+        path: ':clinicId',
+        element: wrapComponent(<ClinicDetail />),
+      }
+    ]
   },
-  {
-    path: '/clinic/analytics',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicLab /></AuthGuard></Suspense>,
-    requiresAuth: true,
-  },
-  {
-    path: '/clinic/:clinicId',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><ClinicDetail /></AuthGuard></Suspense>,
-    requiresAuth: true,
-  },
-  {
-    path: '/datalab',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><DataLab /></AuthGuard></Suspense>,
-    label: 'Data',
-    requiresAuth: true,
-  },
+  
+  // Holter routes with ECG viewer as child
   {
     path: '/holter',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><HolterLab /></AuthGuard></Suspense>,
-    label: 'Holter',
-    requiresAuth: true,
-  },
-  {
-    path: '/holter/:studyId',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><HolterDetail /></AuthGuard></Suspense>,
-    requiresAuth: true,
-  },
-  {
-    path: '/pod',
-    element: <Suspense fallback={<LoadingSpinner />}><AuthGuard><PodLab /></AuthGuard></Suspense>,
-    label: 'Pod',
-    requiresAuth: true,
-  },
-  {
-    path: '/ecg/:studyId',
-    element: (
-      <Suspense fallback={<LoadingSpinner />}>
-        <AuthGuard>
+    children: [
+      {
+        index: true,
+        element: wrapComponent(<HolterLab />),
+      },
+      {
+        path: ':studyId',
+        element: wrapComponent(<HolterDetail />),
+      },
+      {
+        path: ':studyId/ecg',
+        element: wrapComponent(
           <TimeRangeProvider>
             <ECGViewerPage />
           </TimeRangeProvider>
-        </AuthGuard>
-      </Suspense>
-    ),
-    requiresAuth: true,
+        ),
+      }
+    ]
+  },
+  
+  // Pod routes
+  {
+    path: '/pod',
+    element: wrapComponent(<PodLab />),
+    label: 'Pod',
+  },
+  
+  // Data routes
+  {
+    path: '/datalab',
+    element: wrapComponent(<DataLab />),
+    label: 'Data',
   }
 ];
 
@@ -97,7 +116,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <Suspense fallback={<LoadingSpinner />}><RootLayout /></Suspense>,
-    errorElement: <GenericErrorBoundary><div>Something went wrong</div></GenericErrorBoundary>,
+    errorElement: <GenericErrorBoundary><ErrorPage /></GenericErrorBoundary>,
     children: [
       ...authRoutes,
       ...labRoutes
