@@ -8,11 +8,13 @@
  * - System metrics
  * - Connection status
  * - Detailed error tracking
+ * - Real-time query monitoring with parameters and timing
  */
-import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi, FileSignature } from 'lucide-react';
+import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi, FileSignature, SearchIcon, Clock, XCircle, BarChart2 } from 'lucide-react';
 import { supabase } from '@/hooks';
 import { useDiagnostics } from '@/hooks/api/diagnostics/useDiagnostics';
 import { useECGQueryTracker } from '@/hooks/api/diagnostics/useECGQueryTracker';
+import { useQueryLogger } from '@/hooks/api/diagnostics/useQueryLogger';
 import { useStudyDiagnostics } from '@/hooks/api/study/useStudyDiagnostics';
 import type { 
   ConnectionError,
@@ -61,6 +63,9 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
 
   // Get ECG query tracking data
   const { queries: ecgQueries } = useECGQueryTracker();
+
+  // Get detailed query tracking data
+  const { queries: dbQueries, stats: queryStats } = useQueryLogger();
 
   // Connection status state
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
@@ -119,6 +124,13 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
     );
   }
 
+  // Format the database duration in a human readable way
+  const formatDuration = (ms: number): string => {
+    if (ms < 1) return '<1ms';
+    if (ms < 1000) return `${Math.round(ms)}ms`;
+    return `${(ms / 1000).toFixed(2)}s`;
+  };
+
   return (
     <aside className={`w-full md:w-96 border-l border-white/10 p-4 bg-gray-900/50 overflow-y-auto ${className}`}>
       <h2 className="text-lg font-semibold text-white mb-4">Diagnostics</h2>
@@ -153,6 +165,117 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
             {connectionStatus.error && (
               <div className="text-xs text-red-400">
                 Error: {connectionStatus.error}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Query Monitor (NEW) */}
+        <div className="bg-purple-500/10 rounded-xl p-4 space-y-2 border border-purple-500/20">
+          <div className="flex items-center gap-2 justify-between">
+            <div className="flex items-center gap-2">
+              <SearchIcon className="h-5 w-5 text-purple-400" />
+              <h3 className="font-medium text-white">Live Query Monitor</h3>
+            </div>
+            <div className="flex items-center gap-1 text-xs text-purple-300">
+              <Clock className="h-3 w-3" />
+              <span>Avg: {formatDuration(queryStats.avgDuration)}</span>
+            </div>
+          </div>
+          
+          {/* Query Stats */}
+          <div className="grid grid-cols-3 gap-2 mt-2 mb-3">
+            <div className="bg-white/5 rounded-lg p-2 text-center">
+              <div className="text-xs text-gray-400">Queries</div>
+              <div className="text-lg font-semibold text-white">{queryStats.totalQueries}</div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2 text-center">
+              <div className="text-xs text-gray-400">Error Rate</div>
+              <div className={`text-lg font-semibold ${queryStats.errorRate > 5 ? 'text-red-400' : 'text-green-400'}`}>
+                {queryStats.errorRate.toFixed(1)}%
+              </div>
+            </div>
+            <div className="bg-white/5 rounded-lg p-2 text-center">
+              <div className="text-xs text-gray-400">Slowest</div>
+              <div className="text-lg font-semibold text-yellow-400">
+                {queryStats.slowestQuery ? formatDuration(queryStats.slowestQuery.duration) : 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          {/* Recent Queries */}
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {dbQueries.slice(0, 8).map((query, idx) => (
+              <div 
+                key={`${query.tableName}-${idx}`} 
+                className={`text-sm rounded-lg p-2 ${
+                  !query.success ? 'bg-red-500/10 border border-red-500/30' : 
+                  query.duration > 500 ? 'bg-yellow-500/10 border border-yellow-500/30' :
+                  'bg-white/5'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-1">
+                    {query.operation === 'rpc' ? (
+                      <Activity className="h-4 w-4 text-blue-400" />
+                    ) : query.operation === 'query' ? (
+                      <Database className="h-4 w-4 text-green-400" />
+                    ) : query.operation === 'insert' ? (
+                      <BarChart2 className="h-4 w-4 text-purple-400" />
+                    ) : (
+                      <XCircle className="h-4 w-4 text-red-400" />
+                    )}
+                    <span className="font-mono text-gray-300">
+                      {query.tableName}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <span className={`text-xs font-mono ${
+                      query.duration > 500 ? 'text-yellow-400' : 'text-gray-400'
+                    }`}>
+                      {formatDuration(query.duration)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {new Date(query.timestamp).toLocaleTimeString()}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Parameters (collapsible) */}
+                <div className="mt-1 text-xs">
+                  <div className="flex gap-1 items-center text-gray-400">
+                    <span>Params:</span>
+                    <code className="text-xs font-mono text-gray-500 bg-black/30 p-1 rounded max-h-20 overflow-y-auto whitespace-pre-wrap">
+                      {query.params ? JSON.stringify(query.params, null, 2) : 'none'}
+                    </code>
+                  </div>
+                </div>
+                
+                {/* Show errors if any */}
+                {query.error ? (
+                  <div className="mt-1 text-xs text-red-400 bg-red-500/10 p-1 rounded">
+                    {String(query.error)}
+                  </div>
+                ) : null}
+                
+                {/* Result snippet if available */}
+                {query.result && (
+                  <div className="mt-1 text-xs text-gray-400">
+                    <span>Result: </span>
+                    <span className="text-gray-500">
+                      {typeof query.result === 'object' 
+                        ? JSON.stringify(query.result).substring(0, 50) + (JSON.stringify(query.result).length > 50 ? '...' : '')
+                        : String(query.result).substring(0, 50) + (String(query.result).length > 50 ? '...' : '')
+                      }
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {dbQueries.length === 0 && (
+              <div className="text-sm text-gray-400 text-center py-2">
+                No queries tracked yet
               </div>
             )}
           </div>
