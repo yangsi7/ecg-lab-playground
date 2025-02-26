@@ -24,6 +24,15 @@ import type { EdgeFunctionStats, DatabaseStatsRPC, RPCMetrics } from '@/types';
 import { useEffect, useState } from 'react';
 
 /**
+ * Helper function to safely convert unknown errors to string
+ */
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return String(error);
+};
+
+/**
  * Local types for debugging panel
  */
 interface ConnectionStatus {
@@ -254,7 +263,7 @@ export default function DiagnosticsPanel({ className = '' }: DiagnosticsPanelPro
                 {/* Show errors if any */}
                 {query.error ? (
                   <div className="mt-1 text-xs text-red-400 bg-red-500/10 p-1 rounded">
-                    {String(query.error)}
+                    {getErrorMessage(query.error)}
                   </div>
                 ) : null}
                 
