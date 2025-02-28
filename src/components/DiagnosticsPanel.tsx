@@ -11,7 +11,7 @@
  * - Real-time query monitoring with parameters and timing
  */
 import { Activity, Database, Zap, Cpu, AlertTriangle, Wifi, FileSignature, SearchIcon, Clock, XCircle, BarChart2 } from 'lucide-react';
-import { supabase } from '@/hooks';
+import { supabase } from '@/types/supabase';
 import { useDiagnostics } from '@/hooks/api/diagnostics/useDiagnostics';
 import { useECGQueryTracker } from '@/hooks/api/diagnostics/useECGQueryTracker';
 import { useQueryLogger } from '@/hooks/api/diagnostics/useQueryLogger';

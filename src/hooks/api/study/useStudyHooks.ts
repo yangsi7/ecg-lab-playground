@@ -12,7 +12,10 @@ import { logger } from '@/lib/logger';
 
 // Type imports - these would need to be properly defined in your domain types
 import type { HolterStudy } from '@/types/domain/holter';
-import type { StudiesWithTimesRow, StudyListRow } from '@/types/domain/study';
+import type { StudiesWithTimesRow } from '@/types/domain/study';
+
+// Re-export the modern implementation of useStudiesWithTimes
+export { useStudiesWithTimes } from './useStudiesWithTimes';
 
 // Define potential status values for type safety
 // This should match the definition in your domain model
@@ -186,15 +189,10 @@ export function createStudyHook<T>(
           
           // Add optional parameters only if they're defined
           if (search) rpcParams.p_search = search;
-          
-          // The following parameters aren't accepted by get_study_list_with_earliest_latest
-          // Keep them only for other RPC functions that might need them
-          if (rpcFunctionName !== 'get_study_list_with_earliest_latest') {
-            if (clinicId) rpcParams.p_clinic_id = clinicId;
-            if (status) rpcParams.p_status = status;
-            if (startDate) rpcParams.p_start_date = startDate;
-            if (endDate) rpcParams.p_end_date = endDate;
-          }
+          if (clinicId) rpcParams.p_clinic_id = clinicId;
+          if (status) rpcParams.p_status = status;
+          if (startDate) rpcParams.p_start_date = startDate;
+          if (endDate) rpcParams.p_end_date = endDate;
           
           logger.debug(`Executing RPC ${rpcFunctionName} with params`, { params: rpcParams });
           
@@ -353,65 +351,6 @@ export function createStudyHook<T>(
  */
 
 /**
- * Hook for general studies with earliest/latest times
- * Uses get_study_list_with_earliest_latest RPC
- */
-export const useStudiesWithTimes = createStudyHook<StudiesWithTimesRow>(
-  'studiesWithTimes',
-  'get_study_list_with_earliest_latest',
-  (data: RPCStudyData[]) => {
-    // Ensure we're working with an array
-    if (!Array.isArray(data)) return [];
-    
-    // Transform the data to match StudiesWithTimesRow
-    const transformedData = data.map(row => {
-      const transformed = {
-        study_id: row.study_id,
-        clinic_id: row.clinic_id || '',
-        clinic_name: row.clinic_name || '',
-        pod_id: row.pod_id || '',
-        pod_status: row.pod_status || row.status || 'unknown',
-        user_id: row.user_id || '',
-        study_type: row.study_type || 'holter',
-        start_timestamp: row.start_timestamp || '',
-        end_timestamp: row.end_timestamp || '',
-        expected_end_timestamp: row.expected_end_timestamp || row.end_timestamp || '',
-        earliest_time: row.earliest_time || '',
-        latest_time: row.latest_time || '',
-        duration: row.duration || row.total_hours || 0,
-        total_hours: row.total_hours || 0,
-        quality_hours: row.quality_hours || 0,
-        total_count: row.total_count || 0,
-        aggregated_quality_minutes: row.aggregated_quality_minutes || 0,
-        aggregated_total_minutes: row.aggregated_total_minutes || 0,
-        created_by: row.created_by || '',
-        status: row.status || 'unknown',
-        created_at: row.created_at || '',
-        updated_at: row.updated_at || ''
-      };
-
-      // Add debug logging
-      logger.debug('Data transformation', {
-        input: row,
-        output: transformed,
-        missingFields: Object.keys(row).filter(k => !Object.prototype.hasOwnProperty.call(transformed, k))
-      });
-
-      return transformed as unknown as StudiesWithTimesRow;
-    });
-
-    return transformedData;
-  },
-  { 
-    staleTime: 60000, // Increase stale time to reduce frequency of fetches
-    cacheTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    defaultPageSize: 3,    // Further reduce default page size
-    maxPageSize: 5         // More aggressive limit on max page size
-  }
-);
-
-/**
  * Helper function to convert string status to valid HolterStatus
  */
 function toHolterStatus(status: string | undefined): HolterStatus {
@@ -435,58 +374,68 @@ function toHolterStatus(status: string | undefined): HolterStatus {
  */
 export const useHolterStudies = createStudyHook<HolterStudy>(
   'holterStudies',
-  'get_studies_with_pod_times', // Ensure this RPC exists
+  'get_studies_with_pod_times',
   (data: RPCStudyData[]) => {
     // Ensure we're working with an array
     if (!Array.isArray(data)) return [];
     
     // Transform raw data to HolterStudy objects
-    // Using type assertion for simplicity after setting all required fields
     return data.map(row => {
-      // Create the transformed object with all required fields
-      const result = {
-        // Essential fields from the row with defaults
+      const now = new Date();
+      const endDate = row.end_timestamp ? new Date(row.end_timestamp) : now;
+      const daysRemaining = Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      
+      const totalHours = (row.aggregated_total_minutes ?? 0) / 60;
+      const qualityHours = (row.aggregated_quality_minutes ?? 0) / 60;
+      const qualityFraction = totalHours > 0 ? qualityHours / totalHours : 0;
+      
+      // Calculate status based on quality fraction
+      const status = calculateHolterStatus(qualityFraction);
+
+      return {
+        // Study fields
         study_id: row.study_id,
-        pod_id: row.pod_id || '',
         clinic_id: row.clinic_id || '',
-        clinic_name: row.clinic_name || '',
-        // Use toHolterStatus to ensure correct status value
-        status: toHolterStatus(row.status),
-        created_at: row.created_at || '',
-        updated_at: row.updated_at || '',
+        pod_id: row.pod_id || '',
         start_timestamp: row.start_timestamp || '',
         end_timestamp: row.end_timestamp || '',
-        earliest_time: row.earliest_time || '',
-        latest_time: row.latest_time || '',
-        
-        // Study-specific fields
-        study_type: 'holter',
-        duration: row.total_hours || 0,
-        totalQualityHours: row.quality_hours || 0,
-        expected_end_timestamp: row.end_timestamp || '',
-        
-        // Other required fields
-        created_by: row.created_by || '',
+        expected_end_timestamp: row.expected_end_timestamp || row.end_timestamp || '',
+        study_type: row.study_type || 'holter',
         user_id: row.user_id || '',
-        
-        // Calculated metrics
-        totalHours: row.total_hours || 0,
-        qualityHours: row.quality_hours || 0,
+        created_at: row.created_at || '',
+        created_by: row.created_by || '',
+        updated_at: row.updated_at || '',
         aggregated_quality_minutes: row.aggregated_quality_minutes || 0,
         aggregated_total_minutes: row.aggregated_total_minutes || 0,
-        qualityFraction: row.quality_hours && row.total_hours 
-          ? row.quality_hours / row.total_hours 
-          : 0,
-        daysRemaining: row.days_remaining || 0,
-        interruptions: row.interruptions || 0,
-        qualityVariance: row.quality_variance || 0
-      };
-      
-      // Use type assertion to make TypeScript happy
-      return result as unknown as HolterStudy;
+
+        // Holter-specific fields
+        clinic_name: row.clinic_name || '',
+        duration: row.duration || 0,
+        daysRemaining,
+        totalQualityHours: qualityHours,
+        qualityFraction,
+        totalHours,
+        interruptions: 0, // Would need actual data
+        qualityVariance: 0, // Would need actual data
+        status
+      } as HolterStudy;
     });
+  },
+  {
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    defaultPageSize: 25,
+    maxPageSize: 100
   }
 );
+
+// Helper function to calculate Holter status based on quality metrics
+function calculateHolterStatus(qualityFraction: number): 'critical' | 'warning' | 'good' | 'normal' {
+  if (qualityFraction < 0.5) return 'critical';
+  if (qualityFraction < 0.7) return 'warning';
+  if (qualityFraction >= 0.8) return 'good';
+  return 'normal';
+}
 
 // Export a single study details hook 
 export function useStudyDetails(studyId: string | null) {

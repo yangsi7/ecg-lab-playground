@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import type { ECGData } from '../../../types/domain/ecg';
 import type { WheelEventHandler, MouseEventHandler } from 'react';
 
@@ -78,6 +78,28 @@ export function useECGCanvas({
       if (next > 10) return 10;
       return next;
     });
+  }, []);
+
+  // Add event listener with passive: false
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const wheelHandler = (e: WheelEvent) => {
+      e.preventDefault();
+      const direction = e.deltaY < 0 ? 1.1 : 0.9;
+      setScaleX((prev) => {
+        const next = prev * direction;
+        if (next < 0.5) return 0.5;
+        if (next > 10) return 10;
+        return next;
+      });
+    };
+
+    canvas.addEventListener('wheel', wheelHandler, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', wheelHandler);
+    };
   }, []);
 
   // Mouse handlers for panning

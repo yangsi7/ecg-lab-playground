@@ -1,7 +1,7 @@
 /**
  * StudyContext.tsx
  * Provides context about a single study, including pod_id, earliestTime, latestTime, and availableDays.
- * Uses the RPC get_study_details_with_earliest_latest and get_pod_days.
+ * Uses the get_studies_with_pod_times RPC through the useStudyDetails hook and usePodDays.
  */
 import { createContext, useContext, useMemo } from 'react'
 import { useSingleStudy } from '@/hooks/api/study/useSingleStudy'

@@ -138,7 +138,14 @@ export function useRPC() {
         const { data, error } = await supabase.rpc(functionName, params);
 
         if (error) {
-          throw new RPCError(error.message, functionName);
+          // Enhanced error message for HTTP errors
+          if (error.code === '500') {
+            throw new RPCError(`Server error (500) when calling ${functionName}: ${error.message}. This could be due to missing data, database issues, or problems with the RPC function itself.`, functionName);
+          } else if (error.code) {
+            throw new RPCError(`${error.message} (Code: ${error.code})`, functionName);
+          } else {
+            throw new RPCError(error.message, functionName);
+          }
         }
 
         // Update call info for success
@@ -149,6 +156,13 @@ export function useRPC() {
 
         return data;
       } catch (error) {
+        // Enhance error logging with params
+        console.error(`RPC call to ${functionName} failed:`, error, { 
+          params,
+          attempt,
+          context: diagnosticOptions?.context
+        });
+        
         // Update call info for error
         callInfo.status = 'error';
         callInfo.error = error instanceof Error ? error : new Error(String(error));

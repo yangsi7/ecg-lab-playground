@@ -1,23 +1,42 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../../types/supabase';
+import { supabase } from '@/types/supabase';
 import type { Database } from '@/types/database.types';
+import { logger } from '@/lib/logger';
 
-type StudyDetailsWithTimes = Database['public']['Functions']['get_study_details_with_earliest_latest']['Returns'][0];
+type StudyDetailsWithTimes = Database['public']['Functions']['get_studies_with_pod_times']['Returns'][0];
 
-export function useStudyDetails(studyId: string) {
+export function useStudyDetails(studyId: string | null) {
     return useQuery({
-        queryKey: ['study', studyId],
+        queryKey: ['studyDetails', studyId],
         queryFn: async () => {
-            const { data, error } = await supabase
-                .rpc('get_study_details_with_earliest_latest', {
-                    p_study_id: studyId
+            if (!studyId) return null;
+            
+            try {
+                const { data, error } = await supabase.rpc('get_studies_with_pod_times');
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    return null;
+                }
+                
+                const study = data.find(s => s.study_id === studyId);
+                
+                if (!study) {
+                    return null;
+                }
+                
+                return study;
+            } catch (err) {
+                logger.error('Failed to fetch study details', { 
+                    studyId, 
+                    error: err instanceof Error ? err.message : String(err) 
                 });
-
-            if (error) throw error;
-            if (!data || !data[0]) throw new Error('Study not found');
-
-            return data[0] as StudyDetailsWithTimes;
+                throw err;
+            }
         },
-        enabled: !!studyId
+        enabled: !!studyId,
+        staleTime: 60000,
+        gcTime: 5 * 60 * 1000,
     });
 } 

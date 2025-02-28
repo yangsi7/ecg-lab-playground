@@ -22,8 +22,11 @@ const HolterDetail = lazyLoad(() => import('@/components/labs/HolterLab/HolterDe
 const PodLab = lazyLoad(() => import('@/components/labs/PodLab'));
 const ECGViewerPage = lazyLoad(() => import('@/components/shared/ecg/ECGViewerPage'));
 const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
+const ECGTestComponent = lazyLoad(() => import('@/components/shared/ecg/ECGTestComponent'));
 // Create the ErrorPage component
 const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
+// Debug component
+const DebugSupabaseClient = lazyLoad(() => import('@/components/shared/DebugSupabaseClient'));
 
 // Custom route type that extends RouteObject
 type AppRoute = RouteObject & {
@@ -108,7 +111,26 @@ const labRoutes: AppRoute[] = [
     path: '/datalab',
     element: wrapComponent(<DataLab />),
     label: 'Data',
-  }
+  },
+  
+  // Standalone ECG Viewer route
+  {
+    path: '/ecg/:studyId',
+    element: wrapComponent(
+      <TimeRangeProvider>
+        <ECGViewerPage />
+      </TimeRangeProvider>
+    ),
+  },
+  {
+    path: "/edge-test",
+    element: wrapComponent(<ECGTestComponent />, true),
+  },
+  // Debug route
+  {
+    path: "/debug",
+    element: wrapComponent(<DebugSupabaseClient />, true),
+  },
 ];
 
 // Create router with root layout

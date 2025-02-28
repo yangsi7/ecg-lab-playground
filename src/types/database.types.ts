@@ -63,7 +63,7 @@ export type Database = {
         }
         Relationships: []
       }
-      ecg_data: {
+      ecg_sample: {
         Row: {
           channel_1: number | null
           channel_2: number | null
@@ -90,7 +90,7 @@ export type Database = {
           lead_on_p_1?: boolean | null
           lead_on_p_2?: boolean | null
           lead_on_p_3?: boolean | null
-          pod_id?: string
+          pod_id: string
           quality_1?: boolean | null
           quality_2?: boolean | null
           quality_3?: boolean | null
@@ -107,57 +107,6 @@ export type Database = {
           lead_on_p_2?: boolean | null
           lead_on_p_3?: boolean | null
           pod_id?: string
-          quality_1?: boolean | null
-          quality_2?: boolean | null
-          quality_3?: boolean | null
-          time?: string
-        }
-        Relationships: []
-      }
-      ecg_sample: {
-        Row: {
-          channel_1: number | null
-          channel_2: number | null
-          channel_3: number | null
-          lead_on_n_1: boolean | null
-          lead_on_n_2: boolean | null
-          lead_on_n_3: boolean | null
-          lead_on_p_1: boolean | null
-          lead_on_p_2: boolean | null
-          lead_on_p_3: boolean | null
-          pod_id: string | null
-          quality_1: boolean | null
-          quality_2: boolean | null
-          quality_3: boolean | null
-          time: string
-        }
-        Insert: {
-          channel_1?: number | null
-          channel_2?: number | null
-          channel_3?: number | null
-          lead_on_n_1?: boolean | null
-          lead_on_n_2?: boolean | null
-          lead_on_n_3?: boolean | null
-          lead_on_p_1?: boolean | null
-          lead_on_p_2?: boolean | null
-          lead_on_p_3?: boolean | null
-          pod_id?: string | null
-          quality_1?: boolean | null
-          quality_2?: boolean | null
-          quality_3?: boolean | null
-          time: string
-        }
-        Update: {
-          channel_1?: number | null
-          channel_2?: number | null
-          channel_3?: number | null
-          lead_on_n_1?: boolean | null
-          lead_on_n_2?: boolean | null
-          lead_on_n_3?: boolean | null
-          lead_on_p_1?: boolean | null
-          lead_on_p_2?: boolean | null
-          lead_on_p_3?: boolean | null
-          pod_id?: string | null
           quality_1?: boolean | null
           quality_2?: boolean | null
           quality_3?: boolean | null
@@ -165,7 +114,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "ecg_sample_pod_id_fkey"
+            foreignKeyName: "fk_ecg_sample_podid"
             columns: ["pod_id"]
             isOneToOne: false
             referencedRelation: "pod"
@@ -271,6 +220,30 @@ export type Database = {
           params?: Json | null
           status?: string
           timestamp?: string
+        }
+        Relationships: []
+      }
+      saved_filters: {
+        Row: {
+          created_at: string | null
+          filter_expression: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          filter_expression: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          filter_expression?: string
+          id?: string
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -386,7 +359,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      ecg_days_summary: {
+        Row: {
+          day_value: string | null
+          pod_id: string | null
+          sample_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_ecg_sample_podid"
+            columns: ["pod_id"]
+            isOneToOne: false
+            referencedRelation: "pod"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_compression_policy: {
@@ -777,7 +765,11 @@ export type Database = {
         Returns: {
           chunk_start: string
           chunk_end: string
-          samples: Json
+          sample_times: number[]
+          channels: number[]
+          lead_on_p: boolean[]
+          lead_on_n: boolean[]
+          quality: boolean[]
         }[]
       }
       downsample_ecg_naive: {
@@ -1085,22 +1077,47 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: {
           study_id: string
-          clinic_id: string
-          pod_id: string
-          user_id: string
           aggregated_quality_minutes: number
           aggregated_total_minutes: number
           duration: number
           end_timestamp: string
           expected_end_timestamp: string
+          clinic_id: string
+          pod_id: string
           start_timestamp: string
           study_type: string
           updated_at: string
+          user_id: string
           created_at: string
           created_by: string
+          clinic_name: string
+          pod_status: string
           earliest_time: string
           latest_time: string
+        }[]
+      }
+      get_studies_with_pod_times_enhanced: {
+        Args: {
+          p_filter_jsql?: Json
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          study_id: string
+          pod_id: string
+          clinic_id: string
           clinic_name: string
+          user_id: string
+          start_timestamp: string
+          end_timestamp: string
+          expected_end_timestamp: string
+          earliest_time: string
+          latest_time: string
+          aggregated_quality_minutes: number
+          aggregated_total_minutes: number
+          quality_fraction: number
+          quality_category: string
+          days_remaining: number
           pod_status: string
         }[]
       }
@@ -1157,9 +1174,40 @@ export type Database = {
           total_count: number
         }[]
       }
+      get_study_list_with_earliest_latest2: {
+        Args: {
+          p_search?: string
+          p_offset?: number
+          p_limit?: number
+        }
+        Returns: {
+          study_id: string
+          pod_id: string
+          start_timestamp: string
+          end_timestamp: string
+          earliest_time: string
+          latest_time: string
+          total_count: number
+          quality_fraction: number
+          total_minutes: number
+          quality_minutes: number
+          status_flag: string
+          clinic_name: string
+          user_id: string
+        }[]
+      }
       get_telemetry_report: {
         Args: Record<PropertyKey, never>
         Returns: Json
+      }
+      get_user_filters: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          filter_expression: string
+          created_at: string
+        }[]
       }
       get_weekly_active_studies: {
         Args: Record<PropertyKey, never>
@@ -1365,6 +1413,21 @@ export type Database = {
           arguments: string
           definition: string
           function_type: string
+        }[]
+      }
+      run_quality_tool: {
+        Args: {
+          p_study_id: string
+          p_time_start: string
+          p_time_end: string
+        }
+        Returns: {
+          study_id: string
+          timeframe_start: string
+          timeframe_end: string
+          quality_minutes: number
+          total_minutes: number
+          quality_fraction: number
         }[]
       }
       set_adaptive_chunking: {

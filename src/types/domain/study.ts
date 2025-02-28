@@ -80,5 +80,7 @@ export const toStudy: Transform<StudyRow, Study> = (row) => {
 
 // Types from RPC functions
 export type StudiesWithTimesRow = Database['public']['Functions']['get_studies_with_pod_times']['Returns'][0];
-export type StudyDetailsWithTimes = Database['public']['Functions']['get_study_details_with_earliest_latest']['Returns'][0];
-export type StudyListRow = Database['public']['Functions']['get_study_list_with_earliest_latest']['Returns'][0]; 
+export type StudyDetailsWithTimes = Database['public']['Functions']['get_studies_with_pod_times']['Returns'][0];
+
+// Re-export StudiesWithTimesRow as StudyListRow for backward compatibility
+export type StudyListRow = StudiesWithTimesRow; 

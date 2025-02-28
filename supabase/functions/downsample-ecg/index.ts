@@ -14,8 +14,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
 // Environment variables are pre-populated
 const supabase = createClient(
-    Deno.env.get("VITE_SUPABASE_URL") ?? "",
-    Deno.env.get("VITE_SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     {
         auth: { persistSession: false },
     }
@@ -34,6 +34,7 @@ interface DownsampleParams {
     time_start: string;
     time_end: string;
     factor?: number;
+    chunk_minutes?: number; // New parameter for chunked processing
 }
 
 function validateParams(params: DownsampleParams): string | null {
@@ -54,7 +55,40 @@ function validateParams(params: DownsampleParams): string | null {
         if (params.factor < 1 || params.factor > 4) return "factor must be between 1 and 4";
     }
     
+    // Validate chunk_minutes (if provided)
+    if (params.chunk_minutes !== undefined) {
+        if (typeof params.chunk_minutes !== 'number') return "chunk_minutes must be a number";
+        if (params.chunk_minutes < 1) return "chunk_minutes must be positive";
+    }
+    
     return null;
+}
+
+// Calculate if the time range exceeds the threshold that would likely cause a timeout
+function shouldUseChunkedProcessing(start: Date, end: Date, chunkMinutesRequested?: number): boolean {
+    const HOUR_IN_MS = 60 * 60 * 1000;
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / HOUR_IN_MS;
+    
+    // Use chunked processing for time ranges longer than 1 hour or if explicitly requested
+    return durationHours > 1 || chunkMinutesRequested !== undefined;
+}
+
+// Determine appropriate chunk size based on time range
+function getOptimalChunkSize(start: Date, end: Date, requestedChunkMinutes?: number): number {
+    if (requestedChunkMinutes) return requestedChunkMinutes;
+    
+    const HOUR_IN_MS = 60 * 60 * 1000;
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / HOUR_IN_MS;
+    
+    // Scale chunk size based on duration
+    if (durationHours > 24) return 60; // 1 hour chunks for multi-day ranges
+    if (durationHours > 12) return 30; // 30 min chunks for 12+ hours
+    if (durationHours > 6) return 15;  // 15 min chunks for 6-12 hours
+    if (durationHours > 1) return 10;  // 10 min chunks for 1-6 hours
+    
+    return 5; // 5 min chunks for < 1 hour
 }
 
 Deno.serve(async (req: Request) => {
@@ -66,8 +100,8 @@ Deno.serve(async (req: Request) => {
         });
     }
 
-    const functionName = "downsample_ecg"; // Function name for logging
     const startTime = Date.now();
+    let functionName = "downsample_ecg"; // Default function name for logging
 
     try {
         if (req.method !== "POST") {
@@ -81,23 +115,55 @@ Deno.serve(async (req: Request) => {
             throw new Error(validationError);
         }
 
+        const start = new Date(params.time_start);
+        const end = new Date(params.time_end);
+        const factor = params.factor ?? 4;
+
         // Log request parameters
         console.log("[downsample-ecg] Request:", {
             pod_id: params.pod_id,
             time_start: params.time_start,
             time_end: params.time_end,
-            factor: params.factor ?? 4
+            factor: factor,
+            chunk_minutes: params.chunk_minutes
         });
 
-        // Call DB function (factor defaults to 4 for 80Hz visualization)
-        const { data, error } = await supabase.rpc(functionName, {
-            p_pod_id: params.pod_id,
-            p_time_start: params.time_start,
-            p_time_end: params.time_end,
-            p_factor: params.factor ?? 4
-        });
+        let data, error;
 
-        // Log success
+        // Determine whether to use chunked processing
+        const useChunkedProcessing = shouldUseChunkedProcessing(start, end, params.chunk_minutes);
+        
+        if (useChunkedProcessing) {
+            // Use chunked processing for larger time ranges
+            functionName = "downsample_ecg_chunked";
+            const chunkMinutes = getOptimalChunkSize(start, end, params.chunk_minutes);
+            
+            console.log(`[downsample-ecg] Using chunked processing with ${chunkMinutes} minute chunks`);
+            
+            const result = await supabase.rpc(functionName, {
+                p_pod_id: params.pod_id,
+                p_time_start: params.time_start,
+                p_time_end: params.time_end,
+                p_factor: factor,
+                p_chunk_minutes: chunkMinutes
+            });
+            
+            data = result.data;
+            error = result.error;
+        } else {
+            // Use standard processing for smaller time ranges
+            const result = await supabase.rpc(functionName, {
+                p_pod_id: params.pod_id,
+                p_time_start: params.time_start,
+                p_time_end: params.time_end,
+                p_factor: factor
+            });
+            
+            data = result.data;
+            error = result.error;
+        }
+
+        // Log execution
         await supabase
             .from('edge_function_stats')
             .insert({
@@ -108,20 +174,13 @@ Deno.serve(async (req: Request) => {
             });
 
         if (error) {
-            console.error("[downsample-ecg] RPC error:", error);
+            console.error(`[downsample-ecg] RPC error (${functionName}):`, error);
             throw error;
         }
 
         // Return downsampled data
         return new Response(
-            JSON.stringify({
-                data,
-                metadata: {
-                    original_frequency: 320,
-                    target_frequency: 320 / (params.factor ?? 4),
-                    points: data.length
-                }
-            }), 
+            JSON.stringify(data), 
             { 
                 status: 200, 
                 headers: corsHeaders 

@@ -1,79 +1,92 @@
 /**
  * Hook for tracking ECG queries for diagnostic purposes
  */
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { logger } from '@/lib/logger';
 
-export interface ECGQueryInfo {
-  functionName: string;
-  timestamp: string;
-  day: string;
-  timeRange: {
-    start: string;
-    end: string;
-  };
-  timestamps: {
-    start: string;
-    end: string;
-  };
+export interface ECGQuery {
+  podId: string;
+  startTime: string;
+  endTime: string;
   points: number;
   duration: number;
-  podId: string;
+  timestamp: number;
+  status: 'success' | 'error';
+  error?: string;
 }
 
-// Global state to track ECG queries across components
-declare global {
-  interface Window {
-    __ecgQueryTracker?: {
-      queries: ECGQueryInfo[];
-      addQuery: (query: ECGQueryInfo) => void;
+// Create a module-level store to persist across component renders
+const queryStore: {
+  queries: ECGQuery[];
+  listeners: Array<(queries: ECGQuery[]) => void>;
+} = {
+  queries: [],
+  listeners: [],
+};
+
+// Maximum number of queries to keep in history
+const MAX_QUERY_HISTORY = 20;
+
+/**
+ * Tracks ECG queries for diagnostic purposes
+ * 
+ * This hook provides a way to track and analyze ECG queries across the application.
+ * It maintains a global store of query data that persists across component renders.
+ */
+export function useECGQueryTracker() {
+  const [queries, setQueries] = useState<ECGQuery[]>(queryStore.queries);
+
+  // Register and unregister listener for store updates
+  useEffect(() => {
+    const listener = (updatedQueries: ECGQuery[]) => {
+      setQueries([...updatedQueries]);
     };
-  }
-}
+    
+    queryStore.listeners.push(listener);
+    
+    return () => {
+      queryStore.listeners = queryStore.listeners.filter(l => l !== listener);
+    };
+  }, []);
 
-// Initialize global tracker
-if (typeof window !== 'undefined') {
-  window.__ecgQueryTracker = {
-    queries: [],
-    addQuery: (query: ECGQueryInfo) => {
-      window.__ecgQueryTracker!.queries.unshift(query);
-      // Keep only the last 10 queries
-      window.__ecgQueryTracker!.queries = window.__ecgQueryTracker!.queries.slice(0, 10);
-      logger.debug('ECG query tracked', { query });
-    }
+  // Add a new query to the store
+  const addQuery = useCallback((query: ECGQuery) => {
+    // Add to the beginning of the array so most recent is first
+    queryStore.queries = [query, ...queryStore.queries].slice(0, MAX_QUERY_HISTORY);
+    
+    // Notify all listeners
+    queryStore.listeners.forEach(listener => listener(queryStore.queries));
+  }, []);
+
+  // Clear all queries
+  const clearQueries = useCallback(() => {
+    queryStore.queries = [];
+    queryStore.listeners.forEach(listener => listener(queryStore.queries));
+  }, []);
+
+  // Calculate statistics
+  const stats = {
+    totalQueries: queries.length,
+    successCount: queries.filter(q => q.status === 'success').length,
+    errorCount: queries.filter(q => q.status === 'error').length,
+    averageDuration: queries.length 
+      ? queries.reduce((sum, q) => sum + q.duration, 0) / queries.length 
+      : 0,
+    averagePoints: queries.length 
+      ? queries.reduce((sum, q) => sum + q.points, 0) / queries.length 
+      : 0,
+  };
+
+  return {
+    queries,
+    addQuery,
+    clearQueries,
+    stats
   };
 }
 
-/**
- * Track an ECG query for diagnostics
- */
-export function trackECGQuery(query: ECGQueryInfo) {
-  if (typeof window !== 'undefined' && window.__ecgQueryTracker) {
-    window.__ecgQueryTracker.addQuery(query);
-  }
-}
-
-/**
- * Hook to access ECG query tracking information
- */
-export function useECGQueryTracker() {
-  const [queries, setQueries] = useState<ECGQueryInfo[]>([]);
-
-  useEffect(() => {
-    // Initial load
-    if (typeof window !== 'undefined' && window.__ecgQueryTracker) {
-      setQueries([...window.__ecgQueryTracker.queries]);
-    }
-
-    // Set up polling to check for new queries
-    const interval = setInterval(() => {
-      if (typeof window !== 'undefined' && window.__ecgQueryTracker) {
-        setQueries([...window.__ecgQueryTracker.queries]);
-      }
-    }, 2000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return { queries };
+// Export a standalone function that can be used outside of React components
+export function trackECGQuery(query: ECGQuery) {
+  queryStore.queries = [query, ...queryStore.queries].slice(0, MAX_QUERY_HISTORY);
+  queryStore.listeners.forEach(listener => listener(queryStore.queries));
 } 

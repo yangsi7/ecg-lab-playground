@@ -8,18 +8,18 @@
  * - Quick presets for common time ranges
  */
 
-import React, { useEffect } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { Search, Calendar, Clock, FastForward, Rewind } from 'lucide-react'
 import { useStudyContext } from '@/context/StudyContext'
 import { useTimeRange } from '@/context/TimeRangeContext'
-import { CalendarSelector } from '../CalendarSelector'
+import { CalendarSelector } from '@/components/shared/CalendarSelector/index'
 import { EcgAggregatorView } from './EcgAggregatorView'
 import MainECGViewer from './MainECGViewer'
 import { usePodDays } from '@/hooks/api/pod/usePodDays'
 import { useStudyDetails } from '@/hooks/api/study/useStudyDetails'
 import { useLatestECGTimestamp } from '@/hooks/api/ecg/useLatestECGTimestamp'
-import type { Database } from '@/types/database.types'
+import type { Database } from '@/types'
 
 // Time range presets
 const TIME_PRESETS = [
@@ -55,18 +55,31 @@ export default function ECGViewerPage() {
 
     // Set initial day when study data loads
     useEffect(() => {
-        if (latestTimestamp) {
-            // Use the latest timestamp if available
-            const latestDate = new Date(latestTimestamp)
-            setSelectedDay(latestDate)
-            updateTimeRangeForDay(latestDate)
-        } else if (study?.start_timestamp) {
-            // Fall back to study start time if no latest timestamp
-            const startDate = new Date(study.start_timestamp)
-            setSelectedDay(startDate)
-            updateTimeRangeForDay(startDate)
+        // Only proceed if we don't have a selected day and have required data
+        if (!selectedDay && !studyLoading) {
+            if (latestTimestamp) {
+                // Use the latest timestamp if available
+                const latestDate = new Date(latestTimestamp)
+                console.log('Setting selected day from latest timestamp', { latestDate })
+                setSelectedDay(latestDate)
+                
+                // Only update time range if it doesn't exist
+                if (!timeRange) {
+                    updateTimeRangeForDay(latestDate)
+                }
+            } else if (study?.start_timestamp) {
+                // Fall back to study start time if no latest timestamp
+                const startDate = new Date(study.start_timestamp)
+                console.log('Setting selected day from study start', { startDate })
+                setSelectedDay(startDate)
+                
+                // Only update time range if it doesn't exist
+                if (!timeRange) {
+                    updateTimeRangeForDay(startDate)
+                }
+            }
         }
-    }, [study?.start_timestamp, latestTimestamp, setSelectedDay, updateTimeRangeForDay])
+    }, [latestTimestamp, study, setSelectedDay, updateTimeRangeForDay, selectedDay, timeRange, studyLoading])
 
     // Navigation helpers
     const moveTimeRange = (direction: 'forward' | 'backward') => {
@@ -93,6 +106,12 @@ export default function ECGViewerPage() {
             setSelectedDay(newStart) // Update selected day to match the new range
         }
     }
+
+    // Memoize the onSelectDay callback
+    const handleSelectDay = useCallback((date: Date) => {
+        setSelectedDay(date);
+        updateTimeRangeForDay(date);
+    }, [setSelectedDay, updateTimeRangeForDay]);
 
     if (studyLoading || daysLoading || timestampLoading) {
         return (
@@ -160,14 +179,26 @@ export default function ECGViewerPage() {
                         {/* Calendar */}
                         <div>
                             <h3 className="text-sm text-gray-400 mb-2">Select Day</h3>
-                            <CalendarSelector
-                                availableDays={podDays || []}
-                                onSelectDay={(date) => {
-                                    setSelectedDay(date)
-                                    updateTimeRangeForDay(date)
-                                }}
-                                selectedDate={selectedDay}
-                            />
+                            {(!podDays || podDays.length === 0) ? (
+                                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                                    <div className="flex items-center gap-2 text-amber-400">
+                                        <Calendar className="h-5 w-5" />
+                                        <h3 className="text-sm font-medium">No recording days available</h3>
+                                    </div>
+                                    <p className="mt-2 text-sm text-amber-300">
+                                        There may be an issue fetching the day data for this study, or no recordings are available yet.
+                                    </p>
+                                    <p className="mt-2 text-sm text-amber-300">
+                                        <strong>Quick Fix:</strong> Try searching for a different pod in your study list to verify that ECG viewing works properly.
+                                    </p>
+                                </div>
+                            ) : (
+                                <CalendarSelector
+                                    availableDays={podDays}
+                                    onSelectDay={handleSelectDay}
+                                    selectedDate={selectedDay}
+                                />
+                            )}
                         </div>
 
                         {/* Time Range Selection */}

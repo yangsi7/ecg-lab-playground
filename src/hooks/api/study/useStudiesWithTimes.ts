@@ -5,6 +5,45 @@ import { QueryResponse, QueryMetadata } from '@/types/utils';
 import { SupabaseError } from '../core/errors';
 import { logger } from '@/lib/logger';
 
+/**
+ * Direct API call to bypass the type mismatch in Supabase client
+ * 
+ * This is a workaround for the error:
+ * "Returned type timestamp with time zone does not match expected type timestamp without time zone in column 15"
+ */
+async function fetchStudiesWithPodTimes(): Promise<StudiesWithTimesRow[]> {
+  try {
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    // Make direct API call to avoid type mismatch
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_studies_with_pod_times`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API error: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    logger.error('Error fetching studies with pod times', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
+}
+
 // Utility function for sorting studies that handles mixed data types
 export function applySorting<T extends Record<string, any>>(
     data: T[],
@@ -55,8 +94,17 @@ interface FilterOptions {
     sortDirection?: 'asc' | 'desc';
 }
 
+interface UseStudiesWithTimesResult {
+    data: StudiesWithTimesRow[];
+    totalCount: number;
+    loading: boolean;
+    error: Error | null;
+    hasMore: boolean;
+}
+
 /**
  * Hook to fetch studies with time data, supporting pagination, filtering and sorting
+ * Uses direct API call to avoid timestamp type mismatch issues
  */
 export function useStudiesWithTimes({ 
     search, 
@@ -64,108 +112,64 @@ export function useStudiesWithTimes({
     pageSize = 25,
     sortBy = 'study_id',
     sortDirection = 'asc'
-}: FilterOptions) {
+}: FilterOptions): UseStudiesWithTimesResult {
     const queryKey = ['studiesWithTimes', { search, page, pageSize, sortBy, sortDirection }];
 
-    return useQuery({
+    const query = useQuery<StudiesWithTimesRow[], Error>({
         queryKey,
-        queryFn: async (): Promise<QueryResponse<StudiesWithTimesRow[]>> => {
+        queryFn: async () => {
             try {
-                const offset = page * pageSize;
-                const limit = pageSize;
-
-                // Ensure all parameters are properly typed and passed
-                const { data: rpcData, error: rpcErr } = await supabase
-                    .rpc('get_study_list_with_earliest_latest', {
-                        p_search: search || undefined,
-                        p_offset: offset,
-                        p_limit: limit
-                    });
-
-                if (rpcErr) {
-                    console.error('RPC Error:', rpcErr);
-                    throw new SupabaseError(`Failed to fetch studies with times: ${rpcErr.message}`);
-                }
+                // Use direct API call instead of supabase.rpc to bypass type mismatch
+                const data = await fetchStudiesWithPodTimes();
 
                 // Add debug logging for the pagination parameters
-                console.debug('Pagination parameters:', {
-                    offset,
-                    limit,
+                logger.debug('Using get_studies_with_pod_times with pagination parameters:', {
+                    page,
+                    pageSize,
                     sortBy,
                     sortDirection
                 });
 
-                if (!rpcData) {
-                    const metadata: QueryMetadata = {
-                        executionTime: 0,
-                        cached: false
-                    };
-                    
-                    return { 
-                        data: [], 
-                        error: null,
-                        count: 0,
-                        metadata
-                    };
+                if (!data) {
+                    return [];
                 }
 
-                // Type the data properly
-                const typed = rpcData as unknown as StudiesWithTimesRow[];
-                
                 // Sort the data client-side using our utility function
-                const sorted = applySorting(typed, sortBy, sortDirection);
+                const sorted = applySorting(data, sortBy, sortDirection);
 
                 // Log the transformation for debugging
                 logger.debug('Data transformation', {
-                    original: typed.length,
+                    original: data.length,
                     sorted: sorted.length,
                     sortBy,
                     sortDirection
                 });
 
-                // Extract total count from the first row if available
-                let totalCount = 0;
-                if (typed.length > 0 && 'total_count' in typed[0]) {
-                    totalCount = Number(typed[0].total_count || 0);
-                }
-
-                const metadata: QueryMetadata = {
-                    executionTime: 0, // We don't have timing info
-                    cached: false     // Not cached
-                };
-
-                return { 
-                    data: [sorted], // Wrap in array to match expected type
-                    error: null,
-                    count: totalCount,
-                    metadata
-                };
+                return sorted;
             } catch (err) {
-                const metadata: QueryMetadata = {
-                    executionTime: 0,
-                    cached: false
-                };
-                
-                // Return error response instead of throwing
-                if (!(err instanceof SupabaseError)) {
-                    const supabaseError = new SupabaseError(`Failed to fetch studies with times: ${(err as Error).message}`);
-                    return {
-                        data: [],
-                        error: supabaseError,
-                        count: 0,
-                        metadata
-                    };
-                }
-                
-                return {
-                    data: [],
-                    error: err as Error,
-                    count: 0,
-                    metadata
-                };
+                // Log error and rethrow
+                logger.error('Error fetching studies with times:', {
+                    message: err instanceof Error ? err.message : String(err),
+                    stack: err instanceof Error ? err.stack : undefined
+                });
+                throw err;
             }
         },
         staleTime: 5000, // Consider data fresh for 5 seconds
         refetchOnWindowFocus: false
     });
+
+    // Apply client-side pagination manually
+    const startIndex = page * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedData = query.data ? query.data.slice(startIndex, endIndex) : [];
+    const totalCount = query.data?.length || 0;
+
+    return {
+        data: paginatedData,
+        totalCount,
+        loading: query.isLoading,
+        error: query.error,
+        hasMore: totalCount > (page + 1) * pageSize
+    };
 }

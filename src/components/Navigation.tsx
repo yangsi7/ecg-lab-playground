@@ -15,7 +15,7 @@ const navConfig = [
     path: '/clinic', 
     name: 'Clinics', 
     icon: Users,
-    isActive: (path: string) => path.startsWith('/clinic') && path !== '/clinic/analytics',
+    isActive: (path: string) => path.startsWith('/clinic') && !path.startsWith('/clinic/analytics'),
   },
   { 
     id: 'clinic-analytics', 

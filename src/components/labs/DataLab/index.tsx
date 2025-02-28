@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Database, Download, Heart, Clock, Calendar, User, Building2, Activity } from 'lucide-react';
+import { Database, Download, Heart, Clock, Calendar, User, Building2, Activity, Search } from 'lucide-react';
 import { DataGrid, type Column } from '../../shared/DataGrid';
 import { useStudiesWithTimes } from '@/hooks/api/study/useStudyHooks';
 import type { StudiesWithTimesRow, StudyListRow } from '@/types/domain/study';
-import { formatDate, formatDuration } from '@/lib/utils/formatters';
+import { formatDate, formatDuration, formatPercentage } from '@/lib/utils/formatters';
 import { supabase } from '@/types/supabase';
 import { logger } from '@/lib/logger';
 import { useNavigate } from 'react-router-dom';
@@ -11,14 +11,11 @@ import { useNavigate } from 'react-router-dom';
 type DataGridColumn = Column<StudiesWithTimesRow> | {
     key: string;
     header: string;
+    sortable?: boolean;
+    filterable?: boolean;
+    filterType?: 'text' | 'number' | 'select' | 'date';
     render: (value: unknown, row: StudiesWithTimesRow) => React.ReactNode;
 };
-
-function formatQuality(quality: number, total: number): string {
-    if (!total) return '0%';
-    const percentage = (quality / total) * 100;
-    return `${percentage.toFixed(1)}%`;
-}
 
 export default function DataLab() {
     const navigate = useNavigate();
@@ -166,7 +163,7 @@ export default function DataLab() {
             render: (value: unknown, row: StudiesWithTimesRow) => {
                 const quality = value as number;
                 const total = row.aggregated_total_minutes;
-                const percentage = formatQuality(quality, total);
+                const percentage = formatPercentage(quality, total, 1);
                 
                 return (
                     <div className="flex items-center gap-2">
@@ -194,7 +191,7 @@ export default function DataLab() {
             render: (value: unknown) => value ? new Date(value as string).toLocaleString() : 'N/A'
         },
         {
-            key: 'actions',
+            key: 'actions' as any,
             header: 'Actions',
             render: (_, row: StudiesWithTimesRow) => {
                 const canViewECG = row.pod_id && row.earliest_time && row.latest_time;
@@ -229,13 +226,9 @@ export default function DataLab() {
     // Handle data export
     const handleExport = async () => {
         try {
-            // Fetch all data for export (no pagination)
+            // Fetch all data for export using get_studies_with_pod_times
             const { data: exportData, error: rpcErr } = await supabase
-                .rpc('get_study_list_with_earliest_latest', {
-                    p_search: search || undefined,
-                    p_offset: 0,
-                    p_limit: 1000
-                });
+                .rpc('get_studies_with_pod_times');
 
             if (rpcErr) {
                 console.error('Export RPC Error:', rpcErr);
@@ -248,14 +241,43 @@ export default function DataLab() {
                 return;
             }
 
+            // Apply search filter on the client side if needed
+            let filteredData = exportData;
+            if (search && search.length > 2) {
+                const searchLower = search.toLowerCase();
+                filteredData = exportData.filter(row => 
+                    String(row.study_id).toLowerCase().includes(searchLower) ||
+                    String(row.pod_id).toLowerCase().includes(searchLower) ||
+                    (row.clinic_name && String(row.clinic_name).toLowerCase().includes(searchLower))
+                );
+            }
+
+            // Only export the first 1000 records to avoid performance issues
+            const limitedData = filteredData.slice(0, 1000);
+            
             // Convert data to CSV
             const headers = columns.map(col => col.header).join(',');
-            const rows = exportData.map((row: StudyListRow) => 
+            const rows = limitedData.map((row: StudiesWithTimesRow) => 
                 columns.map(col => {
-                    const value = row[col.key as keyof StudyListRow];
-                    return value !== null && value !== undefined 
-                        ? String(value).replace(/,/g, '') 
-                        : '';
+                    const key = col.key;
+                    if (key.toString() === 'actions') return '';
+                    
+                    // Use type assertion to access row properties safely
+                    const value = row[key as keyof typeof row];
+                    if (key === 'start_timestamp' || key === 'end_timestamp' || 
+                        key === 'earliest_time' || key === 'latest_time') {
+                        return value ? `"${new Date(value as string).toLocaleString()}"` : '';
+                    }
+                    
+                    if (key === 'duration') {
+                        return value ? formatDuration(value as number) : '';
+                    }
+                    
+                    if (key === 'aggregated_quality_minutes' && row.aggregated_total_minutes) {
+                        return formatPercentage(value as number, row.aggregated_total_minutes, 1);
+                    }
+                    
+                    return `"${value || ''}"`;
                 }).join(',')
             ).join('\n');
 
@@ -342,12 +364,11 @@ export default function DataLab() {
             ) : (
                 <DataGrid
                     data={studies}
-                    columns={columns}
+                    columns={columns as any}
                     loading={loading}
                     page={page}
                     pageSize={pageSize}
                     onPageChange={setPage}
-                    onPageSizeChange={setPageSize}
                     totalCount={totalCount}
                     hasMore={hasMore}
                     paginationMode="server"

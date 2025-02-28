@@ -3,8 +3,8 @@
  * These types extend or transform the database types with business logic
  */
 
-import type { Database } from '../database.types';
-import type { TableRow, TypeGuard, Transform, NonNullRequired } from '../utils';
+import type { Database } from '@/types/database.types';
+import type { TableRow, TypeGuard, Transform, NonNullRequired } from '@/types/utils';
 import type { Study } from './study';
 
 // Raw database type

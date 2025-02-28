@@ -560,8 +560,7 @@ get_clinic_table_stats()
 Here’s the updated description for the `get_clinic_combined_stats()` function based on the request:
 
 ---
-
-### get_clinic_combined_stats()
+get_clinic_table_stats()
 
 **Purpose**:  
 Returns extended metrics per clinic, including total and open studies, average quality, quality-hours, and alerts. This function provides a detailed overview of clinic performance, study progress, and data quality, enabling administrators to monitor and manage clinic activities effectively.

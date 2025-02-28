@@ -45,7 +45,7 @@ export function CalendarSelector({
       setViewMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
       onSelectDay(latestDate);
     }
-  }, [availableDays, currentDate]);
+  }, [availableDays, currentDate, onSelectDay]);
 
   useEffect(() => {
     if (selectedDate) {
