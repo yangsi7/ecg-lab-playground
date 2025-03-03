@@ -29,7 +29,7 @@ export function useAggregatedLeadData(
   podId: string,
   timeStart: string,
   timeEnd: string,
-  bucketSeconds: number = 3600 // default 1 hour
+  bucketSeconds = 3600 // default 1 hour
 ) {
   return useSupabaseRPC('aggregate_leads', {
     p_pod_id: podId,
@@ -86,4 +86,4 @@ export function transformECGSamples(samples: ECGSampleRow[]): ECGData[] {
       }
     })
     .filter((data): data is ECGData => data !== null && validateECGData(data))
-} 
+}

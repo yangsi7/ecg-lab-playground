@@ -328,6 +328,99 @@ export function useECGCanvas({
     };
   }, [panning, panStartX, setTranslateX]);
 
+  // This effect handles the actual drawing of the ECG line on the canvas
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Draw grid (optional background)
+    drawGrid(ctx, width, height);
+    
+    // Skip if no data
+    if (!data || data.length === 0) return;
+    
+    // Log data for debugging
+    if (data.length > 0) {
+      console.log("ECG data length:", data.length);
+      // Check first few data points
+      const samplePoints = data.slice(0, 5);
+      console.log("Sample ECG points:", samplePoints.map(p => ({
+        time: p.sample_time,
+        ch1: p.downsampled_channel_1,
+        ch2: p.downsampled_channel_2,
+        ch3: p.downsampled_channel_3
+      })));
+      
+      // Calculate min/max for debugging
+      let minVal = Infinity, maxVal = -Infinity;
+      const channelKey = `downsampled_channel_${channel}` as keyof ECGData;
+      data.forEach(d => {
+        const val = Number(d[channelKey]) || 0;
+        if (val < minVal) minVal = val;
+        if (val > maxVal) maxVal = val;
+      });
+      console.log(`Min/Max channel ${channel}:`, minVal, maxVal);
+    }
+    
+    // Begin drawing the path
+    ctx.beginPath();
+    ctx.strokeStyle = waveColor;
+    ctx.lineWidth = 1.5;
+    
+    // Draw each data point
+    data.forEach((point, index) => {
+      // Calculate x position (with scaling and translation)
+      const x = (index / data.length) * width * scaleX + translateX;
+      
+      // Get value for selected channel
+      let value = 0;
+      if (channel === 1) value = point.downsampled_channel_1;
+      else if (channel === 2) value = point.downsampled_channel_2;
+      else if (channel === 3) value = point.downsampled_channel_3;
+      
+      // Calculate y position (inverted, since canvas 0 is top)
+      const y = height - ((value - yMin) / (yMax - yMin)) * height;
+      
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+    
+    ctx.stroke();
+  }, [data, width, height, scaleX, translateX, yMin, yMax, channel, waveColor]);
+  
+  // Helper function to draw background grid
+  function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    // Draw faint grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 0.5;
+    
+    // Vertical grid lines
+    const gridSpacing = 50;
+    for (let x = 0; x < width; x += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    
+    // Horizontal grid lines
+    for (let y = 0; y < height; y += gridSpacing) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+
   return {
     canvasRef,
     scaleX,

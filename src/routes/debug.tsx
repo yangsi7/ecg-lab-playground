@@ -27,8 +27,8 @@ const DebugPage: React.FC = () => {
           <div className="p-3 bg-green-50 border-l-4 border-green-500">
             <h3 className="font-medium">Workaround Available</h3>
             <p className="text-sm mt-1">
-              We've created a workaround that bypasses the Supabase.js client and directly calls the API endpoint
-              to avoid the type mismatch error. Use the "Safe RPC Workaround" button to test this method.
+              We&apos;ve created a workaround that bypasses the Supabase.js client and directly calls the API endpoint
+              to avoid the type mismatch error. Use the &quot;Safe RPC Workaround&quot; button to test this method.
             </p>
           </div>
         </div>
@@ -37,4 +37,4 @@ const DebugPage: React.FC = () => {
   );
 };
 
-export default DebugPage; 
+export default DebugPage;

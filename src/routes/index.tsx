@@ -1,46 +1,42 @@
-import { lazy, Suspense, ComponentType } from 'react';
 import { createBrowserRouter, type RouteObject } from 'react-router-dom';
-import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
+import { lazy, Suspense } from 'react';
 import { GenericErrorBoundary } from '@/components/shared/GenericErrorBoundary';
+import { LoadingSpinner } from '@/components/shared/LoadingSpinner';
 import { AuthGuard } from '@/components/shared/AuthGuard';
 import { TimeRangeProvider } from '@/context/TimeRangeContext';
 import RootLayout from '@/components/RootLayout';
 import React from 'react';
 
-// Type-safe lazy loading function that ensures default export compatibility
-const lazyLoad = (importFunc: () => Promise<{ default: ComponentType<any> }>) => lazy(importFunc);
-
-// Lazy load components with correct module imports
-const Dashboard = lazyLoad(() => import('@/components/Dashboard'));
-const DataLab = lazyLoad(() => import('@/components/labs/DataLab'));
-const ClinicLab = lazyLoad(() => import('@/components/labs/ClinicLab'));
-const ClinicDetail = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicDetail'));
-// Use explicit file path for HolterLab to avoid confusion with index.ts
-const HolterLab = lazyLoad(() => import('@/components/labs/HolterLab'));
-const HolterDetail = lazyLoad(() => import('@/components/labs/HolterLab/HolterDetail'));
-const PodLab = lazyLoad(() => import('@/components/labs/PodLab'));
-const ECGViewerPage = lazyLoad(() => import('@/components/shared/ecg/ECGViewerPage'));
-const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
-const ECGTestComponent = lazyLoad(() => import('@/components/shared/ecg/ECGTestComponent'));
-// Create the ErrorPage component
-const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
-// Debug component - using a different pattern for named exports
-const DebugSupabaseClient = lazy(() => 
-  import('@/components/shared/DebugSupabaseClient').then(module => ({ 
-    default: module.DebugSupabaseClient 
-  }))
-);
-// New ECG Components
-const ECGViewerContainer = lazyLoad(() => import('@/components/ECGViewerContainer'));
-const StudyList = lazyLoad(() => import('@/components/StudyList'));
-
-// Custom route type that extends RouteObject
+// Type for our routes
 type AppRoute = RouteObject & {
   label?: string;
   requiresAuth?: boolean;
 };
 
-// Define route groups for better organization
+// Lazy load components
+const lazyLoad = (importFunc: () => Promise<{ default: React.ComponentType<any> }>) => lazy(importFunc);
+
+// Lazy loaded components
+const Dashboard = lazyLoad(() => import('@/components/Dashboard'));
+const ClinicLab = lazyLoad(() => import('@/components/labs/ClinicLab'));
+const ClinicDetail = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicDetail'));
+const HolterLab = lazyLoad(() => import('@/components/labs/HolterLab'));
+const HolterDetail = lazyLoad(() => import('@/components/labs/HolterLab/HolterDetail'));
+const PodLab = lazyLoad(() => import('@/components/labs/PodLab'));
+// Comment out the problematic import
+// const PodDetail = lazyLoad(() => import('@/components/labs/PodLab/PodDetail'));
+const DataLab = lazyLoad(() => import('@/components/labs/DataLab'));
+const ECGViewerPage = lazyLoad(() => import('@/components/shared/ecg/ECGViewerPage'));
+const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
+const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
+
+// Wrap component in suspense and auth
+const wrapComponent = (Component: React.ReactNode, requiresAuth = true) => {
+  const wrapped = <Suspense fallback={<LoadingSpinner />}>{Component}</Suspense>;
+  return requiresAuth ? <AuthGuard>{wrapped}</AuthGuard> : wrapped;
+};
+
+// Auth routes
 const authRoutes: AppRoute[] = [
   {
     path: '/login',
@@ -48,15 +44,9 @@ const authRoutes: AppRoute[] = [
   }
 ];
 
-// Wrap component in suspense and auth guard if needed
-const wrapComponent = (Component: React.ReactNode, requiresAuth: boolean = true) => {
-  const wrapped = <Suspense fallback={<LoadingSpinner />}>{Component}</Suspense>;
-  return requiresAuth ? <AuthGuard>{wrapped}</AuthGuard> : wrapped;
-};
-
-// Lab routes with nested structure
+// Main routes
 const labRoutes: AppRoute[] = [
-  // Dashboard home route
+  // Dashboard
   {
     path: '/',
     element: wrapComponent(<Dashboard />),
@@ -78,7 +68,7 @@ const labRoutes: AppRoute[] = [
     ]
   },
   
-  // Holter routes with ECG viewer as child
+  // Holter routes
   {
     path: '/holter',
     children: [
@@ -104,7 +94,17 @@ const labRoutes: AppRoute[] = [
   // Pod routes
   {
     path: '/pod',
-    element: wrapComponent(<PodLab />),
+    children: [
+      {
+        index: true,
+        element: wrapComponent(<PodLab />),
+      },
+      // Comment out the detailed route until component is fully available
+      /*{
+        path: ':podId',
+        element: wrapComponent(<PodDetail />),
+      }*/
+    ],
     label: 'Pod',
   },
   
@@ -115,20 +115,7 @@ const labRoutes: AppRoute[] = [
     label: 'Data',
   },
   
-  // ECG Study List and Viewer routes
-  {
-    path: '/ecg-studies',
-    element: wrapComponent(<StudyList />),
-    label: 'ECG Studies',
-  },
-  
-  // New ECG Viewer Container route
-  {
-    path: '/ecg-viewer/:podId',
-    element: wrapComponent(<ECGViewerContainer />),
-  },
-  
-  // Legacy Standalone ECG Viewer route
+  // Legacy ECG Viewer
   {
     path: '/ecg/:studyId',
     element: wrapComponent(
@@ -137,18 +124,9 @@ const labRoutes: AppRoute[] = [
       </TimeRangeProvider>
     ),
   },
-  {
-    path: "/edge-test",
-    element: wrapComponent(<ECGTestComponent />, true),
-  },
-  // Debug route
-  {
-    path: "/debug",
-    element: wrapComponent(<DebugSupabaseClient />, true),
-  },
 ];
 
-// Create router with root layout
+// Create and export the router
 export const router = createBrowserRouter([
   {
     path: '/',

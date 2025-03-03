@@ -80,12 +80,12 @@ export interface ECGVisualizationProps {
  */
 export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   podId,
-  timeStart,
-  timeEnd,
-  channel = 0,
+  timeStart: initialTimeStart,
+  timeEnd: initialTimeEnd,
+  channel = 1,
   width = 800,
   height = 400,
-  showControls = true, 
+  showControls = true,
   colorBlindMode = false,
   downsamplingFactor,
   maxPoints = 2000,
@@ -93,19 +93,25 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   onError,
   debug = false
 }) => {
+  // Add internal state for time range management
+  const [currentTimeStart, setCurrentTimeStart] = useState(initialTimeStart);
+  const [currentTimeEnd, setCurrentTimeEnd] = useState(initialTimeEnd);
   const [showDiagnostics, setShowDiagnostics] = useState(debug);
+  const [activeChannel, setActiveChannel] = useState<1 | 2 | 3>(channel as 1 | 2 | 3);
+  const [autoScroll, setAutoScroll] = useState(false);
+  const [quickPresetMinutes, setQuickPresetMinutes] = useState(5);
   
   // Validate inputs before making the request
-  const validationError = validateInputs(podId, timeStart, timeEnd);
+  const validationError = validateInputs(podId, currentTimeStart, currentTimeEnd);
   
   // Calculate auto downsampling factor based on time range if not provided
-  const calculatedFactor = downsamplingFactor || calculateDownsamplingFactor(timeStart, timeEnd);
+  const calculatedFactor = downsamplingFactor || calculateDownsamplingFactor(currentTimeStart, currentTimeEnd);
   
   // Fetch ECG data
   const { data, loading, error, refetch, metrics } = useECGData(
     podId,
-    timeStart,
-    timeEnd, 
+    currentTimeStart,
+    currentTimeEnd,
     {
       downsamplingFactor: calculatedFactor,
       maxPoints,
@@ -118,6 +124,38 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
     }
   );
   
+  // Initialize with props values
+  useEffect(() => {
+    setCurrentTimeStart(initialTimeStart);
+    setCurrentTimeEnd(initialTimeEnd);
+  }, [initialTimeStart, initialTimeEnd]);
+  
+  // Auto-refresh data when continuous scrolling is enabled
+  useEffect(() => {
+    let intervalId: number | null = null;
+    
+    if (autoScroll && !loading && !error) {
+      intervalId = window.setInterval(() => {
+        const now = new Date();
+        const newEndTime = now.toISOString();
+        const newStartTime = new Date(now.getTime() - quickPresetMinutes * 60 * 1000).toISOString();
+        
+        // Update time range state
+        setCurrentTimeStart(newStartTime);
+        setCurrentTimeEnd(newEndTime);
+        
+        // Refetch will now use the updated time range
+        refetch();
+      }, 5000); // Update every 5 seconds
+    }
+    
+    return () => {
+      if (intervalId !== null) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [autoScroll, loading, error, refetch, quickPresetMinutes]);
+  
   // Call onError if validation fails
   useEffect(() => {
     if (validationError && onError) {
@@ -128,6 +166,30 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   // Toggle diagnostics panel
   const toggleDiagnostics = () => {
     setShowDiagnostics(!showDiagnostics);
+  };
+  
+  // Apply a time quick preset
+  const applyQuickPreset = (minutes: number) => {
+    setQuickPresetMinutes(minutes);
+    
+    // Calculate new time range based on the preset
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - minutes * 60 * 1000);
+    
+    const newEndTime = endTime.toISOString();
+    const newStartTime = startTime.toISOString();
+    
+    // Update state with new time range
+    setCurrentTimeStart(newStartTime);
+    setCurrentTimeEnd(newEndTime);
+    
+    // Trigger refetch with the new time range
+    refetch();
+  };
+  
+  // Handle channel selection
+  const changeChannel = (newChannel: 1 | 2 | 3) => {
+    setActiveChannel(newChannel);
   };
   
   // If we have a validation error, show that instead of making the request
@@ -210,49 +272,187 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
     );
   }
   
-  // Y-axis range (default values that work well for most ECG data)
-  const yMin = -1000;
-  const yMax = 1000;
+  // Y-axis range - adjusted to better display typical ECG values
+  const yMin = -5;
+  const yMax = 5;
   
   return (
-    <div className="relative">
-      {/* Main ECG Plot */}
-      <AdvancedECGPlot
-        pod_id={podId}
-        time_start={timeStart}
-        time_end={timeEnd}
-        channel={channel as 1 | 2 | 3}
-        width={width}
-        height={height}
-        colorBlindMode={colorBlindMode}
-        defaultYMin={yMin}
-        defaultYMax={yMax}
-      />
+    <div className="relative border border-gray-700/40 rounded-lg bg-gray-900/70 overflow-hidden shadow-lg">
+      {/* Top Control Bar with Quick Presets and Lead Selection */}
+      <div className="flex justify-between items-center bg-gray-800/70 px-3 py-2 border-b border-gray-700/40">
+        <div className="flex items-center space-x-3">
+          {/* Lead Selector */}
+          <div className="flex items-center bg-gray-900/50 rounded-md p-0.5">
+            <button
+              onClick={() => changeChannel(1)}
+              className={`px-2 py-1 text-xs rounded-sm font-medium transition-colors ${
+                activeChannel === 1
+                  ? 'bg-blue-500/40 text-blue-200'
+                  : 'hover:bg-white/5 text-gray-300'
+              }`}
+              aria-pressed={activeChannel === 1}
+            >
+              Lead I
+            </button>
+            <button
+              onClick={() => changeChannel(2)}
+              className={`px-2 py-1 text-xs rounded-sm font-medium transition-colors ${
+                activeChannel === 2
+                  ? 'bg-blue-500/40 text-blue-200'
+                  : 'hover:bg-white/5 text-gray-300'
+              }`}
+              aria-pressed={activeChannel === 2}
+            >
+              Lead II
+            </button>
+            <button
+              onClick={() => changeChannel(3)}
+              className={`px-2 py-1 text-xs rounded-sm font-medium transition-colors ${
+                activeChannel === 3
+                  ? 'bg-blue-500/40 text-blue-200'
+                  : 'hover:bg-white/5 text-gray-300'
+              }`}
+              aria-pressed={activeChannel === 3}
+            >
+              Lead III
+            </button>
+          </div>
+          
+          {/* Quick Time Presets */}
+          <div className="flex items-center">
+            <span className="text-xs text-gray-400 mr-2">Time window:</span>
+            <div className="flex items-center bg-gray-900/50 rounded-md p-0.5">
+              <button
+                onClick={() => applyQuickPreset(1)}
+                className={`px-2 py-1 text-xs rounded-sm transition-colors ${
+                  quickPresetMinutes === 1
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : 'hover:bg-white/5 text-gray-300'
+                }`}
+              >
+                1m
+              </button>
+              <button
+                onClick={() => applyQuickPreset(5)}
+                className={`px-2 py-1 text-xs rounded-sm transition-colors ${
+                  quickPresetMinutes === 5
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : 'hover:bg-white/5 text-gray-300'
+                }`}
+              >
+                5m
+              </button>
+              <button
+                onClick={() => applyQuickPreset(15)}
+                className={`px-2 py-1 text-xs rounded-sm transition-colors ${
+                  quickPresetMinutes === 15
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : 'hover:bg-white/5 text-gray-300'
+                }`}
+              >
+                15m
+              </button>
+              <button
+                onClick={() => applyQuickPreset(60)}
+                className={`px-2 py-1 text-xs rounded-sm transition-colors ${
+                  quickPresetMinutes === 60
+                    ? 'bg-emerald-500/30 text-emerald-200'
+                    : 'hover:bg-white/5 text-gray-300'
+                }`}
+              >
+                1h
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          {/* Auto-scroll Toggle */}
+          <button
+            onClick={() => setAutoScroll(!autoScroll)}
+            className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors ${
+              autoScroll
+                ? 'bg-purple-500/30 text-purple-200'
+                : 'bg-gray-900/50 hover:bg-white/5 text-gray-300'
+            }`}
+            aria-pressed={autoScroll}
+          >
+            <RefreshCw className="h-3 w-3" />
+            <span>Live View</span>
+          </button>
+          
+          {/* Debug toggle (if enabled) */}
+          {debug && (
+            <button
+              onClick={toggleDiagnostics}
+              className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-colors ${
+                showDiagnostics
+                  ? 'bg-amber-500/30 text-amber-200'
+                  : 'bg-gray-900/50 hover:bg-white/5 text-gray-300'
+              }`}
+            >
+              <Bug className="h-3 w-3" />
+              <span>Debug</span>
+            </button>
+          )}
+        </div>
+      </div>
       
-      {/* Debug toggle button */}
-      {debug && (
-        <button
-          onClick={toggleDiagnostics}
-          className="absolute top-2 right-2 bg-gray-800/80 hover:bg-gray-700/80 text-gray-300 p-1.5 rounded-md"
-          title="Toggle diagnostics"
-        >
-          <Bug className="h-4 w-4" />
-        </button>
-      )}
+      {/* Time Range Indicator */}
+      <div className="bg-gray-800/40 px-3 py-1 flex justify-between items-center text-xs text-gray-400 border-b border-gray-700/40">
+        <div>
+          From: <span className="text-gray-300">{new Date(currentTimeStart).toLocaleString()}</span>
+        </div>
+        <div>
+          To: <span className="text-gray-300">{new Date(currentTimeEnd).toLocaleString()}</span>
+        </div>
+        <div>
+          Duration: <span className="text-gray-300">{formatDuration(new Date(currentTimeStart), new Date(currentTimeEnd))}</span>
+        </div>
+      </div>
+      
+      {/* Main ECG Plot */}
+      <div className="p-3">
+        <AdvancedECGPlot
+          pod_id={podId}
+          time_start={currentTimeStart}
+          time_end={currentTimeEnd}
+          channel={activeChannel}
+          width={width}
+          height={height}
+          colorBlindMode={colorBlindMode}
+          defaultYMin={yMin}
+          defaultYMax={yMax}
+        />
+      </div>
       
       {/* Data metrics - only shown in debug mode */}
       {debug && (
-        <div className="absolute bottom-2 left-2 bg-black/40 backdrop-blur-sm text-xs text-gray-300 rounded px-2 py-1 flex items-center gap-2">
-          <ActivitySquare className="h-3 w-3 text-blue-400" />
-          <span>{data.length} points</span>
-          {metrics.queryDuration > 0 && (
-            <span className="text-gray-400">{Math.round(metrics.queryDuration)}ms</span>
+        <div className="bg-gray-800/70 px-3 py-2 border-t border-gray-700/40 text-xs text-gray-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ActivitySquare className="h-3 w-3 text-blue-400" />
+            <span>{data?.length || 0} data points</span>
+          </div>
+          {metrics?.queryDuration > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-gray-400">Query time: {Math.round(metrics.queryDuration)}ms</span>
+              <span className="text-gray-400">Downsampling: {calculatedFactor}x</span>
+            </div>
           )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 rounded-md"
+            >
+              <RefreshCw className="h-3 w-3" />
+              <span>Reload</span>
+            </button>
+          </div>
         </div>
       )}
       
       {/* Diagnostics panel */}
-      {showDiagnostics && <ECGDiagnosticsPanel 
+      {showDiagnostics && <ECGDiagnosticsPanel
         initiallyOpen={true}
         onClose={() => setShowDiagnostics(false)}
       />}
@@ -293,6 +493,28 @@ function validateInputs(podId: string, timeStart: string, timeEnd: string): stri
   }
   
   return null;
+}
+
+// Format duration between two dates into a readable string
+function formatDuration(start: Date, end: Date): string {
+  const durationMs = end.getTime() - start.getTime();
+  const seconds = Math.floor(durationMs / 1000);
+  
+  if (seconds < 60) {
+    return `${seconds} sec`;
+  }
+  
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  
+  if (minutes < 60) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+  
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  
+  return `${hours}h ${remainingMinutes}m`;
 }
 
 // Helper function to calculate appropriate downsampling factor based on time range

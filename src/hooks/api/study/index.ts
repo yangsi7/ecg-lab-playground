@@ -1,6 +1,3 @@
-export { useStudyList } from './useStudyList';
-export type { UseStudyListParams, UseStudyListResult } from './useStudyList';
-
 export { useSingleStudy } from './useSingleStudy';
 
 export { useStudyDiagnostics } from './useStudyDiagnostics';

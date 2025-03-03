@@ -1,5 +1,5 @@
-/// <reference types="vitest" />
-/// <reference types="vite/client" />
+import type {} from 'vitest'
+import type {} from 'vite/client'
 import '@testing-library/jest-dom'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -322,4 +322,4 @@ describe('MainECGViewer Integration', () => {
 
     expect(defaultProps.onClose).toHaveBeenCalled()
   })
-}) 
+})

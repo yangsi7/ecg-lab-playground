@@ -16,28 +16,31 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
   // Only fetch when we have at least 3 characters for search or a valid clinicId
   const shouldFetch = search.length >= 3 || !!clinicId;
   
-  // Create empty default values for when we're not fetching
+  // Create empty default result for when we're not fetching
   const defaultResult = {
     data: [] as StudiesWithTimesRow[],
     totalCount: 0,
     loading: false,
     error: null,
-    hasMore: false
+    hasMore: false,
+    page: 0,
+    pageSize: 0,
+    refetch: () => Promise.resolve()
   };
   
-  // Only call the hook when shouldFetch is true
-  const result = shouldFetch
-    ? useStudiesWithTimes({
-        search,
-        page,
-        pageSize,
-        // We'll handle clinicId in the component logic instead of passing it directly
-      })
-    : defaultResult;
-    
+  // Always call the hook, but ignore the result if we shouldn't fetch
+  const hookResult = useStudiesWithTimes({
+    search,
+    page,
+    pageSize,
+  });
+  
+  // Use the hook result only if shouldFetch is true
+  const result = shouldFetch ? hookResult : defaultResult;
+  
   const { data: studies, totalCount, loading, error, hasMore } = result;
   
-  // Filter studies by clinicId if needed (since we can't pass it directly to the hook)
+  // Filter studies by clinicId if needed
   const filteredStudies = shouldFetch && clinicId && studies.length > 0
     ? studies.filter(study => study.clinic_id === clinicId)
     : studies;
@@ -125,34 +128,46 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
                 </td>
               </tr>
             ) : (
-              filteredStudies.map((study) => (
-                <tr key={study.study_id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{study.study_id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{study.user_id || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{study.pod_id}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {study.start_timestamp ? new Date(study.start_timestamp).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      study.pod_status === 'active' ? 'bg-green-100 text-green-800' :
-                      study.pod_status === 'error' ? 'bg-red-100 text-red-800' :
-                      study.pod_status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {study.pod_status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {study.duration ? `${study.duration.toFixed(1)} hrs` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {study.aggregated_quality_minutes && study.aggregated_total_minutes ? 
-                      `${((study.aggregated_quality_minutes / study.aggregated_total_minutes) * 100).toFixed(1)}%` : 
-                      'N/A'}
-                  </td>
-                </tr>
-              ))
+              filteredStudies.map((study) => {
+                // Safe access to potentially missing properties
+                const startDate = study.start_timestamp || study.created_at || 'N/A';
+                const statusDisplay = 'pod_status' in study 
+                  ? study.pod_status 
+                  : ('status' in study ? study.status : 'unknown');
+                const statusClass = 
+                  statusDisplay === 'active' ? 'bg-green-100 text-green-800' :
+                  statusDisplay === 'error' ? 'bg-red-100 text-red-800' :
+                  statusDisplay === 'completed' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800';
+                  
+                return (
+                  <tr key={study.study_id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{study.study_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{study.user_id || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{study.pod_id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {typeof startDate === 'string' ? new Date(startDate).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 text-xs rounded-full ${statusClass}`}>
+                        {statusDisplay}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {study.aggregated_total_minutes 
+                        ? `${(study.aggregated_total_minutes / 60).toFixed(1)} hrs` 
+                        : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {study.quality_fraction !== undefined
+                        ? `${(study.quality_fraction * 100).toFixed(1)}%` 
+                        : study.aggregated_quality_minutes && study.aggregated_total_minutes 
+                          ? `${((study.aggregated_quality_minutes / study.aggregated_total_minutes) * 100).toFixed(1)}%` 
+                          : 'N/A'}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -218,4 +233,4 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
       </div>
     </div>
   );
-} 
+}

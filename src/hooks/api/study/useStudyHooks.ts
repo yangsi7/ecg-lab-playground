@@ -249,7 +249,7 @@ export function createStudyHook<T>(
           }
           
           // Apply client-side sorting if needed
-          let processedData = Array.isArray(dataArray) ? [...dataArray] : [];
+          const processedData = Array.isArray(dataArray) ? [...dataArray] : [];
           
           if (sortBy && processedData.length > 0 && sortBy in processedData[0]) {
             processedData.sort((a, b) => {
@@ -471,4 +471,4 @@ export function useStudyDetails(studyId: string | null) {
     enabled: !!studyId,
     staleTime: 60000 // 1 minute
   });
-} 
+}
