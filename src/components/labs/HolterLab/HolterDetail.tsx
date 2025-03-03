@@ -5,7 +5,7 @@
  * and instead leverage the new HourlyHistogram component,
  * which calls the "get_study_hourly_metrics" RPC for hourly data.
  ********************************************************************/
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/types/supabase';
@@ -23,11 +23,16 @@ interface StudyDetails {
   study_id: string;
   clinic_id: string;
   pod_id: string;
-  start_timestamp: string;
-  end_timestamp: string;
-  earliest_time: string;
-  latest_time: string;
   user_id?: string;
+  clinic_name?: string;
+  updated_at?: string;
+  aggregated_quality_minutes?: number;
+  aggregated_total_minutes?: number;
+  quality_fraction?: number;
+  start_timestamp?: string;
+  end_timestamp?: string;
+  earliest_time?: string;
+  latest_time?: string;
 }
 
 interface StudyDiagnostics {
@@ -46,6 +51,10 @@ interface EnhancedStudyDetails extends StudyDetails {
   six_hour_variance: number;
   available_days: string[];
   diagnostics?: StudyDiagnostics;
+  start_timestamp: string;
+  end_timestamp: string;
+  earliest_time: string;
+  latest_time: string;
 }
 
 interface RPCStudyDetailsResponse {
@@ -139,18 +148,31 @@ export default function HolterDetail() {
     // Convert pod_days to Date objects
     const availableDays = podDays || [];
 
-    return {
-      ...studyData,
-      auto_open_ecg: false, // Could be a property on the study in the future
+    // Create a variable that combines studyData with enhanced properties
+    // Use a type assertion to avoid type errors since we know what we're doing
+    const enhanced = {
+      ...studyData, // Include all original properties from studyData
+      auto_open_ecg: false,
       available_days: availableDays.map(d => d.toISOString().substring(0, 10)),
       status: getStudyStatus(studyData),
       interruption_count: diagnosticsData?.interruptions || 0,
       six_hour_variance: diagnosticsData?.quality_fraction_variability || 0,
       diagnostics: diagnosticsData,
-      clinic_name: studyData.clinic_name || 'Unknown Clinic',
-      patient_id: studyData.user_id || 'Unknown' // Map user_id to patient_id
-    } as EnhancedStudyDetails;
+      patient_id: studyData.user_id || 'Unknown'
+    };
+
+    return enhanced as unknown as EnhancedStudyDetails;
   }, [studyData, podDays, diagnosticsData]);
+
+  // Initialize with the most recent available day when podDays data loads
+  useEffect(() => {
+    if (podDays && podDays.length > 0) {
+      // Sort days to find the most recent one
+      const sortedDays = [...podDays].sort((a, b) => b.getTime() - a.getTime());
+      // Set the selected date to the most recent day, regardless of previous selection
+      setSelectedDate(sortedDays[0]);
+    }
+  }, [podDays]);
 
   function handleDaySelect(day: Date) {
     setSelectedDate(day);

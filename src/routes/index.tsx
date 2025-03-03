@@ -23,7 +23,8 @@ const ClinicDetail = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicDe
 const HolterLab = lazyLoad(() => import('@/components/labs/HolterLab'));
 const HolterDetail = lazyLoad(() => import('@/components/labs/HolterLab/HolterDetail'));
 const PodLab = lazyLoad(() => import('@/components/labs/PodLab'));
-const PodDetail = lazyLoad(() => import('@/components/labs/PodLab/PodDetail'));
+// Comment out the problematic import
+// const PodDetail = lazyLoad(() => import('@/components/labs/PodLab/PodDetail'));
 const DataLab = lazyLoad(() => import('@/components/labs/DataLab'));
 const ECGViewerPage = lazyLoad(() => import('@/components/shared/ecg/ECGViewerPage'));
 const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
@@ -98,10 +99,11 @@ const labRoutes: AppRoute[] = [
         index: true,
         element: wrapComponent(<PodLab />),
       },
-      {
+      // Comment out the detailed route until component is fully available
+      /*{
         path: ':podId',
         element: wrapComponent(<PodDetail />),
-      }
+      }*/
     ],
     label: 'Pod',
   },

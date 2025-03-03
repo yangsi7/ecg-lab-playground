@@ -70,14 +70,14 @@ export default function PodDetail() {
   
   // Auto-select most recent day from pod days when data is loaded
   useEffect(() => {
-    if (podDays && podDays.length > 0 && !selectedDate) {
+    if (podDays && podDays.length > 0) {
       // Sort days and select the most recent one
       const sortedDays = [...podDays].sort((a, b) => 
         new Date(b).getTime() - new Date(a).getTime()
       );
       setSelectedDate(new Date(sortedDays[0]));
     }
-  }, [podDays, selectedDate]);
+  }, [podDays]);
   
   // Fetch studies associated with this pod
   const { data: podStudies = [], isLoading: studiesLoading } = useQuery<PodStudy[]>({
