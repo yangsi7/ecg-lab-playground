@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ChevronLeft, Calendar, Clock } from 'lucide-react';
+import { 
+  ChevronLeft, Calendar, Clock, Heart, 
+  Activity, Maximize, Minimize, BarChart 
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { usePodDays } from '@/hooks/api/pod/usePodDays';
 import { useECGAggregates } from '@/hooks/api/ecg/useECGAggregates';
@@ -30,14 +33,8 @@ export default function ECGViewerContainer() {
   // Fetch available days for this pod
   const { data: availableDays, isLoading: daysLoading } = usePodDays(podId || null);
 
-  // Set initial day to the most recent day with data
-  useEffect(() => {
-    if (availableDays && availableDays.length > 0 && !selectedDay) {
-      // Sort days in descending order and pick the most recent one
-      const sortedDays = [...availableDays].sort((a, b) => b.getTime() - a.getTime());
-      setSelectedDay(sortedDays[0]);
-    }
-  }, [availableDays, selectedDay]);
+  // The CalendarSelector component now handles setting the initial day to the most recent day
+  // We don't need this effect anymore as it's handled by the CalendarSelector
 
   // Prepare time range for the selected day (full day by default)
   useEffect(() => {
@@ -105,26 +102,42 @@ export default function ECGViewerContainer() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow">
         <div className="flex items-center gap-3">
-          <Link to="/" className="flex items-center gap-1 text-blue-600 hover:text-blue-800">
+          <Link to="/" className="flex items-center gap-1 text-blue-600 hover:text-blue-800 transition-colors">
             <ChevronLeft size={16} />
-            Back to Studies
+            <span className="font-medium">Back to Studies</span>
           </Link>
-          <h1 className="text-2xl font-bold">ECG Viewer - Pod {podId}</h1>
+          <h1 className="text-2xl font-bold text-gray-800">ECG Viewer <span className="text-blue-600">Pod {podId}</span></h1>
         </div>
         
-        <button
-          onClick={() => setShowDiagnostics(!showDiagnostics)}
-          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded text-sm"
-        >
-          {showDiagnostics ? 'Hide Diagnostics' : 'Show Diagnostics'}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowDiagnostics(!showDiagnostics)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+              showDiagnostics 
+                ? 'bg-purple-100 text-purple-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title={showDiagnostics ? "Hide diagnostics panel" : "Show diagnostics panel"}
+          >
+            {showDiagnostics ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+            {showDiagnostics ? 'Hide Diagnostics' : 'Show Diagnostics'}
+          </button>
+          <button
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 
+                     rounded-lg font-medium transition-colors"
+            title="View ECG Analytics"
+          >
+            <BarChart className="h-4 w-4" />
+            Analytics
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Calendar Section */}
-        <div className="bg-white p-4 rounded-lg shadow">
+        <div className="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <Calendar size={18} className="text-blue-600" />
             <h2 className="text-lg font-medium">Select Date</h2>
@@ -150,7 +163,7 @@ export default function ECGViewerContainer() {
         </div>
         
         {/* Timeline Section */}
-        <div className="lg:col-span-2 bg-white p-4 rounded-lg shadow">
+        <div className="lg:col-span-2 bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow">
           <div className="flex items-center gap-2 mb-4">
             <Clock size={18} className="text-blue-600" />
             <h2 className="text-lg font-medium">Select Time Window</h2>
@@ -192,7 +205,7 @@ export default function ECGViewerContainer() {
       
       {/* Main ECG Viewer */}
       {viewerOpen && timeRange && (
-        <div className="bg-gray-900 rounded-lg shadow-lg p-4">
+        <div className="bg-gray-900 rounded-lg shadow-lg p-4 border border-gray-800">
           <MainECGViewer
             podId={podId || ''}
             timeStart={timeRange.start}
@@ -204,11 +217,26 @@ export default function ECGViewerContainer() {
       
       {/* Diagnostics Panel */}
       {showDiagnostics && (
-        <ECGDiagnosticsPanel
-          initiallyOpen={true}
-          onClose={() => setShowDiagnostics(false)}
-        />
+        <div className="bg-white p-4 rounded-lg shadow-lg border border-purple-100">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-purple-600" />
+              <h2 className="text-lg font-medium text-gray-800">ECG Diagnostics</h2>
+            </div>
+            <button
+              onClick={() => setShowDiagnostics(false)}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              aria-label="Close diagnostics"
+            >
+              <Minimize className="h-5 w-5 text-gray-500" />
+            </button>
+          </div>
+          <ECGDiagnosticsPanel
+            initiallyOpen={true}
+            onClose={() => setShowDiagnostics(false)}
+          />
+        </div>
       )}
     </div>
   );
-} 
+}

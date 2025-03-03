@@ -380,6 +380,8 @@ export type Database = {
       ecg_days_summary: {
         Row: {
           day_value: string | null
+          earliest_timestamp: string | null
+          latest_timestamp: string | null
           pod_id: string | null
           sample_count: number | null
         }

@@ -1,5 +1,5 @@
 /**
- * FILE: src/hooks/api/ecg/useChunkedECG.ts
+ * FILE: src/hooks/api/ecg/useECG.ts
  * 
  * Hook for efficient ECG data loading from the downsample-ecg edge function.
  * Integrates with React Query for caching and handles the parallel array format
@@ -7,6 +7,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/lib/logger';
+import type { ECGData } from '@/types/domain/ecg';
 
 // Define the sample structure expected by the application
 export interface ECGSample {
@@ -80,7 +81,7 @@ interface ParallelArrayECGData {
  * Hook for loading ECG data directly from the downsample-ecg edge function
  * Returns data in the same format as the previous useChunkedECG for backward compatibility
  */
-export function useChunkedECG({
+export function useECG({
   pod_id,
   time_start,
   time_end,
@@ -97,7 +98,7 @@ export function useChunkedECG({
   } = useQuery({
     queryKey,
     queryFn: async () => {
-      logger.info("[useChunkedECG] Fetching ECG data from edge function", {
+      logger.info("[useECG] Fetching ECG data from edge function", {
         pod_id, time_start, time_end, factor
       });
 
@@ -108,7 +109,9 @@ export function useChunkedECG({
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'x-client-info': 'ecg-lab-app',
+            'x-application-name': 'ecg-lab'
           },
           body: JSON.stringify({
             pod_id,
@@ -165,7 +168,7 @@ export function useChunkedECG({
         
         return [chunk];
       } catch (err) {
-        logger.error("[useChunkedECG] Error fetching ECG data", { error: err });
+        logger.error("[useECG] Error fetching ECG data", { error: err });
         throw err;
       }
     },
@@ -187,7 +190,7 @@ export function useChunkedECG({
  * Hook for loading ECG diagnostics with React Query.
  * Uses the get_ecg_diagnostics RPC function.
  */
-export function useChunkedECGDiagnostics({
+export function useECGDiagnostics({
   pod_id,
   time_start,
   time_end,
@@ -203,7 +206,7 @@ export function useChunkedECGDiagnostics({
   } = useQuery<ECGDiagnosticChunk[], Error>({
     queryKey,
     queryFn: async () => {
-      logger.info("[useChunkedECGDiagnostics] Fetching diagnostics", {
+      logger.info("[useECGDiagnostics] Fetching diagnostics", {
         pod_id, time_start, time_end
       });
 
@@ -214,7 +217,9 @@ export function useChunkedECGDiagnostics({
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'x-client-info': 'ecg-lab-app',
+            'x-application-name': 'ecg-lab'
           },
           body: JSON.stringify({
             pod_id,
@@ -237,7 +242,7 @@ export function useChunkedECGDiagnostics({
           }
         ] as ECGDiagnosticChunk[];
       } catch (err) {
-        logger.error("[useChunkedECGDiagnostics] Error fetching diagnostics", { error: err });
+        logger.error("[useECGDiagnostics] Error fetching diagnostics", { error: err });
         throw err;
       }
     },
@@ -251,4 +256,4 @@ export function useChunkedECGDiagnostics({
     isLoading: status === 'pending',
     error: error?.message ?? null
   };
-} 
+}

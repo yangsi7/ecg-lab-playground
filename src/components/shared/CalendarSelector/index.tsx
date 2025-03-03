@@ -44,17 +44,34 @@ export function CalendarSelector({
     availableDays.map(d => formatLocalDate(d))
   );
 
+  // Initialize with the most recent available day
   useEffect(() => {
-    if (availableDays.length && !currentDate) {
-      // Default to latest available day
-      const latest = availableDays[availableDays.length - 1];
+    // Only run this effect when availableDays changes or on initial mount
+    if (availableDays.length) {
+      // Sort available days to ensure we get the most recent one
+      const sortedDays = [...availableDays].sort((a, b) => {
+        const dateA = typeof a === 'string' ? new Date(a.split('T')[0]) : a;
+        const dateB = typeof b === 'string' ? new Date(b.split('T')[0]) : b;
+        return dateB.getTime() - dateA.getTime(); // Sort in descending order (newest first)
+      });
+      
+      // Get the most recent day
+      const latest = sortedDays[0];
       const latestDate = typeof latest === 'string' ? new Date(latest.split('T')[0]) : latest;
-      setCurrentDate(latestDate);
+      
+      // Force the view to show the month containing the latest date
       setViewMonth(new Date(latestDate.getFullYear(), latestDate.getMonth(), 1));
-      onSelectDay(latestDate);
+      
+      // If no date is selected yet, select the latest available date
+      if (!selectedDate && !currentDate) {
+        console.log('Setting initial date to latest:', latestDate);
+        setCurrentDate(latestDate);
+        onSelectDay(latestDate);
+      }
     }
-  }, [availableDays, currentDate, onSelectDay]);
+  }, [availableDays]); // Only depend on availableDays to prevent re-runs
 
+  // Update when selectedDate changes externally
   useEffect(() => {
     if (selectedDate) {
       setCurrentDate(selectedDate);
@@ -167,4 +184,4 @@ export function CalendarSelector({
       </div>
     </div>
   );
-} 
+}

@@ -14,8 +14,6 @@ const lazyLoad = (importFunc: () => Promise<{ default: ComponentType<any> }>) =>
 const Dashboard = lazyLoad(() => import('@/components/Dashboard'));
 const DataLab = lazyLoad(() => import('@/components/labs/DataLab'));
 const ClinicLab = lazyLoad(() => import('@/components/labs/ClinicLab'));
-// For components that don't export default, use a different pattern
-const ClinicList = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicList'));
 const ClinicDetail = lazyLoad(() => import('@/components/labs/ClinicLab/ClinicDetail'));
 // Use explicit file path for HolterLab to avoid confusion with index.ts
 const HolterLab = lazyLoad(() => import('@/components/labs/HolterLab'));
@@ -26,8 +24,12 @@ const LoginPage = lazyLoad(() => import('@/components/auth/LoginPage'));
 const ECGTestComponent = lazyLoad(() => import('@/components/shared/ecg/ECGTestComponent'));
 // Create the ErrorPage component
 const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
-// Debug component
-const DebugSupabaseClient = lazyLoad(() => import('@/components/shared/DebugSupabaseClient'));
+// Debug component - using a different pattern for named exports
+const DebugSupabaseClient = lazy(() => 
+  import('@/components/shared/DebugSupabaseClient').then(module => ({ 
+    default: module.DebugSupabaseClient 
+  }))
+);
 // New ECG Components
 const ECGViewerContainer = lazyLoad(() => import('@/components/ECGViewerContainer'));
 const StudyList = lazyLoad(() => import('@/components/StudyList'));
@@ -67,10 +69,6 @@ const labRoutes: AppRoute[] = [
     children: [
       {
         index: true,
-        element: wrapComponent(<ClinicList />),
-      },
-      {
-        path: 'analytics',
         element: wrapComponent(<ClinicLab />),
       },
       {
@@ -161,4 +159,4 @@ export const router = createBrowserRouter([
       ...labRoutes
     ],
   },
-]); 
+]);

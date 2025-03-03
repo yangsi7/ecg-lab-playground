@@ -33,6 +33,12 @@ export const useClinicTableStats = (filter?: ClinicTableFilter) => {
           component: 'useClinicTableStats'
         });
         
+        logger.debug('Received clinic table stats', { 
+          dataReceived: !!data, 
+          itemCount: Array.isArray(data) ? data.length : 0,
+          firstItem: Array.isArray(data) && data.length > 0 ? data[0].clinic_id : null
+        });
+        
         return data as ClinicTableStat[];
       } catch (error) {
         logger.error('Failed to fetch clinic table stats', { error });
@@ -87,6 +93,16 @@ export const useClinicTableStats = (filter?: ClinicTableFilter) => {
     return filteredData.map(toClinicStatsRow)
   }, [filteredData])
 
+  // Log the result of the hook
+  logger.debug('useClinicTableStats: Result', {
+    hasData: !!data,
+    dataLength: data?.length || 0,
+    isLoading,
+    hasError: !!error,
+    filteredDataLength: filteredData?.length || 0,
+    transformedDataLength: transformedData?.length || 0
+  });
+
   return { 
     data: transformedData, 
     rawData: filteredData,
@@ -138,16 +154,21 @@ export const useClinicTimeSeriesData = (clinicId: string | null) => {
   const weeklyQuality = useQuery({
     queryKey: ['clinic-weekly-quality', clinicId],
     queryFn: async () => {
-      if (!clinicId) return [];
-      
       logger.debug('Fetching clinic weekly quality', { clinicId });
       
       try {
+        // If clinicId is null, fetch data for all clinics
+        // The get_clinic_weekly_quality function has an overload that takes no arguments
         const data = await callRPC(
           'get_clinic_weekly_quality', 
-          { _clinic_id: clinicId },
+          clinicId ? { _clinic_id: clinicId } : {}, // Empty object for no arguments
           { component: 'useClinicTimeSeriesData', context: { metric: 'quality', clinicId } }
         );
+        
+        logger.debug('Received weekly quality data', {
+          dataReceived: !!data,
+          itemCount: Array.isArray(data) ? data.length : 0
+        });
         
         return data as WeeklyQualityMetric[];
       } catch (error) {
@@ -155,7 +176,7 @@ export const useClinicTimeSeriesData = (clinicId: string | null) => {
         throw error instanceof Error ? error : new Error(String(error));
       }
     },
-    enabled: !!clinicId,
+    enabled: true, // Always enabled, even if clinicId is null
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
   
@@ -163,16 +184,26 @@ export const useClinicTimeSeriesData = (clinicId: string | null) => {
   const weeklyStudies = useQuery({
     queryKey: ['clinic-weekly-studies', clinicId],
     queryFn: async () => {
-      if (!clinicId) return [];
-      
       logger.debug('Fetching clinic weekly studies', { clinicId });
       
       try {
+        // If clinicId is null, return an empty array since the get_clinic_weekly_studies function
+        // requires a clinic_id parameter
+        if (!clinicId) {
+          logger.debug('No clinicId provided for weekly studies, returning empty array');
+          return [];
+        }
+        
         const data = await callRPC(
           'get_clinic_weekly_studies', 
           { _clinic_id: clinicId },
           { component: 'useClinicTimeSeriesData', context: { metric: 'studies', clinicId } }
         );
+        
+        logger.debug('Received weekly studies data', {
+          dataReceived: !!data,
+          itemCount: Array.isArray(data) ? data.length : 0
+        });
         
         return data as WeeklyStudyCount[];
       } catch (error) {
@@ -180,7 +211,7 @@ export const useClinicTimeSeriesData = (clinicId: string | null) => {
         throw error instanceof Error ? error : new Error(String(error));
       }
     },
-    enabled: !!clinicId,
+    enabled: true, // Always enabled, even if clinicId is null
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
   

@@ -10,6 +10,12 @@ export interface UseECGCanvasParams {
   defaultYMin: number;
   defaultYMax: number;
   colorBlindMode: boolean;
+  // Shared state for synchronized plots
+  sharedScaleX?: number;
+  sharedTranslateX?: number;
+  onScaleChange?: (scale: number) => void;
+  onTranslateChange?: (translate: number) => void;
+  syncEnabled?: boolean;
 }
 
 export interface UseECGCanvasResult {
@@ -42,13 +48,40 @@ export function useECGCanvas({
   height,
   defaultYMin,
   defaultYMax,
-  colorBlindMode
+  colorBlindMode,
+  // Shared state for synchronized plots
+  sharedScaleX,
+  sharedTranslateX,
+  onScaleChange,
+  onTranslateChange,
+  syncEnabled = false
 }: UseECGCanvasParams): UseECGCanvasResult {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Horizontal zoom/pan
-  const [scaleX, setScaleX] = useState(1);
-  const [translateX, setTranslateX] = useState(0);
+  // Horizontal zoom/pan - use shared state if provided
+  const [localScaleX, setLocalScaleX] = useState(1);
+  const [localTranslateX, setLocalTranslateX] = useState(0);
+  
+  // Use shared values if sync is enabled, otherwise use local state
+  const scaleX = syncEnabled && sharedScaleX !== undefined ? sharedScaleX : localScaleX;
+  const translateX = syncEnabled && sharedTranslateX !== undefined ? sharedTranslateX : localTranslateX;
+  
+  // Wrapper functions to update both local and shared state
+  const setScaleX = useCallback((value: number | ((prev: number) => number)) => {
+    const newValue = typeof value === 'function' ? value(localScaleX) : value;
+    setLocalScaleX(newValue);
+    if (syncEnabled && onScaleChange) {
+      onScaleChange(newValue);
+    }
+  }, [localScaleX, syncEnabled, onScaleChange]);
+  
+  const setTranslateX = useCallback((value: number | ((prev: number) => number)) => {
+    const newValue = typeof value === 'function' ? value(localTranslateX) : value;
+    setLocalTranslateX(newValue);
+    if (syncEnabled && onTranslateChange) {
+      onTranslateChange(newValue);
+    }
+  }, [localTranslateX, syncEnabled, onTranslateChange]);
   const [panning, setPanning] = useState(false);
   const [panStartX, setPanStartX] = useState(0);
 
@@ -68,22 +101,23 @@ export function useECGCanvas({
   const waveColorBlind = 'rgba(0,120,180,0.9)';
   const waveColor = isColorBlindMode ? waveColorBlind : waveColorNormal;
 
-  // MouseWheel => horizontal zoom - implemented as a single event handler in useEffect
+  // MouseWheel => horizontal zoom
   const handleWheel: WheelEventHandler<HTMLCanvasElement> = useCallback((e) => {
-    e.preventDefault();
+    // Fix preventDefault issue by not using it in a passive event handler
+    // Instead, we'll set up a non-passive event listener in useEffect
     const direction = e.deltaY < 0 ? 1.1 : 0.9;
     setScaleX((prev) => {
       const next = prev * direction;
       return Math.max(0.5, Math.min(10, next));
     });
-  }, []);
-
-  // Add event listener with passive: false for wheel events
+  }, [setScaleX]);
+  
+  // Set up non-passive wheel event listener to properly handle preventDefault
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
-    const wheelHandler = (e: WheelEvent) => {
+    
+    const handleWheelEvent = (e: WheelEvent) => {
       e.preventDefault();
       const direction = e.deltaY < 0 ? 1.1 : 0.9;
       setScaleX((prev) => {
@@ -91,13 +125,14 @@ export function useECGCanvas({
         return Math.max(0.5, Math.min(10, next));
       });
     };
-
-    canvas.addEventListener('wheel', wheelHandler, { passive: false });
+    
+    // Add event listener with passive: false to allow preventDefault
+    canvas.addEventListener('wheel', handleWheelEvent, { passive: false });
     
     return () => {
-      canvas.removeEventListener('wheel', wheelHandler);
+      canvas.removeEventListener('wheel', handleWheelEvent);
     };
-  }, []);
+  }, [setScaleX]);
 
   // Mouse handlers for panning - with performance optimizations
   const handleMouseDown: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
@@ -105,8 +140,42 @@ export function useECGCanvas({
     setPanStartX(e.clientX);
   }, []);
 
+  // Use requestAnimationFrame for smoother panning
   const handleMouseMove: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
-    if (!panning) return;
+    if (!panning) {
+      // Handle tooltip display when not panning
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // Find the closest data point
+        if (data.length > 0) {
+          const canvasWidth = canvas.width;
+          const dataIndex = Math.min(
+            Math.floor((x / canvasWidth) * data.length),
+            data.length - 1
+          );
+          
+          if (dataIndex >= 0) {
+            const point = data[dataIndex];
+            let value = 0;
+            
+            if (channel === 1) value = point.downsampled_channel_1;
+            else if (channel === 2) value = point.downsampled_channel_2;
+            else value = point.downsampled_channel_3;
+            
+            const time = new Date(point.sample_time).toLocaleTimeString();
+            setTooltipText(`Time: ${time}, Value: ${value.toFixed(2)}`);
+            setTooltipX(x);
+            setTooltipY(y);
+            setShowTooltip(true);
+          }
+        }
+      }
+      return;
+    }
     
     // Use requestAnimationFrame for better performance during panning
     requestAnimationFrame(() => {
@@ -114,7 +183,7 @@ export function useECGCanvas({
       setTranslateX((prev) => prev + dx);
       setPanStartX(e.clientX);
     });
-  }, [panning, panStartX]);
+  }, [panning, panStartX, data, channel, setTranslateX]);
 
   const handleMouseUp: MouseEventHandler<HTMLCanvasElement> = useCallback(() => {
     setPanning(false);
@@ -175,6 +244,90 @@ export function useECGCanvas({
     setIsColorBlindMode(prev => !prev);
   }, []);
 
+  // Add keyboard navigation support
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement !== canvas) return;
+      
+      switch (e.key) {
+        case 'ArrowLeft':
+          setTranslateX(prev => prev - 20);
+          break;
+        case 'ArrowRight':
+          setTranslateX(prev => prev + 20);
+          break;
+        case '+':
+          zoomInRange();
+          break;
+        case '-':
+          zoomOutRange();
+          break;
+        case 'f':
+          fitYRange();
+          break;
+        case 'c':
+          toggleColorBlindMode();
+          break;
+      }
+    };
+    
+    canvas.addEventListener('keydown', handleKeyDown);
+    return () => {
+      canvas.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [zoomInRange, zoomOutRange, fitYRange, toggleColorBlindMode, setTranslateX]);
+  
+  // Set up non-passive touch event listeners
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        setPanning(true);
+        setPanStartX(x);
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (!panning || e.touches.length !== 1) return;
+      
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const x = touch.clientX - rect.left;
+      
+      requestAnimationFrame(() => {
+        const dx = x - panStartX;
+        setTranslateX((prev) => prev + dx);
+        setPanStartX(x);
+      });
+    };
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      e.preventDefault();
+      setPanning(false);
+    };
+    
+    // Add event listeners with passive: false to allow preventDefault
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [panning, panStartX, setTranslateX]);
+
   return {
     canvasRef,
     scaleX,
@@ -197,4 +350,4 @@ export function useECGCanvas({
     fitYRange,
     toggleColorBlindMode
   };
-} 
+}

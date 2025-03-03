@@ -1,9 +1,16 @@
 /**
 PHASE: Edge Function
-FILE: downsample-ecg/index.ts
+FILE: get-ecg-diagnostics/index.ts
 */
 import { createClient } from 'npm:@supabase/supabase-js@2.39.3';
 
+const corsHeaders = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name, x-supabase-client',
+    'Access-Control-Max-Age': '86400'
+}
 // Create a Supabase client using service role key and anon key for authorization
 const supabase = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
@@ -18,18 +25,11 @@ const supabase = createClient(
     }
 );
 
-const corsHeaders = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name, x-supabase-client',
-    'Access-Control-Max-Age': '86400'
-}
-interface DownsampleParams {
+interface DiagnosticsParams {
     pod_id: string;
     time_start: string;
     time_end: string;
-    factor?: number;
+    chunk_minutes?: number;
 }
 
 function extractUserIdFromToken(authHeader: string | null): string | null {
@@ -43,12 +43,12 @@ function extractUserIdFromToken(authHeader: string | null): string | null {
         const payload = JSON.parse(atob(parts[1]));
         return payload.sub || null;
     } catch (error) {
-        console.error("[downsample-ecg] Error extracting user ID from token:", error);
+        console.error("[get-ecg-diagnostics] Error extracting user ID from token:", error);
         return null;
     }
 }
 
-function validateParams(params: DownsampleParams): string | null {
+function validateParams(params: DiagnosticsParams): string | null {
     if (!params.pod_id) return "Missing required parameter: pod_id";
     if (!params.time_start) return "Missing required parameter: time_start";
     if (!params.time_end) return "Missing required parameter: time_end";
@@ -57,11 +57,23 @@ function validateParams(params: DownsampleParams): string | null {
     if (isNaN(start.getTime())) return "Invalid time_start format";
     if (isNaN(end.getTime())) return "Invalid time_end format";
     if (end <= start) return "time_end must be after time_start";
-    if (params.factor !== undefined) {
-        if (typeof params.factor !== 'number') return "factor must be a number";
-        if (params.factor < 1 || params.factor > 20) return "factor must be between 1 and 20";
+    if (params.chunk_minutes !== undefined) {
+        if (typeof params.chunk_minutes !== 'number') return "chunk_minutes must be a number";
+        if (params.chunk_minutes < 1) return "chunk_minutes must be positive";
     }
     return null;
+}
+
+function getOptimalChunkSize(start: Date, end: Date, requestedChunkMinutes?: number): number {
+    if (requestedChunkMinutes) return requestedChunkMinutes;
+    const HOUR_IN_MS = 60 * 60 * 1000;
+    const durationMs = end.getTime() - start.getTime();
+    const durationHours = durationMs / HOUR_IN_MS;
+    if (durationHours > 24) return 60;
+    if (durationHours > 12) return 30;
+    if (durationHours > 6) return 15;
+    if (durationHours > 1) return 10;
+    return 5;
 }
 
 Deno.serve(async (req: Request) => {
@@ -74,7 +86,7 @@ Deno.serve(async (req: Request) => {
     }
     
     const startTime = Date.now();
-    const functionName = "downsample_ecg"; // Always use downsample_ecg
+    const functionName = "get_ecg_diagnostics_chunked";
     let userId = extractUserIdFromToken(req.headers.get('Authorization'));
     
     try {
@@ -82,26 +94,32 @@ Deno.serve(async (req: Request) => {
             throw new Error("Method not allowed");
         }
         
-        const params: DownsampleParams = await req.json();
+        const params: DiagnosticsParams = await req.json();
         const validationError = validateParams(params);
         if (validationError) {
             throw new Error(validationError);
         }
         
-        const factor = params.factor ?? 4;
-        console.log("[downsample-ecg] Request:", {
+        const start = new Date(params.time_start);
+        const end = new Date(params.time_end);
+        
+        console.log("[get-ecg-diagnostics] Request:", {
             pod_id: params.pod_id,
             time_start: params.time_start,
             time_end: params.time_end,
-            factor: factor
+            chunk_minutes: params.chunk_minutes
         });
         
-        // Always use downsample_ecg function
+        // Calculate optimal chunk size
+        const chunkMinutes = getOptimalChunkSize(start, end, params.chunk_minutes);
+        console.log(`[get-ecg-diagnostics] Using ${chunkMinutes} minute chunks`);
+        
+        // Call the RPC function
         const { data, error } = await supabase.rpc(functionName, {
             p_pod_id: params.pod_id,
             p_time_start: params.time_start,
             p_time_end: params.time_end,
-            p_factor: factor
+            p_chunk_minutes: chunkMinutes
         });
         
         // Log the function call
@@ -115,19 +133,32 @@ Deno.serve(async (req: Request) => {
             });
             
         if (error) {
-            console.error(`[downsample-ecg] RPC error (${functionName}):`, error);
+            console.error(`[get-ecg-diagnostics] RPC error (${functionName}):`, error);
             throw error;
         }
         
-        return new Response(
-            JSON.stringify(data),
-            {
-                status: 200,
-                headers: corsHeaders
-            }
-        );
+        // Return the first chunk's metrics as the response
+        // This matches the expected format in useECGDiagnostics
+        if (data && data.length > 0) {
+            return new Response(
+                JSON.stringify(data[0].metrics),
+                {
+                    status: 200,
+                    headers: corsHeaders
+                }
+            );
+        } else {
+            // Return empty metrics if no data
+            return new Response(
+                JSON.stringify({}),
+                {
+                    status: 200,
+                    headers: corsHeaders
+                }
+            );
+        }
     } catch (err) {
-        console.error("[downsample-ecg] Error:", err);
+        console.error("[get-ecg-diagnostics] Error:", err);
         await supabase
             .from('edge_function_stats')
             .insert({

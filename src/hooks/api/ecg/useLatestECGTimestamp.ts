@@ -12,14 +12,14 @@ export function useLatestECGTimestamp(studyId: string | null) {
             if (!studyId) return null;
 
             try {
-                // If we have study details with latest_time, use it
-                if (studyDetails && studyDetails.latest_time) {
-                    return studyDetails.latest_time;
+                // If we have study details with latest_ecg_data, use it
+                if (studyDetails && studyDetails.latest_ecg_data) {
+                    return studyDetails.latest_ecg_data;
                 }
                 
                 // If we don't have the data, log a warning
                 if (!isLoading && !error) {
-                    logger.warn('Study found but no latest_time available', { studyId });
+                    logger.warn('Study found but no latest_ecg_data available', { studyId });
                 }
                 
                 return null;
@@ -31,4 +31,4 @@ export function useLatestECGTimestamp(studyId: string | null) {
         enabled: !!studyId && !isLoading,
         staleTime: 60000, // Consider data fresh for 1 minute
     });
-} 
+}

@@ -1,4 +1,4 @@
-import { useChunkedECG } from './useChunkedECG';
+import { useECG } from './useECG';
 import { useECGCanvas } from './useECGCanvas';
 import type { ECGData } from '@/types/domain/ecg';
 
@@ -13,7 +13,12 @@ interface UseAdvancedECGParams {
     defaultYMax?: number;
     colorBlindMode?: boolean;
     factor?: number;
-    chunk_minutes?: number;
+    // Synchronization props
+    sharedScaleX?: number;
+    sharedTranslateX?: number;
+    onScaleChange?: (scale: number) => void;
+    onTranslateChange?: (translate: number) => void;
+    syncEnabled?: boolean;
 }
 
 export function useAdvancedECG({
@@ -27,23 +32,25 @@ export function useAdvancedECG({
     defaultYMax = 50,
     colorBlindMode = false,
     factor = 4,
-    chunk_minutes = 5
+    // Synchronization props
+    sharedScaleX,
+    sharedTranslateX,
+    onScaleChange,
+    onTranslateChange,
+    syncEnabled = false
 }: UseAdvancedECGParams) {
-    // Fetch chunked ECG data
+    // Fetch ECG data using the new hook
     const {
         samples,
         chunks,
-        fetchNextPage,
-        hasNextPage,
-        isFetchingNextPage,
         isLoading,
-        error
-    } = useChunkedECG({
+        error,
+        refetch
+    } = useECG({
         pod_id,
         time_start,
         time_end,
         factor,
-        chunk_minutes,
         enabled: true
     });
 
@@ -72,7 +79,13 @@ export function useAdvancedECG({
         height,
         defaultYMin,
         defaultYMax,
-        colorBlindMode
+        colorBlindMode,
+        // Pass synchronization props
+        sharedScaleX,
+        sharedTranslateX,
+        onScaleChange,
+        onTranslateChange,
+        syncEnabled
     });
 
     return {
@@ -80,9 +93,7 @@ export function useAdvancedECG({
         data: ecgData,
         isLoading,
         error,
-        hasMoreData: hasNextPage,
-        isFetchingMore: isFetchingNextPage,
-        loadMoreData: fetchNextPage,
+        refetch,
         chunks
     };
-} 
+}

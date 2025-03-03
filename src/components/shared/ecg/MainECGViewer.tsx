@@ -1,12 +1,16 @@
 /**
- * FILE: src/components/labs/MainECGViewer.tsx
+ * FILE: src/components/shared/ecg/MainECGViewer.tsx
  * 
- * Uses chunked data loading with infinite scroll for efficient
- * ECG visualization. Enhanced with responsive design and diagnostics.
+ * Uses efficient data loading from the downsample-ecg edge function
+ * for ECG visualization. Enhanced with responsive design, diagnostics,
+ * and synchronized multi-lead viewing.
  */
-import React, { useEffect, useRef, useMemo } from 'react'
-import { X, AlertTriangle, Heart, Activity, Zap, ChevronDown, ChevronUp, Download } from 'lucide-react'
-import { useChunkedECG, useChunkedECGDiagnostics } from '../../../hooks/api/ecg/useChunkedECG'
+import React, { useEffect, useRef, useMemo, useState } from 'react'
+import { 
+    X, AlertTriangle, Heart, Activity, Zap, 
+    Download, Link, Link2Off, Maximize, Minimize 
+} from 'lucide-react'
+import { useECG, useECGDiagnostics } from '@/hooks/api/ecg'
 import { AdvancedECGPlot } from './AdvancedECGPlot'
 
 interface MainECGViewerProps {
@@ -23,14 +27,20 @@ export default function MainECGViewer({
     onClose
 }: MainECGViewerProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [showDiagnostics, setShowDiagnostics] = React.useState(true);
-
-    // Load ECG data in chunks
+    const [showDiagnostics, setShowDiagnostics] = useState(true);
+    
+    // Shared state for synchronized plots
+    const [syncEnabled, setSyncEnabled] = useState(true);
+    const [sharedScaleX, setSharedScaleX] = useState(1);
+    const [sharedTranslateX, setSharedTranslateX] = useState(0);
+    const [colorBlindMode, setColorBlindMode] = useState(false);
+    
+    // Load ECG data
     const {
         samples,
         isLoading: dataLoading,
         error: dataError
-    } = useChunkedECG({
+    } = useECG({
         pod_id: podId,
         time_start: timeStart,
         time_end: timeEnd,
@@ -42,7 +52,7 @@ export default function MainECGViewer({
         diagnostics,
         isLoading: diagLoading,
         error: diagError
-    } = useChunkedECGDiagnostics({
+    } = useECGDiagnostics({
         pod_id: podId,
         time_start: timeStart,
         time_end: timeEnd
@@ -145,6 +155,21 @@ export default function MainECGViewer({
         };
     }, [samples]);
 
+    // Toggle synchronization
+    const toggleSync = () => {
+        setSyncEnabled(prev => !prev);
+    };
+
+    // Toggle diagnostics panel
+    const toggleDiagnostics = () => {
+        setShowDiagnostics(prev => !prev);
+    };
+
+    // Toggle color blind mode for all plots
+    const toggleColorBlindMode = () => {
+        setColorBlindMode(prev => !prev);
+    };
+
     // Show loading state
     if (dataLoading || diagLoading) {
         return (
@@ -218,6 +243,30 @@ export default function MainECGViewer({
                     </div>
                     <div className="flex items-center gap-2">
                         <button
+                            onClick={toggleSync}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                                syncEnabled 
+                                    ? 'bg-blue-500/20 text-blue-300' 
+                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                            title={syncEnabled ? "Disable synchronized viewing" : "Enable synchronized viewing"}
+                        >
+                            {syncEnabled ? <Link className="h-4 w-4" /> : <Link2Off className="h-4 w-4" />}
+                            {syncEnabled ? 'Synced' : 'Unsynced'}
+                        </button>
+                        <button
+                            onClick={toggleDiagnostics}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                                showDiagnostics 
+                                    ? 'bg-purple-500/20 text-purple-300' 
+                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
+                            title={showDiagnostics ? "Hide diagnostics panel" : "Show diagnostics panel"}
+                        >
+                            {showDiagnostics ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+                            {showDiagnostics ? 'Hide Stats' : 'Show Stats'}
+                        </button>
+                        <button
                             onClick={handleDownloadECG}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 
                                      rounded-lg text-white font-medium transition-colors"
@@ -225,7 +274,7 @@ export default function MainECGViewer({
                             title="Download ECG data as CSV"
                         >
                             <Download className="h-4 w-4" />
-                            Download ECG
+                            Download
                         </button>
                         <button 
                             onClick={onClose} 
@@ -249,6 +298,13 @@ export default function MainECGViewer({
                             label="Lead I"
                             width={800}
                             height={200}
+                            colorBlindMode={colorBlindMode}
+                            // Synchronization props
+                            sharedScaleX={sharedScaleX}
+                            sharedTranslateX={sharedTranslateX}
+                            onScaleChange={setSharedScaleX}
+                            onTranslateChange={setSharedTranslateX}
+                            syncEnabled={syncEnabled}
                         />
                         <AdvancedECGPlot
                             pod_id={podId}
@@ -258,6 +314,13 @@ export default function MainECGViewer({
                             label="Lead II"
                             width={800}
                             height={200}
+                            colorBlindMode={colorBlindMode}
+                            // Synchronization props
+                            sharedScaleX={sharedScaleX}
+                            sharedTranslateX={sharedTranslateX}
+                            onScaleChange={setSharedScaleX}
+                            onTranslateChange={setSharedTranslateX}
+                            syncEnabled={syncEnabled}
                         />
                         <AdvancedECGPlot
                             pod_id={podId}
@@ -267,6 +330,13 @@ export default function MainECGViewer({
                             label="Lead III"
                             width={800}
                             height={200}
+                            colorBlindMode={colorBlindMode}
+                            // Synchronization props
+                            sharedScaleX={sharedScaleX}
+                            sharedTranslateX={sharedTranslateX}
+                            onScaleChange={setSharedScaleX}
+                            onTranslateChange={setSharedTranslateX}
+                            syncEnabled={syncEnabled}
                         />
                     </div>
 

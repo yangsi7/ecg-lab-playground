@@ -4,13 +4,14 @@
  */
 
 export * from './useECGCanvas';
-export * from './useChunkedECG';
+export * from './useECG';
 export * from './useECGAggregates';
 
+export { useAdvancedECG } from './useAdvancedECG';
 export { useECGAggregatorView } from './useECGAggregatorView';
 export { useECGTimeline } from './useECGTimeline';
 
-export type { TimeInterval } from './useECGAggregates';
+export type { TimeInterval } from '@/types/domain/ecg';
 export type { UseECGAggregatorViewParams, UseECGAggregatorViewResult } from './useECGAggregatorView';
 export type { UseECGCanvasParams, UseECGCanvasResult } from './useECGCanvas';
-export type { UseECGTimelineParams, UseECGTimelineResult } from './useECGTimeline'; 
+export type { UseECGTimelineParams, UseECGTimelineResult } from './useECGTimeline';
