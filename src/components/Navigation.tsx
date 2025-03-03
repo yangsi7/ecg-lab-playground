@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BarChart3, Users, Heart, Box, Activity, Home } from 'lucide-react';
+import { Users, Heart, Box, Activity, Home } from 'lucide-react';
 
 // Navigation configuration with structured routes
 const navConfig = [
@@ -37,13 +37,6 @@ const navConfig = [
     name: 'Data Lab', 
     icon: Activity,
     isActive: (path: string) => path.startsWith('/datalab'),
-  },
-  { 
-    id: 'ecg-studies', 
-    path: '/ecg-studies', 
-    name: 'ECG Studies', 
-    icon: Activity,
-    isActive: (path: string) => path.startsWith('/ecg-studies') || path.startsWith('/ecg-viewer'),
   },
 ];
 

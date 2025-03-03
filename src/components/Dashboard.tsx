@@ -4,8 +4,7 @@ import {
   Building2, 
   Heart, 
   Package, 
-  Database, 
-  BarChart3,
+  Database,
   ArrowRight
 } from 'lucide-react';
 
@@ -72,13 +71,6 @@ const Dashboard: React.FC = () => {
       icon: <Database className="h-6 w-6 text-emerald-400" />,
       linkTo: '/datalab',
       color: 'border-emerald-500/20'
-    },
-    {
-      title: 'Analytics',
-      description: 'View comprehensive analytics and insights across clinics and studies',
-      icon: <BarChart3 className="h-6 w-6 text-purple-400" />,
-      linkTo: '/clinic/analytics',
-      color: 'border-purple-500/20'
     }
   ];
 
