@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import './index.css';
 import { router } from './routes';
 import { useEffect, useState } from 'react';
+import { ToastProvider } from './components/ui/toast-provider';
 
 function App() {
   const [error, setError] = useState<Error | null>(null);
@@ -38,7 +39,7 @@ function App() {
   }
 
   return (
-    <>
+    <ToastProvider>
       {appLoaded && <RouterProvider router={router} />}
       {!appLoaded && (
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -48,7 +49,7 @@ function App() {
           </div>
         </div>
       )}
-    </>
+    </ToastProvider>
   );
 }
 

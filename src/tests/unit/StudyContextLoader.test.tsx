@@ -3,8 +3,8 @@
    and jest-dom matchers
    ================================================ */
 
-/// <reference types="vitest" />
-/// <reference types="vite/client" />
+import type {} from 'vitest'
+import type {} from 'vite/client'
 import '@testing-library/jest-dom'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'

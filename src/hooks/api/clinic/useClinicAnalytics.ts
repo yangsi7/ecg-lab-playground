@@ -1,5 +1,5 @@
 /**
- * src/hooks/api/clinic/useClinicAnalytics.ts
+ *src/hooks/api/clinic/useClinicAnalytics.ts
  *
  * Provides a single, streamlined approach to fetching various clinic-level stats from Supabase
  * via RPC functions. Uses the consolidated get_clinic_table_stats function for efficiency.
@@ -255,9 +255,31 @@ export function useClinicAnalytics(clinicId: string | null) {
                     critical_count: 0
                 };
 
-                // Include both the real data and the dummy data for testing
-                const statusBreakdowns = [statusBreakdown, dummyClinic];
-                const qualityBreakdowns = [qualityBreakdown, dummyQuality];
+                // Remove dummy data and map all clinic data
+                const statusBreakdowns = allClinicsData.map(clinic => ({
+                    clinic_id: clinic.clinic_id,
+                    clinic_name: clinic.clinic_name,
+                    total_studies: clinic.total_studies,
+                    open_studies: clinic.open_studies,
+                    closed: clinic.total_studies - clinic.open_studies,
+                    intervene_count: clinic.intervene_count,
+                    monitor_count: clinic.monitor_count,
+                    on_target_count: clinic.on_target_count,
+                    near_completion_count: clinic.near_completion_count,
+                    needs_extension_count: clinic.needs_extension_count
+                }));
+                
+                const qualityBreakdowns = allClinicsData.map(clinic => ({
+                    clinic_id: clinic.clinic_id,
+                    clinic_name: clinic.clinic_name,
+                    total_studies: clinic.total_studies,
+                    open_studies: clinic.open_studies,
+                    average_quality: clinic.average_quality,
+                    good_count: clinic.good_count,
+                    soso_count: clinic.soso_count,
+                    bad_count: clinic.bad_count,
+                    critical_count: clinic.critical_count
+                }));
 
                 return {
                     loading: false,

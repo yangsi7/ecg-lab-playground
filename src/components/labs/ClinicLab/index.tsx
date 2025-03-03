@@ -1,6 +1,6 @@
 /**
  * src/components/labs/ClinicLab.tsx
- * 
+ *
  * A dashboard for clinic-level stats.
  */
 
@@ -21,6 +21,7 @@ import {
   Bell
 } from 'lucide-react';
 import { SimpleBarChart } from '../../shared/charts/SimpleBarChart';
+import SparklineChart from './components/SparklineChart';
 import type {
   ClinicStatusBreakdown,
   ClinicQualityBreakdown
@@ -35,7 +36,7 @@ export default function ClinicLab() {
     isLoading: loading,
     error
   } = useClinicAnalytics(clinicId);
-  
+
   // Debug logging
   useEffect(() => {
     logger.debug('ClinicLab: Component state', {
@@ -58,7 +59,7 @@ export default function ClinicLab() {
   const [statusSortDir, setStatusSortDir] = useState<'asc' | 'desc'>('asc');
   const [qualitySortKey, setQualitySortKey] = useState<keyof ClinicQualityBreakdown | null>(null);
   const [qualitySortDir, setQualitySortDir] = useState<'asc' | 'desc'>('asc');
-  
+
   // Filter state
   const [filterValue, setFilterValue] = useState('');
 
@@ -71,7 +72,7 @@ export default function ClinicLab() {
     // Apply filter if it exists
     if (filterValue.trim() !== '') {
       const lowercaseFilter = filterValue.toLowerCase();
-      data = data.filter(row => 
+      data = data.filter(row =>
         row.clinic_name?.toLowerCase().includes(lowercaseFilter)
       );
     }
@@ -81,7 +82,7 @@ export default function ClinicLab() {
       data.sort((a, b) => {
         const aValue = a[statusSortKey] ?? 0;
         const bValue = b[statusSortKey] ?? 0;
-        return statusSortDir === 'asc' 
+        return statusSortDir === 'asc'
           ? (aValue < bValue ? -1 : aValue > bValue ? 1 : 0)
           : (aValue > bValue ? -1 : aValue < bValue ? 1 : 0);
       });
@@ -98,7 +99,7 @@ export default function ClinicLab() {
     // Apply filter if it exists
     if (filterValue.trim() !== '') {
       const lowercaseFilter = filterValue.toLowerCase();
-      data = data.filter(row => 
+      data = data.filter(row =>
         row.clinic_name?.toLowerCase().includes(lowercaseFilter)
       );
     }
@@ -120,7 +121,7 @@ export default function ClinicLab() {
   // Handle sorting for status table
   const handleStatusSort = (key: keyof ClinicStatusBreakdown) => {
     if (statusSortKey === key) {
-      setStatusSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+      setStatusSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setStatusSortKey(key);
       setStatusSortDir('asc');
@@ -130,7 +131,7 @@ export default function ClinicLab() {
   // Handle sorting for quality table
   const handleQualitySort = (key: keyof ClinicQualityBreakdown) => {
     if (qualitySortKey === key) {
-      setQualitySortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+      setQualitySortDir(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setQualitySortKey(key);
       setQualitySortDir('asc');
@@ -225,6 +226,7 @@ export default function ClinicLab() {
         </div>
       )}
 
+      {/* Overview Cards */}
       {shouldRenderContent && hasOverviewData && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Active Studies Card */}
@@ -232,9 +234,18 @@ export default function ClinicLab() {
             <div className="flex justify-between">
               <div>
                 <p className="text-gray-400 text-sm mb-1">Active Studies</p>
-                <h3 className="text-3xl font-bold text-white">{analytics?.overview?.active_studies}</h3>
+                <h3 className="text-3xl font-bold text-white">
+                  {analytics?.overview?.active_studies}
+                </h3>
                 <p className="text-blue-400 text-xs mt-2">
-                  {analytics?.overview ? Math.round((analytics.overview.active_studies / analytics.overview.total_studies) * 100) : 0}% of total
+                  {analytics?.overview
+                    ? Math.round(
+                        (analytics.overview.active_studies /
+                          analytics.overview.total_studies) *
+                          100
+                      )
+                    : 0}
+                  % of total
                 </p>
               </div>
               <div className="bg-blue-500/20 rounded-lg p-2 h-fit group-hover:bg-blue-500/30 transition-colors">
@@ -248,10 +259,10 @@ export default function ClinicLab() {
             <div className="flex justify-between">
               <div>
                 <p className="text-gray-400 text-sm mb-1">Total Studies</p>
-                <h3 className="text-3xl font-bold text-white">{analytics?.overview?.total_studies}</h3>
-                <p className="text-emerald-400 text-xs mt-2">
-                  Lifetime accumulated
-                </p>
+                <h3 className="text-3xl font-bold text-white">
+                  {analytics?.overview?.total_studies}
+                </h3>
+                <p className="text-emerald-400 text-xs mt-2">Lifetime accumulated</p>
               </div>
               <div className="bg-emerald-500/20 rounded-lg p-2 h-fit group-hover:bg-emerald-500/30 transition-colors">
                 <TrendingUp className="h-6 w-6 text-emerald-400" />
@@ -267,9 +278,7 @@ export default function ClinicLab() {
                 <h3 className="text-3xl font-bold text-white">
                   {analytics?.overview?.average_quality_hours.toFixed(1) || '0.0'}
                 </h3>
-                <p className="text-indigo-400 text-xs mt-2">
-                  Per active study
-                </p>
+                <p className="text-indigo-400 text-xs mt-2">Per active study</p>
               </div>
               <div className="bg-indigo-500/20 rounded-lg p-2 h-fit group-hover:bg-indigo-500/30 transition-colors">
                 <Clock className="h-6 w-6 text-indigo-400" />
@@ -285,9 +294,7 @@ export default function ClinicLab() {
                 <h3 className="text-3xl font-bold text-white">
                   {analytics?.overview?.recent_alerts?.length ?? 0}
                 </h3>
-                <p className="text-amber-400 text-xs mt-2">
-                  In the past 7 days
-                </p>
+                <p className="text-amber-400 text-xs mt-2">In the past 7 days</p>
               </div>
               <div className="bg-amber-500/20 rounded-lg p-2 h-fit group-hover:bg-amber-500/30 transition-colors">
                 <Bell className="h-6 w-6 text-amber-400" />
@@ -297,12 +304,32 @@ export default function ClinicLab() {
         </div>
       )}
 
+      {/* EXAMPLE Sparkline Implementation */}
+      {shouldRenderContent && analytics?.weeklyActiveStudies && analytics.weeklyActiveStudies.length > 0 && (
+        <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl p-5 hover:shadow-xl hover:border-white/20 transition duration-300">
+          <h3 className="text-lg font-semibold text-white mb-4">Weekly Active Studies Sparkline</h3>
+          <SparklineChart
+            data={analytics.weeklyActiveStudies}
+            xKey="week_start"
+            yKey="value"
+            color="#f59e0b"
+            width={400}
+            height={80}
+            strokeWidth={2}
+            showPoints={false}
+            fillOpacity={0.1}
+          />
+        </div>
+      )}
+
       {/* Status Breakdown Table */}
       {shouldRenderContent && hasStatusData && (
         <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden hover:shadow-xl transition duration-300">
           <div className="p-5 border-b border-white/10">
             <h3 className="text-lg font-semibold text-white">Status Breakdown</h3>
-            <p className="text-sm text-gray-400 mt-1">Study status by clinic with intervention indicators</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Study status by clinic with intervention indicators
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -318,7 +345,7 @@ export default function ClinicLab() {
                     { key: 'on_target_count', label: 'On Target' },
                     { key: 'near_completion_count', label: 'Near Completion' },
                     { key: 'needs_extension_count', label: 'Needs Extension' }
-                  ].map(col => (
+                  ].map((col) => (
                     <th
                       key={col.key}
                       className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/10 transition"
@@ -345,52 +372,88 @@ export default function ClinicLab() {
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="text-sm font-medium text-white">{row.clinic_name ?? 'All Clinics'}</div>
+                        <div className="text-sm font-medium text-white">
+                          {row.clinic_name ?? 'All Clinics'}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{row.total_studies}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-400 font-medium">{row.open_studies}</td>
-                    
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                      {row.total_studies}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-400 font-medium">
+                      {row.open_studies}
+                    </td>
+
                     {/* Intervene */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${row.intervene_count > 0 ? 'bg-red-100/20 text-red-400' : 'bg-gray-100/10 text-gray-400'}`}>
+                        <span
+                          className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                            row.intervene_count > 0
+                              ? 'bg-red-100/20 text-red-400'
+                              : 'bg-gray-100/10 text-gray-400'
+                          }`}
+                        >
                           {row.intervene_count}
                         </span>
                       </div>
                     </td>
-                    
+
                     {/* Monitor */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${row.monitor_count > 0 ? 'bg-amber-100/20 text-amber-400' : 'bg-gray-100/10 text-gray-400'}`}>
+                        <span
+                          className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                            row.monitor_count > 0
+                              ? 'bg-amber-100/20 text-amber-400'
+                              : 'bg-gray-100/10 text-gray-400'
+                          }`}
+                        >
                           {row.monitor_count}
                         </span>
                       </div>
                     </td>
-                    
+
                     {/* On Target */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${row.on_target_count > 0 ? 'bg-emerald-100/20 text-emerald-400' : 'bg-gray-100/10 text-gray-400'}`}>
+                        <span
+                          className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                            row.on_target_count > 0
+                              ? 'bg-emerald-100/20 text-emerald-400'
+                              : 'bg-gray-100/10 text-gray-400'
+                          }`}
+                        >
                           {row.on_target_count}
                         </span>
                       </div>
                     </td>
-                    
+
                     {/* Near Completion */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${row.near_completion_count > 0 ? 'bg-blue-100/20 text-blue-400' : 'bg-gray-100/10 text-gray-400'}`}>
+                        <span
+                          className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                            row.near_completion_count > 0
+                              ? 'bg-blue-100/20 text-blue-400'
+                              : 'bg-gray-100/10 text-gray-400'
+                          }`}
+                        >
                           {row.near_completion_count}
                         </span>
                       </div>
                     </td>
-                    
+
                     {/* Needs Extension */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${row.needs_extension_count > 0 ? 'bg-purple-100/20 text-purple-400' : 'bg-gray-100/10 text-gray-400'}`}>
+                        <span
+                          className={`px-2 py-0.5 inline-flex text-xs leading-5 font-medium rounded-full ${
+                            row.needs_extension_count > 0
+                              ? 'bg-purple-100/20 text-purple-400'
+                              : 'bg-gray-100/10 text-gray-400'
+                          }`}
+                        >
                           {row.needs_extension_count}
                         </span>
                       </div>
@@ -408,7 +471,9 @@ export default function ClinicLab() {
         <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden hover:shadow-xl transition duration-300">
           <div className="p-5 border-b border-white/10">
             <h3 className="text-lg font-semibold text-white">Quality Breakdown</h3>
-            <p className="text-sm text-gray-400 mt-1">Data quality metrics by clinic with quality distribution</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Data quality metrics by clinic with quality distribution
+            </p>
           </div>
 
           <div className="overflow-x-auto">
@@ -424,7 +489,7 @@ export default function ClinicLab() {
                     { key: 'soso_count', label: 'Average' },
                     { key: 'bad_count', label: 'Poor' },
                     { key: 'critical_count', label: 'Critical' }
-                  ].map(col => (
+                  ].map((col) => (
                     <th
                       key={col.key}
                       className="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-white/10 transition"
@@ -451,19 +516,29 @@ export default function ClinicLab() {
                   >
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="text-sm font-medium text-white">{row.clinic_name ?? 'All Clinics'}</div>
+                        <div className="text-sm font-medium text-white">
+                          {row.clinic_name ?? 'All Clinics'}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{row.total_studies}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-400 font-medium">{row.open_studies}</td>
-                    
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">
+                      {row.total_studies}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-blue-400 font-medium">
+                      {row.open_studies}
+                    </td>
+
                     {/* Average Quality */}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${getQualityClass(row.average_quality)}`}>
+                      <span
+                        className={`px-2 py-1 inline-flex text-xs leading-5 font-medium rounded-full ${getQualityClass(
+                          row.average_quality
+                        )}`}
+                      >
                         {(row.average_quality * 100).toFixed(1)}%
                       </span>
                     </td>
-                    
+
                     {/* Good */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1">
@@ -471,7 +546,7 @@ export default function ClinicLab() {
                         <span className="text-sm text-emerald-400">{row.good_count}</span>
                       </div>
                     </td>
-                    
+
                     {/* Average */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1">
@@ -479,7 +554,7 @@ export default function ClinicLab() {
                         <span className="text-sm text-amber-400">{row.soso_count}</span>
                       </div>
                     </td>
-                    
+
                     {/* Poor */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1">
@@ -487,7 +562,7 @@ export default function ClinicLab() {
                         <span className="text-sm text-orange-400">{row.bad_count}</span>
                       </div>
                     </td>
-                    
+
                     {/* Critical */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-1">

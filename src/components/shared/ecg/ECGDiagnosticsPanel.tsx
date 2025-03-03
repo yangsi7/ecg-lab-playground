@@ -218,28 +218,14 @@ export const ECGDiagnosticsPanel: React.FC<ECGDiagnosticsPanelProps> = ({
     }
   };
 
-  // If panel is closed, just show the toggle button
-  if (!isOpen) {
-    return (
-      <button
-        onClick={togglePanel}
-        className="fixed bottom-4 right-4 bg-blue-600/80 hover:bg-blue-600 text-white p-2 rounded-full shadow-lg flex items-center justify-center"
-        aria-label="Open ECG diagnostics"
-        title="Open ECG diagnostics"
-      >
-        <Activity className="h-5 w-5" />
-      </button>
-    );
-  }
-
-  // Render full panel when open
+  // Render integrated panel with collapsible content
   return (
-    <div className="fixed bottom-4 right-4 w-full sm:w-[400px] md:w-[500px] bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-xl shadow-xl z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-700/50">
+    <div className="mt-3 border border-gray-700/40 rounded-lg bg-gray-900/70 overflow-hidden shadow-md">
+      {/* Header - more compact */}
+      <div className="flex items-center justify-between px-3 py-2 bg-gray-800/70 border-b border-gray-700/40">
         <div className="flex items-center gap-2">
-          <Activity className="h-5 w-5 text-blue-400" />
-          <h3 className="font-medium text-white">ECG Diagnostics</h3>
+          <Activity className="h-4 w-4 text-blue-400" />
+          <h3 className="font-medium text-sm text-white">ECG Diagnostics</h3>
           <span className="bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded text-xs">
             Debug
           </span>
@@ -248,63 +234,70 @@ export const ECGDiagnosticsPanel: React.FC<ECGDiagnosticsPanelProps> = ({
           <button
             onClick={togglePanel}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-md"
-            aria-label="Toggle panel"
+            aria-label="Toggle diagnostics content"
+            title="Toggle diagnostics content"
           >
-            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+            {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
           </button>
           <button
             onClick={handleClose}
             className="p-1 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-md"
             aria-label="Close diagnostics"
+            title="Close diagnostics"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3 w-3" />
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex items-center border-b border-gray-700/50">
-        <button
-          onClick={() => setActiveTab('queries')}
-          className={`flex items-center gap-1 py-2 px-3 text-sm ${
-            activeTab === 'queries'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          <Database className="h-4 w-4" />
-          Queries
-        </button>
-        <button
-          onClick={() => setActiveTab('performance')}
-          className={`flex items-center gap-1 py-2 px-3 text-sm ${
-            activeTab === 'performance'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          <Cpu className="h-4 w-4" />
-          Performance
-        </button>
-        <button
-          onClick={() => setActiveTab('errors')}
-          className={`flex items-center gap-1 py-2 px-3 text-sm ${
-            activeTab === 'errors'
-              ? 'text-blue-400 border-b-2 border-blue-400'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          <AlertTriangle className="h-4 w-4" />
-          Errors
-        </button>
-      </div>
+      {/* Only show the rest of the panel when open */}
+      {isOpen && (
+        <>
+          {/* Tabs - smaller */}
+          <div className="flex items-center bg-gray-800/40 border-b border-gray-700/40">
+            <button
+              onClick={() => setActiveTab('queries')}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-xs ${
+                activeTab === 'queries'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Database className="h-3 w-3" />
+              Queries
+            </button>
+            <button
+              onClick={() => setActiveTab('performance')}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-xs ${
+                activeTab === 'performance'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <Cpu className="h-3 w-3" />
+              Performance
+            </button>
+            <button
+              onClick={() => setActiveTab('errors')}
+              className={`flex items-center gap-1 py-1.5 px-2.5 text-xs ${
+                activeTab === 'errors'
+                  ? 'text-blue-400 border-b-2 border-blue-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <AlertTriangle className="h-3 w-3" />
+              Errors
+            </button>
+          </div>
 
-      {/* Content */}
-      <div className="p-3">
-        {renderContent()}
-      </div>
+          {/* Content - reduced padding */}
+          <div className="p-2.5">
+            {renderContent()}
+          </div>
+        </>
+      )}
     </div>
   );
 };
 
-export default ECGDiagnosticsPanel; 
+export default ECGDiagnosticsPanel;

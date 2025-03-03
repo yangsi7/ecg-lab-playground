@@ -49,7 +49,7 @@ const authRoutes: AppRoute[] = [
 ];
 
 // Wrap component in suspense and auth guard if needed
-const wrapComponent = (Component: React.ReactNode, requiresAuth: boolean = true) => {
+const wrapComponent = (Component: React.ReactNode, requiresAuth = true) => {
   const wrapped = <Suspense fallback={<LoadingSpinner />}>{Component}</Suspense>;
   return requiresAuth ? <AuthGuard>{wrapped}</AuthGuard> : wrapped;
 };

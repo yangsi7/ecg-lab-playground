@@ -1,5 +1,4 @@
-/// <reference types="vitest" />
-/// <reference types="vite/client" />
+import '@testing-library/jest-dom'
 import { renderHook, waitFor, act } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -106,7 +105,10 @@ describe('useAuth', () => {
       error: null,
     })
 
-    let authChangeCallback: (event: AuthChangeEvent, session: Session | null) => void = () => {}
+    let authChangeCallback = (event: AuthChangeEvent, session: Session | null): void => {
+      // Intentionally left blank for the mock implementation
+    }
+    
     vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
       authChangeCallback = callback
       return {
@@ -149,7 +151,10 @@ describe('useAuth', () => {
       error: null,
     })
 
-    let authChangeCallback: (event: AuthChangeEvent, session: Session | null) => void = () => {}
+    let authChangeCallback = (event: AuthChangeEvent, session: Session | null): void => {
+      // Intentionally left blank for the mock implementation
+    }
+    
     vi.mocked(supabase.auth.onAuthStateChange).mockImplementation((callback) => {
       authChangeCallback = callback
       return {
@@ -204,4 +209,4 @@ describe('useAuth', () => {
 
     expect(result.current.user).toBeNull()
   })
-}) 
+})

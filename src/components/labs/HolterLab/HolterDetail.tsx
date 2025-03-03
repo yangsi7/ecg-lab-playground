@@ -15,7 +15,7 @@ import HourlyHistogram from './components/HourlyHistogram';
 import { CalendarSelector } from '@/components/shared/CalendarSelector/index';
 import { useStudyDetails } from '@/hooks/api/study/useStudyDetails';
 import { useSupabaseClient } from '@supabase/auth-helpers-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '../../../components/ui/use-toast';
 
 type StudyStatus = 'active' | 'error' | 'interrupted' | 'completed';
 
