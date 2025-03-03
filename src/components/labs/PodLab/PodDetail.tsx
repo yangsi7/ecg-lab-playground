@@ -435,20 +435,21 @@ export default function PodDetail() {
           </span>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {/* Calendar selector */}
-          <div>
-            <h3 className="text-md font-medium text-white mb-3">Select Date</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+          {/* Calendar Selector */}
+          <div className="col-span-1">
             <CalendarSelector
-              availableDays={podDays.map(day => new Date(day).toISOString().substring(0, 10))}
+              availableDays={podDays}
               onSelectDay={handleDaySelect}
               selectedDate={selectedDate}
+              variant="pod"
+              title="Pod Availability"
             />
           </div>
           
           {/* Hour selector */}
           {selectedDate && (
-            <div>
+            <div className="col-span-2">
               <h3 className="text-md font-medium text-white mb-3">Select Hour</h3>
               <Histogram 
                 data={Array.from({ length: 24 }, (_, i) => ({

@@ -117,7 +117,7 @@ export default function HolterDetail() {
         throw error;
       }
 
-      return (data as RPCPodDaysResponse[]).map(day => new Date(day.day_value));
+      return (data as RPCPodDaysResponse[]).map(day => day.day_value);
     }
   });
   
@@ -153,7 +153,7 @@ export default function HolterDetail() {
     const enhanced = {
       ...studyData, // Include all original properties from studyData
       auto_open_ecg: false,
-      available_days: availableDays.map(d => d.toISOString().substring(0, 10)),
+      available_days: availableDays,
       status: getStudyStatus(studyData),
       interruption_count: diagnosticsData?.interruptions || 0,
       six_hour_variance: diagnosticsData?.quality_fraction_variability || 0,
@@ -168,9 +168,13 @@ export default function HolterDetail() {
   useEffect(() => {
     if (podDays && podDays.length > 0) {
       // Sort days to find the most recent one
-      const sortedDays = [...podDays].sort((a, b) => b.getTime() - a.getTime());
+      const sortedDays = [...podDays].sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateB.getTime() - dateA.getTime();
+      });
       // Set the selected date to the most recent day, regardless of previous selection
-      setSelectedDate(sortedDays[0]);
+      setSelectedDate(new Date(sortedDays[0]));
     }
   }, [podDays]);
 
@@ -224,6 +228,8 @@ export default function HolterDetail() {
           availableDays={enhancedStudyDetails.available_days || []}
           onSelectDay={handleDaySelect}
           selectedDate={selectedDate}
+          variant="pod"
+          title="Available Days"
         />
 
         {selectedDate && (

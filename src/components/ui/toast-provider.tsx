@@ -1,8 +1,14 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { ToastContainer } from './toast';
-import { ToastOptions } from './use-toast';
 
-type ToastType = 'success' | 'error' | 'warning' | 'info';
+export type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+export interface ToastOptions {
+  title: string;
+  description?: string;
+  type?: ToastType;
+  duration?: number;
+}
 
 interface ToastItem extends ToastOptions {
   id: string;

@@ -80,8 +80,8 @@ export interface ECGVisualizationProps {
  */
 export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   podId,
-  timeStart,
-  timeEnd,
+  timeStart: initialTimeStart,
+  timeEnd: initialTimeEnd,
   channel = 1,
   width = 800,
   height = 400,
@@ -93,22 +93,25 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   onError,
   debug = false
 }) => {
+  // Add internal state for time range management
+  const [currentTimeStart, setCurrentTimeStart] = useState(initialTimeStart);
+  const [currentTimeEnd, setCurrentTimeEnd] = useState(initialTimeEnd);
   const [showDiagnostics, setShowDiagnostics] = useState(debug);
   const [activeChannel, setActiveChannel] = useState<1 | 2 | 3>(channel as 1 | 2 | 3);
   const [autoScroll, setAutoScroll] = useState(false);
   const [quickPresetMinutes, setQuickPresetMinutes] = useState(5);
   
   // Validate inputs before making the request
-  const validationError = validateInputs(podId, timeStart, timeEnd);
+  const validationError = validateInputs(podId, currentTimeStart, currentTimeEnd);
   
   // Calculate auto downsampling factor based on time range if not provided
-  const calculatedFactor = downsamplingFactor || calculateDownsamplingFactor(timeStart, timeEnd);
+  const calculatedFactor = downsamplingFactor || calculateDownsamplingFactor(currentTimeStart, currentTimeEnd);
   
   // Fetch ECG data
   const { data, loading, error, refetch, metrics } = useECGData(
     podId,
-    timeStart,
-    timeEnd,
+    currentTimeStart,
+    currentTimeEnd,
     {
       downsamplingFactor: calculatedFactor,
       maxPoints,
@@ -121,6 +124,12 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
     }
   );
   
+  // Initialize with props values
+  useEffect(() => {
+    setCurrentTimeStart(initialTimeStart);
+    setCurrentTimeEnd(initialTimeEnd);
+  }, [initialTimeStart, initialTimeEnd]);
+  
   // Auto-refresh data when continuous scrolling is enabled
   useEffect(() => {
     let intervalId: number | null = null;
@@ -131,7 +140,11 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
         const newEndTime = now.toISOString();
         const newStartTime = new Date(now.getTime() - quickPresetMinutes * 60 * 1000).toISOString();
         
-        // We'll need to update these parameters with the latest time range
+        // Update time range state
+        setCurrentTimeStart(newStartTime);
+        setCurrentTimeEnd(newEndTime);
+        
+        // Refetch will now use the updated time range
         refetch();
       }, 5000); // Update every 5 seconds
     }
@@ -158,8 +171,20 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
   // Apply a time quick preset
   const applyQuickPreset = (minutes: number) => {
     setQuickPresetMinutes(minutes);
-    // In a real implementation, this would update timeStart and timeEnd
-    // and trigger a refetch with the new time range
+    
+    // Calculate new time range based on the preset
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - minutes * 60 * 1000);
+    
+    const newEndTime = endTime.toISOString();
+    const newStartTime = startTime.toISOString();
+    
+    // Update state with new time range
+    setCurrentTimeStart(newStartTime);
+    setCurrentTimeEnd(newEndTime);
+    
+    // Trigger refetch with the new time range
+    refetch();
   };
   
   // Handle channel selection
@@ -376,13 +401,13 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
       {/* Time Range Indicator */}
       <div className="bg-gray-800/40 px-3 py-1 flex justify-between items-center text-xs text-gray-400 border-b border-gray-700/40">
         <div>
-          From: <span className="text-gray-300">{new Date(timeStart).toLocaleString()}</span>
+          From: <span className="text-gray-300">{new Date(currentTimeStart).toLocaleString()}</span>
         </div>
         <div>
-          To: <span className="text-gray-300">{new Date(timeEnd).toLocaleString()}</span>
+          To: <span className="text-gray-300">{new Date(currentTimeEnd).toLocaleString()}</span>
         </div>
         <div>
-          Duration: <span className="text-gray-300">{formatDuration(new Date(timeStart), new Date(timeEnd))}</span>
+          Duration: <span className="text-gray-300">{formatDuration(new Date(currentTimeStart), new Date(currentTimeEnd))}</span>
         </div>
       </div>
       
@@ -390,8 +415,8 @@ export const ECGVisualization: React.FC<ECGVisualizationProps> = ({
       <div className="p-3">
         <AdvancedECGPlot
           pod_id={podId}
-          time_start={timeStart}
-          time_end={timeEnd}
+          time_start={currentTimeStart}
+          time_end={currentTimeEnd}
           channel={activeChannel}
           width={width}
           height={height}
