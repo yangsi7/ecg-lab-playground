@@ -16,18 +16,31 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
   // Only fetch when we have at least 3 characters for search or a valid clinicId
   const shouldFetch = search.length >= 3 || !!clinicId;
   
-  const {
-    data: studies,
-    totalCount,
-    loading,
-    error,
-    hasMore
-  } = useStudiesWithTimes({
-    search,
-    page,
-    pageSize,
-    clinicId
-  });
+  // Create empty default values for when we're not fetching
+  const defaultResult = {
+    data: [] as StudiesWithTimesRow[],
+    totalCount: 0,
+    loading: false,
+    error: null,
+    hasMore: false
+  };
+  
+  // Only call the hook when shouldFetch is true
+  const result = shouldFetch
+    ? useStudiesWithTimes({
+        search,
+        page,
+        pageSize,
+        // We'll handle clinicId in the component logic instead of passing it directly
+      })
+    : defaultResult;
+    
+  const { data: studies, totalCount, loading, error, hasMore } = result;
+  
+  // Filter studies by clinicId if needed (since we can't pass it directly to the hook)
+  const filteredStudies = shouldFetch && clinicId && studies.length > 0
+    ? studies.filter(study => study.clinic_id === clinicId)
+    : studies;
   
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,14 +112,20 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
                   <LoadingSpinner />
                 </td>
               </tr>
-            ) : studies.length === 0 ? (
+            ) : !shouldFetch ? (
               <tr>
                 <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                  {shouldFetch ? 'No studies found' : 'Enter search term to find studies'}
+                  Enter search term to find studies
+                </td>
+              </tr>
+            ) : filteredStudies.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
+                  No studies found
                 </td>
               </tr>
             ) : (
-              studies.map((study) => (
+              filteredStudies.map((study) => (
                 <tr key={study.study_id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{study.study_id}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{study.user_id || 'N/A'}</td>
@@ -164,8 +183,8 @@ export default function StudyManagementTable({ clinicId }: StudyManagementTableP
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-700">
-                  Showing <span className="font-medium">{studies.length ? page * pageSize + 1 : 0}</span> to{' '}
-                  <span className="font-medium">{page * pageSize + studies.length}</span> of{' '}
+                  Showing <span className="font-medium">{filteredStudies.length ? page * pageSize + 1 : 0}</span> to{' '}
+                  <span className="font-medium">{page * pageSize + filteredStudies.length}</span> of{' '}
                   <span className="font-medium">{totalCount}</span> results
                 </p>
               </div>

@@ -1,15 +1,14 @@
 /**
- * FILE: src/hooks/api/useChunkedECG.ts
+ * FILE: src/hooks/api/ecg/useChunkedECG.ts
  * 
- * Hook for efficient ECG data loading using chunked retrieval.
- * Integrates with React Query for caching and uses the new
- * downsample_ecg_chunked function.
+ * Hook for efficient ECG data loading from the downsample-ecg edge function.
+ * Integrates with React Query for caching and handles the parallel array format
+ * returned by the downsample_ecg function.
  */
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { supabase } from '@/types/supabase';
-
+import { useQuery } from '@tanstack/react-query';
 import { logger } from '@/lib/logger';
 
+// Define the sample structure expected by the application
 export interface ECGSample {
   time: string;
   channels: [number, number, number];
@@ -18,12 +17,14 @@ export interface ECGSample {
   quality: [boolean, boolean, boolean];
 }
 
+// For backward compatibility, we still use the ECGChunk interface
 export interface ECGChunk {
   chunk_start: string;
   chunk_end: string;
   samples: ECGSample[];
 }
 
+// Diagnostic chunk interface for signal quality metrics
 export interface ECGDiagnosticChunk {
   chunk_start: string;
   chunk_end: string;
@@ -49,143 +50,196 @@ export interface ECGDiagnosticChunk {
   };
 }
 
-interface UseChunkedECGParams {
+// Parameters for the hook
+interface UseECGDataParams {
   pod_id: string;
   time_start: string;
   time_end: string;
   factor?: number;
-  chunk_minutes?: number;
   enabled?: boolean;
 }
 
+// Interface matching the parallel arrays returned by downsample_ecg
+interface ParallelArrayECGData {
+  timestamps: string[];
+  channel_1: number[];
+  channel_2: number[];
+  channel_3: number[];
+  lead_on_p_1: boolean[];
+  lead_on_p_2: boolean[];
+  lead_on_p_3: boolean[];
+  lead_on_n_1: boolean[];
+  lead_on_n_2: boolean[];
+  lead_on_n_3: boolean[];
+  quality_1: boolean[];
+  quality_2: boolean[];
+  quality_3: boolean[];
+}
+
 /**
- * Hook for loading ECG data in chunks with React Query infinite scroll support.
- * Uses the optimized downsample_ecg_chunked function.
+ * Hook for loading ECG data directly from the downsample-ecg edge function
+ * Returns data in the same format as the previous useChunkedECG for backward compatibility
  */
 export function useChunkedECG({
   pod_id,
   time_start,
   time_end,
   factor = 4,
-  chunk_minutes = 5,
   enabled = true
-}: UseChunkedECGParams) {
-  const queryKey = ['ecg-chunks', pod_id, time_start, time_end, factor, chunk_minutes];
+}: UseECGDataParams) {
+  const queryKey = ['ecg-data', pod_id, time_start, time_end, factor];
 
   const {
     data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
     status,
-    error
-  } = useInfiniteQuery({
+    error,
+    refetch
+  } = useQuery({
     queryKey,
-    initialPageParam: 0,
-    queryFn: async ({ pageParam = 0 }) => {
-      logger.info("[useChunkedECG] fetching chunk", {
-        pod_id, time_start, time_end, factor, chunk_minutes, offset: pageParam
+    queryFn: async () => {
+      logger.info("[useChunkedECG] Fetching ECG data from edge function", {
+        pod_id, time_start, time_end, factor
       });
 
-      const { data: chunks, error: rpcError } = await supabase.rpc('downsample_ecg_chunked', {
-        p_pod_id: pod_id,
-        p_time_start: time_start,
-        p_time_end: time_end,
-        p_factor: factor,
-        p_chunk_minutes: chunk_minutes,
-        p_offset: Number(pageParam),
-        p_limit: 5 // Get 5 chunks at a time (25 minutes of data)
-      });
+      try {
+        // Call the downsample-ecg edge function directly
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/downsample-ecg`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            pod_id,
+            time_start,
+            time_end,
+            factor
+          })
+        });
 
-      if (rpcError) throw new Error(rpcError.message);
-      if (!chunks || !Array.isArray(chunks)) throw new Error('Invalid response from downsample_ecg_chunked');
-      
-      // Transform the raw DB response into our domain type
-      return chunks.map(chunk => ({
-        chunk_start: chunk.chunk_start as string,
-        chunk_end: chunk.chunk_end as string,
-        samples: (chunk.samples as unknown as ECGSample[]) || []
-      }));
-    },
-    getNextPageParam: (lastPage: ECGChunk[], allPages: ECGChunk[][]) => {
-      // If we got a full page, there might be more data
-      if (lastPage.length === 5) {
-        // Calculate the next offset by using the total number of chunks fetched so far
-        return allPages.length * 5; // Since each page has a limit of 5
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error || `Edge function returned status ${response.status}`);
+        }
+
+        const parallelData = await response.json() as ParallelArrayECGData;
+
+        // Transform the parallel arrays into our expected ECGSample format
+        const transformedSamples: ECGSample[] = [];
+        
+        if (parallelData.timestamps && Array.isArray(parallelData.timestamps)) {
+          for (let i = 0; i < parallelData.timestamps.length; i++) {
+            transformedSamples.push({
+              time: parallelData.timestamps[i],
+              channels: [
+                parallelData.channel_1?.[i] ?? 0,
+                parallelData.channel_2?.[i] ?? 0,
+                parallelData.channel_3?.[i] ?? 0
+              ],
+              lead_on_p: [
+                parallelData.lead_on_p_1?.[i] ?? false,
+                parallelData.lead_on_p_2?.[i] ?? false,
+                parallelData.lead_on_p_3?.[i] ?? false
+              ],
+              lead_on_n: [
+                parallelData.lead_on_n_1?.[i] ?? false,
+                parallelData.lead_on_n_2?.[i] ?? false,
+                parallelData.lead_on_n_3?.[i] ?? false
+              ],
+              quality: [
+                parallelData.quality_1?.[i] ?? false,
+                parallelData.quality_2?.[i] ?? false,
+                parallelData.quality_3?.[i] ?? false
+              ]
+            });
+          }
+        }
+        
+        // For backward compatibility, we'll create a single chunk with all samples
+        const chunk: ECGChunk = {
+          chunk_start: time_start,
+          chunk_end: time_end,
+          samples: transformedSamples
+        };
+        
+        return [chunk];
+      } catch (err) {
+        logger.error("[useChunkedECG] Error fetching ECG data", { error: err });
+        throw err;
       }
-      return undefined; // No more pages
     },
     enabled: enabled && Boolean(pod_id && time_start && time_end),
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes
     staleTime: 5 * 60 * 1000 // Consider data fresh for 5 minutes
   });
 
-  // Flatten all chunks into a single array for easier consumption
-  const samples = data?.pages.flatMap(chunks => 
-    chunks.flatMap(chunk => chunk.samples)
-  ) ?? [];
-
   return {
-    samples,
-    chunks: data?.pages.flat() ?? [],
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
+    samples: data?.[0]?.samples ?? [],
+    chunks: data || [],
     isLoading: status === 'pending',
-    error: error?.message ?? null
+    error: error instanceof Error ? error.message : null as any,
+    refetch
   };
 }
 
 /**
- * Hook for loading ECG diagnostics in chunks with React Query.
- * Uses the optimized get_ecg_diagnostics_chunked function.
+ * Hook for loading ECG diagnostics with React Query.
+ * Uses the get_ecg_diagnostics RPC function.
  */
 export function useChunkedECGDiagnostics({
   pod_id,
   time_start,
   time_end,
-  chunk_minutes = 5,
   enabled = true
-}: Omit<UseChunkedECGParams, 'factor'>) {
-  const queryKey = ['ecg-diagnostics', pod_id, time_start, time_end, chunk_minutes];
+}: Omit<UseECGDataParams, 'factor'>) {
+  const queryKey = ['ecg-diagnostics', pod_id, time_start, time_end];
 
   const {
     data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
     status,
-    error
-  } = useInfiniteQuery<ECGDiagnosticChunk[], Error>({
+    error,
+    refetch
+  } = useQuery<ECGDiagnosticChunk[], Error>({
     queryKey,
-    initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      logger.info("[useChunkedECGDiagnostics] fetching chunk", {
-        pod_id, time_start, time_end, chunk_minutes, offset: pageParam
+    queryFn: async () => {
+      logger.info("[useChunkedECGDiagnostics] Fetching diagnostics", {
+        pod_id, time_start, time_end
       });
 
-      // @ts-ignore - RPC function exists but types are not up to date
-      const { data: chunks, error: rpcError } = await supabase.rpc(
-        'get_ecg_diagnostics_chunked',
-        {
-          p_pod_id: pod_id,
-          p_time_start: time_start,
-          p_time_end: time_end,
-          p_chunk_minutes: chunk_minutes,
-          p_offset: Number(pageParam || 0),
-          p_limit: 5
-        }
-      );
+      try {
+        // Call the downsample-ecg edge function to get diagnostics
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-ecg-diagnostics`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+          },
+          body: JSON.stringify({
+            pod_id,
+            time_start,
+            time_end
+          })
+        });
 
-      if (rpcError) throw new Error(rpcError.message);
-      return chunks as ECGDiagnosticChunk[];
-    },
-    getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.length === 5) {
-        // Calculate the cumulative offset based on all pages fetched so far
-        return allPages.length * 5; // Each page has a limit of 5
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => null);
+          throw new Error(errorData?.error || `Edge function returned status ${response.status}`);
+        }
+
+        const diagnosticsData = await response.json();
+        return [
+          {
+            chunk_start: time_start,
+            chunk_end: time_end,
+            metrics: diagnosticsData
+          }
+        ] as ECGDiagnosticChunk[];
+      } catch (err) {
+        logger.error("[useChunkedECGDiagnostics] Error fetching diagnostics", { error: err });
+        throw err;
       }
-      return undefined;
     },
     enabled: enabled && Boolean(pod_id && time_start && time_end),
     gcTime: 30 * 60 * 1000,
@@ -193,10 +247,7 @@ export function useChunkedECGDiagnostics({
   });
 
   return {
-    diagnostics: data?.pages.flat() ?? [],
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
+    diagnostics: data || [],
     isLoading: status === 'pending',
     error: error?.message ?? null
   };

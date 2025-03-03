@@ -122,6 +122,24 @@ export type Database = {
           },
         ]
       }
+      ecg_sample_summary: {
+        Row: {
+          earliest_ecg_data: string | null
+          latest_ecg_data: string | null
+          pod_id: string
+        }
+        Insert: {
+          earliest_ecg_data?: string | null
+          latest_ecg_data?: string | null
+          pod_id: string
+        }
+        Update: {
+          earliest_ecg_data?: string | null
+          latest_ecg_data?: string | null
+          pod_id?: string
+        }
+        Relationships: []
+      }
       edge_function_stats: {
         Row: {
           cpu_time: unknown | null
@@ -713,21 +731,7 @@ export type Database = {
           p_time_end: string
           p_factor?: number
         }
-        Returns: {
-          sample_time: string
-          downsampled_channel_1: number
-          downsampled_channel_2: number
-          downsampled_channel_3: number
-          lead_on_p_1: boolean
-          lead_on_p_2: boolean
-          lead_on_p_3: boolean
-          lead_on_n_1: boolean
-          lead_on_n_2: boolean
-          lead_on_n_3: boolean
-          quality_1: boolean
-          quality_2: boolean
-          quality_3: boolean
-        }[]
+        Returns: Json
       }
       downsample_ecg_boxcar: {
         Args: {
@@ -757,20 +761,10 @@ export type Database = {
           p_pod_id: string
           p_time_start: string
           p_time_end: string
+          p_chunk_minutes: number
           p_factor?: number
-          p_chunk_minutes?: number
-          p_offset?: number
-          p_limit?: number
         }
-        Returns: {
-          chunk_start: string
-          chunk_end: string
-          sample_times: number[]
-          channels: number[]
-          lead_on_p: boolean[]
-          lead_on_n: boolean[]
-          quality: boolean[]
-        }[]
+        Returns: Json
       }
       downsample_ecg_naive: {
         Args: {
@@ -1076,24 +1070,28 @@ export type Database = {
       get_studies_with_pod_times: {
         Args: Record<PropertyKey, never>
         Returns: {
+          updated_at: string
+          clinic_name: string
           study_id: string
           aggregated_quality_minutes: number
           aggregated_total_minutes: number
-          duration: number
-          end_timestamp: string
-          expected_end_timestamp: string
+          quality_fraction: number
           clinic_id: string
-          pod_id: string
-          start_timestamp: string
-          study_type: string
-          updated_at: string
           user_id: string
+          pod_id: string
+          study_type: string
+          study_start: string
+          study_completed: string
+          expected_end: string
+          expected_duration: number
+          duration_so_far: number
+          expected_days_remaining: number
+          days_extended: number
           created_at: string
           created_by: string
-          clinic_name: string
-          pod_status: string
-          earliest_time: string
-          latest_time: string
+          study_status: string
+          earliest_ecg_data: string
+          latest_ecg_data: string
         }[]
       }
       get_studies_with_pod_times_enhanced: {

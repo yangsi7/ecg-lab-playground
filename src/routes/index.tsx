@@ -5,6 +5,7 @@ import { GenericErrorBoundary } from '@/components/shared/GenericErrorBoundary';
 import { AuthGuard } from '@/components/shared/AuthGuard';
 import { TimeRangeProvider } from '@/context/TimeRangeContext';
 import RootLayout from '@/components/RootLayout';
+import React from 'react';
 
 // Type-safe lazy loading function that ensures default export compatibility
 const lazyLoad = (importFunc: () => Promise<{ default: ComponentType<any> }>) => lazy(importFunc);
@@ -27,6 +28,9 @@ const ECGTestComponent = lazyLoad(() => import('@/components/shared/ecg/ECGTestC
 const ErrorPage = lazyLoad(() => import('@/components/shared/ErrorPage'));
 // Debug component
 const DebugSupabaseClient = lazyLoad(() => import('@/components/shared/DebugSupabaseClient'));
+// New ECG Components
+const ECGViewerContainer = lazyLoad(() => import('@/components/ECGViewerContainer'));
+const StudyList = lazyLoad(() => import('@/components/StudyList'));
 
 // Custom route type that extends RouteObject
 type AppRoute = RouteObject & {
@@ -113,7 +117,20 @@ const labRoutes: AppRoute[] = [
     label: 'Data',
   },
   
-  // Standalone ECG Viewer route
+  // ECG Study List and Viewer routes
+  {
+    path: '/ecg-studies',
+    element: wrapComponent(<StudyList />),
+    label: 'ECG Studies',
+  },
+  
+  // New ECG Viewer Container route
+  {
+    path: '/ecg-viewer/:podId',
+    element: wrapComponent(<ECGViewerContainer />),
+  },
+  
+  // Legacy Standalone ECG Viewer route
   {
     path: '/ecg/:studyId',
     element: wrapComponent(

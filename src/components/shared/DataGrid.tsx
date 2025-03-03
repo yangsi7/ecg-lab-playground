@@ -327,24 +327,28 @@ export function DataGrid<T extends Record<string, any>>({
   }
 
   // Update the filter UI component
-  function _FilterUI<T>({
+  function FilterUI<T>({
     column,
     onFilterChange,
-    currentFilter
+    currentFilter,
+    onClose
   }: {
     column: Column<T>;
     onFilterChange: (filter: ColumnFilter) => void;
     currentFilter?: ColumnFilter;
+    onClose: () => void;
   }) {
-    const [operator, _setOperator] = useState<FilterOperator>(
+    const [operator, setOperator] = useState<FilterOperator>(
       currentFilter?.condition.operator ?? 'equals'
     );
-    const [value, _setValue] = useState<string | number | boolean | (string | number)[]>(
+    const [value, setValue] = useState<string | number | boolean | (string | number)[]>(
       currentFilter?.condition.value ?? ''
     );
-    const [value2, _setValue2] = useState<string | number | undefined>(
+    const [value2, setValue2] = useState<string | number | undefined>(
       currentFilter?.condition.value2
     );
+
+    const availableOperators = getOperatorsByFilterType(column.filterType);
 
     const handleApplyFilter = () => {
       if (!operator) return;
@@ -364,22 +368,155 @@ export function DataGrid<T extends Record<string, any>>({
             ...(operator === 'between' && value2 !== undefined && { value2 })
           }
         });
+        onClose();
       }
     };
 
+    const needsValue = !['isNull', 'isNotNull', 'isEmpty', 'isNotEmpty'].includes(operator);
+    const needsSecondValue = operator === 'between';
+
     return (
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4 bg-gray-800 rounded-md shadow-lg border border-white/10 absolute z-10 min-w-[250px]">
         <div className="flex items-center justify-between gap-2">
-          <span>{column.header}</span>
-          <button
-            onClick={handleApplyFilter}
-            className="p-1 rounded-md transition text-gray-400 hover:text-white hover:bg-white/10"
-          >
-            <Filter className="h-3 w-3" />
-          </button>
+          <span className="font-medium">{column.header}</span>
+          <div className="flex gap-2">
+            <button
+              onClick={handleApplyFilter}
+              className="px-2 py-1 bg-blue-500 text-white rounded-md text-xs hover:bg-blue-600 transition"
+            >
+              Apply
+            </button>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-md transition text-gray-400 hover:text-white hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
-        {/* Filter UI based on column.filterType */}
-        {/* ... */}
+        
+        {/* Operator Selection */}
+        <div className="space-y-2">
+          <label className="text-xs text-gray-400">Operator</label>
+          <select
+            value={operator}
+            onChange={(e) => setOperator(e.target.value as FilterOperator)}
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+          >
+            {availableOperators.map(op => (
+              <option key={op} value={op}>{getOperatorLabel(op)}</option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Value Input */}
+        {needsValue && (
+          <div className="space-y-2">
+            <label className="text-xs text-gray-400">Value</label>
+            {column.filterType === 'select' && column.filterOptions ? (
+              <select
+                value={value as string}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              >
+                {column.filterOptions.map(option => (
+                  <option key={String(option.value)} value={String(option.value)}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : column.filterType === 'boolean' ? (
+              <select
+                value={String(value)}
+                onChange={(e) => setValue(e.target.value === 'true')}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              >
+                <option value="true">True</option>
+                <option value="false">False</option>
+              </select>
+            ) : column.filterType === 'date' ? (
+              <input
+                type="date"
+                value={value as string}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'datetime' ? (
+              <input
+                type="datetime-local"
+                value={value as string}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'time' ? (
+              <input
+                type="time"
+                value={value as string}
+                onChange={(e) => setValue(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'number' ? (
+              <input
+                type="number"
+                value={value as string}
+                onChange={(e) => setValue(e.target.valueAsNumber || 0)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : (
+              <input
+                type="text"
+                value={value as string}
+                onChange={(e) => setValue(e.target.value)}
+                placeholder={operator === 'in' || operator === 'notIn' ? "Comma-separated values" : "Enter value..."}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            )}
+          </div>
+        )}
+        
+        {/* Second Value Input (for 'between' operator) */}
+        {needsSecondValue && (
+          <div className="space-y-2">
+            <label className="text-xs text-gray-400">Second Value</label>
+            {column.filterType === 'date' ? (
+              <input
+                type="date"
+                value={value2 as string}
+                onChange={(e) => setValue2(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'datetime' ? (
+              <input
+                type="datetime-local"
+                value={value2 as string}
+                onChange={(e) => setValue2(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'time' ? (
+              <input
+                type="time"
+                value={value2 as string}
+                onChange={(e) => setValue2(e.target.value)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : column.filterType === 'number' ? (
+              <input
+                type="number"
+                value={value2 as string}
+                onChange={(e) => setValue2(e.target.valueAsNumber || 0)}
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            ) : (
+              <input
+                type="text"
+                value={value2 as string}
+                onChange={(e) => setValue2(e.target.value)}
+                placeholder="Enter second value..."
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded text-white text-sm"
+              />
+            )}
+          </div>
+        )}
       </div>
     );
   }
@@ -387,13 +524,13 @@ export function DataGrid<T extends Record<string, any>>({
   // Column header with filter UI
   const renderColumnHeader = (column: Column<T>) => {
     const content = (
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 relative">
         <span>{column.header}</span>
         {column.filterable && (
           <div
             onClick={(e) => {
               e.stopPropagation(); // Prevent triggering sort when clicking filter
-              setActiveFilterColumn(activeFilterColumn === column.key ? null : String(column.key));
+              setActiveFilterColumn(activeFilterColumn === String(column.key) ? null : String(column.key));
             }}
             className={`p-1 rounded-md transition cursor-pointer ${
               columnFilters.some(f => f.field === column.key)
@@ -412,6 +549,18 @@ export function DataGrid<T extends Record<string, any>>({
               <ChevronDown className="h-4 w-4" />
             )}
           </span>
+        )}
+        
+        {/* Render filter UI when active */}
+        {column.filterable && activeFilterColumn === String(column.key) && (
+          <FilterUI
+            column={column}
+            onFilterChange={(filter) => {
+              handleColumnFilterChange(filter.field, filter.condition);
+            }}
+            currentFilter={columnFilters.find(f => f.field === column.key)}
+            onClose={() => setActiveFilterColumn(null)}
+          />
         )}
       </div>
     );

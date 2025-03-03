@@ -226,10 +226,10 @@ export default function HolterDetail() {
         <MainECGViewer
           podId={enhancedStudyDetails.pod_id}
           timeStart={new Date(
-            selectedDate.setHours(hourSelected, 0, 0)
+            new Date(selectedDate.getTime()).setHours(hourSelected, 0, 0)
           ).toISOString()}
           timeEnd={new Date(
-            selectedDate.setHours(hourSelected, 59, 59)
+            new Date(selectedDate.getTime()).setHours(hourSelected, 59, 59)
           ).toISOString()}
           onClose={() => setECGViewerOpen(false)}
         />

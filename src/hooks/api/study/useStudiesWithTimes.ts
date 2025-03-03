@@ -15,18 +15,24 @@ async function fetchStudiesWithPodTimes(): Promise<StudiesWithTimesRow[]> {
   try {
     // Get current session
     const { data: { session } } = await supabase.auth.getSession();
-    const accessToken = session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    // Prepare headers for the API call
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+    };
+    
+    // Only add Authorization header if we have a valid session with access token
+    if (session?.access_token) {
+      headers['Authorization'] = `Bearer ${session.access_token}`;
+    }
     
     // Make direct API call to avoid type mismatch
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/get_studies_with_pod_times`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        headers,
       }
     );
 

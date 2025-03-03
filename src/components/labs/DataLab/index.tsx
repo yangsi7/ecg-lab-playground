@@ -101,7 +101,7 @@ export default function DataLab() {
             )
         },
         {
-            key: 'pod_status',
+            key: 'study_status',
             header: 'Status',
             sortable: true,
             filterable: true,
@@ -124,7 +124,7 @@ export default function DataLab() {
             }
         },
         {
-            key: 'start_timestamp',
+            key: 'study_start',
             header: 'Start Time',
             sortable: true,
             render: (value: unknown) => (
@@ -135,7 +135,7 @@ export default function DataLab() {
             )
         },
         {
-            key: 'end_timestamp',
+            key: 'study_completed',
             header: 'End Time',
             sortable: true,
             render: (value: unknown) => (
@@ -146,7 +146,7 @@ export default function DataLab() {
             )
         },
         {
-            key: 'duration',
+            key: 'duration_so_far',
             header: 'Duration',
             sortable: true,
             render: (value: unknown) => (
@@ -157,20 +157,19 @@ export default function DataLab() {
             )
         },
         {
-            key: 'aggregated_quality_minutes',
+            key: 'quality_fraction',
             header: 'Quality',
             sortable: true,
             render: (value: unknown, row: StudiesWithTimesRow) => {
                 const quality = value as number;
-                const total = row.aggregated_total_minutes;
-                const percentage = formatPercentage(quality, total, 1);
+                const percentage = quality !== null ? `${Math.round(quality * 100)}%` : 'N/A';
                 
                 return (
                     <div className="flex items-center gap-2">
                         <div className="flex-1 bg-gray-700 rounded-full h-2">
                             <div 
                                 className="bg-blue-500 rounded-full h-2" 
-                                style={{ width: percentage }}
+                                style={{ width: percentage !== 'N/A' ? percentage : '0%' }}
                             />
                         </div>
                         <span className="text-sm text-gray-300">{percentage}</span>
@@ -179,13 +178,13 @@ export default function DataLab() {
             }
         },
         {
-            key: 'earliest_time',
+            key: 'earliest_ecg_data',
             header: 'First Data',
             sortable: true,
             render: (value: unknown) => value ? new Date(value as string).toLocaleString() : 'N/A'
         },
         {
-            key: 'latest_time',
+            key: 'latest_ecg_data',
             header: 'Last Data',
             sortable: true,
             render: (value: unknown) => value ? new Date(value as string).toLocaleString() : 'N/A'
@@ -194,7 +193,7 @@ export default function DataLab() {
             key: 'actions' as any,
             header: 'Actions',
             render: (_, row: StudiesWithTimesRow) => {
-                const canViewECG = row.pod_id && row.earliest_time && row.latest_time;
+                const canViewECG = row.pod_id && row.earliest_ecg_data && row.latest_ecg_data;
                 
                 return (
                     <div className="flex justify-end">
@@ -248,7 +247,9 @@ export default function DataLab() {
                 filteredData = exportData.filter(row => 
                     String(row.study_id).toLowerCase().includes(searchLower) ||
                     String(row.pod_id).toLowerCase().includes(searchLower) ||
-                    (row.clinic_name && String(row.clinic_name).toLowerCase().includes(searchLower))
+                    (row.clinic_name && String(row.clinic_name).toLowerCase().includes(searchLower)) ||
+                    (row.user_id && String(row.user_id).toLowerCase().includes(searchLower)) ||
+                    (row.study_type && String(row.study_type).toLowerCase().includes(searchLower))
                 );
             }
 
@@ -264,17 +265,17 @@ export default function DataLab() {
                     
                     // Use type assertion to access row properties safely
                     const value = row[key as keyof typeof row];
-                    if (key === 'start_timestamp' || key === 'end_timestamp' || 
-                        key === 'earliest_time' || key === 'latest_time') {
+                    if (key === 'study_start' || key === 'study_completed' || 
+                        key === 'earliest_ecg_data' || key === 'latest_ecg_data') {
                         return value ? `"${new Date(value as string).toLocaleString()}"` : '';
                     }
                     
-                    if (key === 'duration') {
+                    if (key === 'duration_so_far') {
                         return value ? formatDuration(value as number) : '';
                     }
                     
-                    if (key === 'aggregated_quality_minutes' && row.aggregated_total_minutes) {
-                        return formatPercentage(value as number, row.aggregated_total_minutes, 1);
+                    if (key === 'quality_fraction') {
+                        return value !== null ? `${Math.round((value as number) * 100)}%` : '';
                     }
                     
                     return `"${value || ''}"`;

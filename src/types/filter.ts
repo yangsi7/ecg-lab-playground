@@ -20,6 +20,7 @@ export interface FilterPreset {
   id: string;
   name: string;
   expression: string;
+  description?: string;
 }
 
 export interface FilterConfig<T> {
@@ -41,12 +42,6 @@ export interface FilterState<T> {
 }
 
 export type FilterFieldType = 'string' | 'number' | 'boolean' | 'date';
-
-export interface FilterPreset {
-  name: string;
-  expression: string;
-  description?: string;
-}
 
 export interface FilterCondition {
   field: string;

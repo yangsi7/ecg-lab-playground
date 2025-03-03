@@ -5,7 +5,7 @@
  * ECG visualization. Enhanced with responsive design and diagnostics.
  */
 import React, { useEffect, useRef, useMemo } from 'react'
-import { X, AlertTriangle, Heart, Activity, Zap, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, AlertTriangle, Heart, Activity, Zap, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { useChunkedECG, useChunkedECGDiagnostics } from '../../../hooks/api/ecg/useChunkedECG'
 import { AdvancedECGPlot } from './AdvancedECGPlot'
 
@@ -47,6 +47,56 @@ export default function MainECGViewer({
         time_start: timeStart,
         time_end: timeEnd
     });
+
+    // Function to download ECG data as CSV
+    const handleDownloadECG = () => {
+        if (!samples || samples.length === 0) {
+            console.error('No ECG data available for download');
+            return;
+        }
+        
+        try {
+            // Create CSV header
+            const csvHeader = 'Time,Channel1,Channel2,Channel3,LeadOnP1,LeadOnP2,LeadOnP3,LeadOnN1,LeadOnN2,LeadOnN3,Quality1,Quality2,Quality3\n';
+            
+            // Convert samples to CSV rows
+            const csvRows = samples.map(sample => {
+                return [
+                    sample.time,
+                    sample.channels[0],
+                    sample.channels[1],
+                    sample.channels[2],
+                    sample.lead_on_p[0],
+                    sample.lead_on_p[1],
+                    sample.lead_on_p[2],
+                    sample.lead_on_n[0],
+                    sample.lead_on_n[1],
+                    sample.lead_on_n[2],
+                    sample.quality[0],
+                    sample.quality[1],
+                    sample.quality[2]
+                ].join(',');
+            }).join('\n');
+            
+            // Combine header and rows
+            const csvContent = `data:text/csv;charset=utf-8,${csvHeader}${csvRows}`;
+            
+            // Create download link
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `ecg_${podId}_${new Date(timeStart).toISOString().slice(0,19).replace(/:/g,'-')}.csv`);
+            document.body.appendChild(link);
+            
+            // Trigger download
+            link.click();
+            
+            // Clean up
+            document.body.removeChild(link);
+        } catch (error) {
+            console.error('Error downloading ECG data:', error);
+        }
+    };
 
     // Calculate quality metrics
     const qualityMetrics = useMemo(() => {
@@ -167,13 +217,15 @@ export default function MainECGViewer({
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => setShowDiagnostics(prev => !prev)}
-                            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-gray-300 flex items-center gap-1"
-                            aria-label={showDiagnostics ? "Hide diagnostics" : "Show diagnostics"}
+                        <button
+                            onClick={handleDownloadECG}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 
+                                     rounded-lg text-white font-medium transition-colors"
+                            disabled={!samples || samples.length === 0}
+                            title="Download ECG data as CSV"
                         >
-                            {showDiagnostics ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
-                            Diagnostics
+                            <Download className="h-4 w-4" />
+                            Download ECG
                         </button>
                         <button 
                             onClick={onClose} 

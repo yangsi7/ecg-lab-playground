@@ -68,19 +68,17 @@ export function useECGCanvas({
   const waveColorBlind = 'rgba(0,120,180,0.9)';
   const waveColor = isColorBlindMode ? waveColorBlind : waveColorNormal;
 
-  // MouseWheel => horizontal zoom
+  // MouseWheel => horizontal zoom - implemented as a single event handler in useEffect
   const handleWheel: WheelEventHandler<HTMLCanvasElement> = useCallback((e) => {
     e.preventDefault();
     const direction = e.deltaY < 0 ? 1.1 : 0.9;
     setScaleX((prev) => {
       const next = prev * direction;
-      if (next < 0.5) return 0.5;
-      if (next > 10) return 10;
-      return next;
+      return Math.max(0.5, Math.min(10, next));
     });
   }, []);
 
-  // Add event listener with passive: false
+  // Add event listener with passive: false for wheel events
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -90,19 +88,18 @@ export function useECGCanvas({
       const direction = e.deltaY < 0 ? 1.1 : 0.9;
       setScaleX((prev) => {
         const next = prev * direction;
-        if (next < 0.5) return 0.5;
-        if (next > 10) return 10;
-        return next;
+        return Math.max(0.5, Math.min(10, next));
       });
     };
 
     canvas.addEventListener('wheel', wheelHandler, { passive: false });
+    
     return () => {
       canvas.removeEventListener('wheel', wheelHandler);
     };
   }, []);
 
-  // Mouse handlers for panning
+  // Mouse handlers for panning - with performance optimizations
   const handleMouseDown: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
     setPanning(true);
     setPanStartX(e.clientX);
@@ -110,9 +107,13 @@ export function useECGCanvas({
 
   const handleMouseMove: MouseEventHandler<HTMLCanvasElement> = useCallback((e) => {
     if (!panning) return;
-    const dx = e.clientX - panStartX;
-    setTranslateX((prev) => prev + dx);
-    setPanStartX(e.clientX);
+    
+    // Use requestAnimationFrame for better performance during panning
+    requestAnimationFrame(() => {
+      const dx = e.clientX - panStartX;
+      setTranslateX((prev) => prev + dx);
+      setPanStartX(e.clientX);
+    });
   }, [panning, panStartX]);
 
   const handleMouseUp: MouseEventHandler<HTMLCanvasElement> = useCallback(() => {
@@ -137,21 +138,38 @@ export function useECGCanvas({
 
   const fitYRange = useCallback(() => {
     if (!data.length) return;
+    
     let minVal = Infinity;
     let maxVal = -Infinity;
-    data.forEach(pt => {
+    
+    // Performance optimization: only check every nth point for large datasets
+    const step = data.length > 5000 ? Math.floor(data.length / 5000) : 1;
+    
+    for (let i = 0; i < data.length; i += step) {
+      const pt = data[i];
       let v = 0;
+      
       if (channel === 1) v = pt.downsampled_channel_1;
       else if (channel === 2) v = pt.downsampled_channel_2;
       else v = pt.downsampled_channel_3;
+      
       if (v < minVal) minVal = v;
       if (v > maxVal) maxVal = v;
-    });
+    }
+    
     if (minVal === Infinity || maxVal === -Infinity) return;
+    
     const pad = (maxVal - minVal) * 0.1;
     setYMin(minVal - pad);
     setYMax(maxVal + pad);
   }, [data, channel]);
+
+  // Update Y range when channel changes
+  useEffect(() => {
+    if (data.length > 0) {
+      fitYRange();
+    }
+  }, [channel, fitYRange]);
 
   const toggleColorBlindMode = useCallback(() => {
     setIsColorBlindMode(prev => !prev);

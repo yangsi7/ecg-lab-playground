@@ -29,11 +29,19 @@ export function CalendarSelector({
   const [currentDate, setCurrentDate] = useState<Date | null>(selectedDate);
   const [viewMonth, setViewMonth] = useState<Date>(() => selectedDate || new Date());
   
-  // Convert all available days to Date objects and create a Set of date strings for comparison
+  // Helper function to format date as YYYY-MM-DD in local timezone
+  const formatLocalDate = (date: Date | string): string => {
+    if (typeof date === 'string') {
+      // If it's already a string, just take the date part
+      return date.split('T')[0];
+    }
+    // Format date in local timezone as YYYY-MM-DD
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  };
+  
+  // Convert all available days to local date strings for comparison
   const availableDatesSet = new Set(
-    availableDays.map(d => 
-      typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0]
-    )
+    availableDays.map(d => formatLocalDate(d))
   );
 
   useEffect(() => {
@@ -82,7 +90,7 @@ export function CalendarSelector({
 
   function isAvailable(day: Date) {
     if (!availableDays.length) return true;
-    return availableDatesSet.has(day.toISOString().split('T')[0]);
+    return availableDatesSet.has(formatLocalDate(day));
   }
 
   function isSameDay(d1: Date, d2: Date) {

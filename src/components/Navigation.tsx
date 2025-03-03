@@ -45,6 +45,13 @@ const navConfig = [
     icon: Activity,
     isActive: (path: string) => path.startsWith('/datalab'),
   },
+  { 
+    id: 'ecg-studies', 
+    path: '/ecg-studies', 
+    name: 'ECG Studies', 
+    icon: Activity,
+    isActive: (path: string) => path.startsWith('/ecg-studies') || path.startsWith('/ecg-viewer'),
+  },
 ];
 
 function Navigation() {
